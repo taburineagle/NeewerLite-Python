@@ -1,9 +1,9 @@
 #############################################################
-## Neweer-PyLite
+## Neewer-PyLite
 ## by Zach Glenwright
-##   > https://github.com/taburineagle/Neweer-PythonLite <
+##   > https://github.com/taburineagle/Neewer-PythonLite <
 #############################################################
-## Based on the NeweerLight project by @keefo (Xu Lian)
+## Based on the NeewerLight project by @keefo (Xu Lian)
 ##   > https://github.com/keefo/NeewerLite <
 #############################################################
 ## Animation parameters:
@@ -18,7 +18,7 @@
 ## 8 - Lightning Mode B
 ## 9 - Lightning Mode C
 #############################################################
-## Bytestring layout for Neweer light protocol
+## Bytestring layout for Neewer light protocol
 #############################################################
 ##              pfx   mode # of bytes in command
 ##              ----  ---  -
@@ -26,28 +26,44 @@
 ##      (hex) = 0x78 0x86 - HSL mode
 ##                   0x87 - CCT mode
 ##                   0x88 - ANM mode
-##                           ------------ - 
+##                           ------------ -
 ##                           data payload checksum
 #############################################################
 
 import sys
-from PySide2.QtWidgets import QApplication, QMainWindow
-from ui_NeweerLightUI import Ui_MainWindow
 
-sendValue = "" # an array to hold the values to be sent to the light
+try:
+    from winrt import _winrt
+    _winrt.uninit_apartment()
+except Exception as e:
+    pass # if there is an exception to this module loading, you're not on Windows
+
+import asyncio
+from bleak import BleakScanner, BleakClient
+from PySide2.QtWidgets import QApplication, QMainWindow
+from ui_NeewerLightUI import Ui_MainWindow
+
+sendValue = "" # an array to hold the values to be sent to the light - default to CCT, 5200K, 100%
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
+availableLights = []
+
+setLightUUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99"
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         QMainWindow.__init__(self)
         self.setupUi(self)
         self.connectMe()
+        self.computeValueCCT()
         self.show
 
     def connectMe(self):
+        self.sendCommandButton.clicked.connect(lambda: startSend(self.lightSelectorCombo.currentIndex()))
+        self.scanCommandButton.clicked.connect(self.startSelfSearch)
+
         self.Slider_CCT_Hue.valueChanged.connect(self.computeValueCCT)
         self.Slider_CCT_Bright.valueChanged.connect(self.computeValueCCT)
-        
+
         self.Slider_HSL_1_H.valueChanged.connect(self.computeValueHSL)
         self.Slider_HSL_2_S.valueChanged.connect(self.computeValueHSL)
         self.Slider_HSL_3_L.valueChanged.connect(self.computeValueHSL)
@@ -64,33 +80,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.Button_3_lightning_C.clicked.connect(lambda x: self.computeValueANM(9))
 
     def computeValueCCT(self):
+        self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
+        
         calculateByteString(colorMode="CCT",\
                             temp=str(int(self.Slider_CCT_Hue.value())),\
                             brightness=str(int(self.Slider_CCT_Bright.value())))
 
         self.statusBar.showMessage("Current value (CCT Mode): " + updateStatus())
-            
+
     def computeValueHSL(self):
         calculateByteString(colorMode="HSL",\
                             HSL_H=str(int(self.Slider_HSL_1_H.value())),\
                             HSL_S=str(int(self.Slider_HSL_2_S.value())),\
                             HSL_L=str(int(self.Slider_HSL_3_L.value())))
-       
+
         self.statusBar.showMessage("Current value (HSL Mode): " + updateStatus())
 
     def computeValueANM(self, buttonPressed):
         global lastAnimButtonPressed
-        
+
         if buttonPressed == 0:
             buttonPressed = lastAnimButtonPressed
         else:
             lastAnimButtonPressed = buttonPressed
-        
+
         calculateByteString(colorMode="ANM",\
                             brightness=str(int(self.Slider_ANM_Brightness.value())),\
                             animation=str(buttonPressed))
-        
+
         self.statusBar.showMessage("Current value (ANM Mode): " + updateStatus())
+
+    def startSelfSearch(self):
+        startSearch()
+
+        self.lightSelectorCombo.clear()
+
+        for a in availableLights:
+            self.lightSelectorCombo.addItem(a.address + " (" + a.name + ")")
 
 def updateStatus():
     currentHexString = ""
@@ -102,13 +128,13 @@ def updateStatus():
 
 def calculateByteString(**modeArgs):
     global sendValue
-    
+
     if modeArgs["colorMode"] == "CCT":
         # We're in CCT (color balance) mode
         sendValue = [120, 135, 2, 0, 0, 0]
 
-        sendValue[3] = int(modeArgs["temp"]) # the color temp value, ranging from 32(00K) to 56(00)K
-        sendValue[4] = int(modeArgs["brightness"]) # the brightness value
+        sendValue[3] = int(modeArgs["brightness"]) # the brightness value
+        sendValue[4] = int(modeArgs["temp"]) # the color temp value, ranging from 32(00K) to 56(00)K
         sendValue[5] = calculateChecksum(sendValue) # compute the checksum
     elif modeArgs["colorMode"] == "HSL":
         # We're in HSL (any color of the spectrum) mode
@@ -140,6 +166,48 @@ def calculateChecksum(sendValue):
 
     checkSum = checkSum & 255
     return checkSum
+
+def startSearch():
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(findDevices())
+
+def startSend(selectedLight):
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(sendCommand(selectedLight))
+
+async def findDevices():
+    global availableLights
+
+    availableLights = []
+    devices = await BleakScanner.discover()
+
+    for d in devices:
+        try:
+            d.name.index("NEEWER")
+        except ValueError:
+            pass
+        else:
+            availableLights.append(d)
+
+async def sendCommand(selectedLight):
+    client = BleakClient(availableLights[selectedLight])
+
+    try:
+        if not client.is_connected:
+            await client.connect()
+        else:
+            print("Device is already connected")
+    except Exception as e:
+        print("There was an error trying to connect")
+        print(e)
+
+    try:
+        await client.write_gatt_char(setLightUUID, bytearray(sendValue), False)
+    except Exception as e:
+        print("There was an error communicating with the light.")
+        print(e)
+    finally:
+        await client.disconnect()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

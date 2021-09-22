@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'NeweerLightUIdsdcbn.ui'
+## Form generated from reading UI file 'NeewerLightUIQOXbex.ui'
 ##
 ## Created by: Qt User Interface Compiler version 5.15.2
 ##
@@ -20,12 +20,9 @@ class Ui_MainWindow(object):
         MainWindow.resize(590, 310)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
-        self.lightMacAddressTF = QLineEdit(self.centralwidget)
-        self.lightMacAddressTF.setObjectName(u"lightMacAddressTF")
-        self.lightMacAddressTF.setGeometry(QRect(10, 10, 471, 25))
         self.sendCommandButton = QPushButton(self.centralwidget)
         self.sendCommandButton.setObjectName(u"sendCommandButton")
-        self.sendCommandButton.setGeometry(QRect(490, 10, 89, 25))
+        self.sendCommandButton.setGeometry(QRect(540, 10, 41, 25))
         self.ColorModeTabWidget = QTabWidget(self.centralwidget)
         self.ColorModeTabWidget.setObjectName(u"ColorModeTabWidget")
         self.ColorModeTabWidget.setGeometry(QRect(10, 60, 571, 211))
@@ -36,11 +33,11 @@ class Ui_MainWindow(object):
         self.Slider_CCT_Hue.setGeometry(QRect(10, 20, 551, 16))
         self.Slider_CCT_Hue.setMinimum(32)
         self.Slider_CCT_Hue.setMaximum(85)
-        self.Slider_CCT_Hue.setValue(52)
+        self.Slider_CCT_Hue.setValue(56)
         self.Slider_CCT_Hue.setOrientation(Qt.Horizontal)
         self.TFL_CCT_Hue = QLabel(self.CCT)
         self.TFL_CCT_Hue.setObjectName(u"TFL_CCT_Hue")
-        self.TFL_CCT_Hue.setGeometry(QRect(10, 40, 101, 17))
+        self.TFL_CCT_Hue.setGeometry(QRect(10, 40, 401, 17))
         self.TFV_CCT_Hue = QLabel(self.CCT)
         self.TFV_CCT_Hue.setObjectName(u"TFV_CCT_Hue")
         self.TFV_CCT_Hue.setGeometry(QRect(510, 40, 51, 20))
@@ -51,7 +48,7 @@ class Ui_MainWindow(object):
         self.TFV_CCT_Bright.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
         self.TFL_CCT_Bright = QLabel(self.CCT)
         self.TFL_CCT_Bright.setObjectName(u"TFL_CCT_Bright")
-        self.TFL_CCT_Bright.setGeometry(QRect(10, 90, 61, 17))
+        self.TFL_CCT_Bright.setGeometry(QRect(10, 90, 411, 17))
         self.Slider_CCT_Bright = QSlider(self.CCT)
         self.Slider_CCT_Bright.setObjectName(u"Slider_CCT_Bright")
         self.Slider_CCT_Bright.setGeometry(QRect(10, 70, 551, 16))
@@ -77,10 +74,10 @@ class Ui_MainWindow(object):
         self.TFV_HSL_2_S.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
         self.TFL_HSL_2_S = QLabel(self.HSL)
         self.TFL_HSL_2_S.setObjectName(u"TFL_HSL_2_S")
-        self.TFL_HSL_2_S.setGeometry(QRect(10, 90, 61, 17))
+        self.TFL_HSL_2_S.setGeometry(QRect(10, 90, 431, 17))
         self.TFL_HSL_1_H = QLabel(self.HSL)
         self.TFL_HSL_1_H.setObjectName(u"TFL_HSL_1_H")
-        self.TFL_HSL_1_H.setGeometry(QRect(10, 40, 31, 17))
+        self.TFL_HSL_1_H.setGeometry(QRect(10, 40, 411, 17))
         self.Slider_HSL_1_H = QSlider(self.HSL)
         self.Slider_HSL_1_H.setObjectName(u"Slider_HSL_1_H")
         self.Slider_HSL_1_H.setGeometry(QRect(10, 20, 551, 16))
@@ -89,7 +86,7 @@ class Ui_MainWindow(object):
         self.Slider_HSL_1_H.setOrientation(Qt.Horizontal)
         self.TFL_HSL_3_L = QLabel(self.HSL)
         self.TFL_HSL_3_L.setObjectName(u"TFL_HSL_3_L")
-        self.TFL_HSL_3_L.setGeometry(QRect(10, 140, 61, 17))
+        self.TFL_HSL_3_L.setGeometry(QRect(10, 140, 421, 17))
         self.Slider_HSL_3_L = QSlider(self.HSL)
         self.Slider_HSL_3_L.setObjectName(u"Slider_HSL_3_L")
         self.Slider_HSL_3_L.setGeometry(QRect(10, 120, 551, 16))
@@ -153,16 +150,18 @@ class Ui_MainWindow(object):
         self.TFV_ANM_Brightness.setGeometry(QRect(520, 40, 31, 20))
         self.TFV_ANM_Brightness.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
         self.ColorModeTabWidget.addTab(self.ANM, "")
-        self.sendConstantlyCheck = QCheckBox(self.centralwidget)
-        self.sendConstantlyCheck.setObjectName(u"sendConstantlyCheck")
-        self.sendConstantlyCheck.setGeometry(QRect(420, 40, 161, 17))
+        self.lightSelectorCombo = QComboBox(self.centralwidget)
+        self.lightSelectorCombo.setObjectName(u"lightSelectorCombo")
+        self.lightSelectorCombo.setGeometry(QRect(65, 10, 470, 25))
+        self.scanCommandButton = QPushButton(self.centralwidget)
+        self.scanCommandButton.setObjectName(u"scanCommandButton")
+        self.scanCommandButton.setGeometry(QRect(10, 10, 51, 25))
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusBar = QStatusBar(MainWindow)
         self.statusBar.setObjectName(u"statusBar")
         MainWindow.setStatusBar(self.statusBar)
 
         self.retranslateUi(MainWindow)
-        self.Slider_CCT_Hue.valueChanged.connect(self.TFV_CCT_Hue.setNum)
         self.Slider_CCT_Bright.valueChanged.connect(self.TFV_CCT_Bright.setNum)
         self.Slider_HSL_3_L.valueChanged.connect(self.TFV_HSL_3_L.setNum)
         self.Slider_HSL_2_S.valueChanged.connect(self.TFV_HSL_2_S.setNum)
@@ -176,10 +175,10 @@ class Ui_MainWindow(object):
     # setupUi
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NeweerLight-Python", None))
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NeewerLight-Python", None))
         self.sendCommandButton.setText(QCoreApplication.translate("MainWindow", u"Send!", None))
         self.TFL_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"Color Temperature", None))
-        self.TFV_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"52", None))
+        self.TFV_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"5600K", None))
         self.TFV_CCT_Bright.setText(QCoreApplication.translate("MainWindow", u"100", None))
         self.TFL_CCT_Bright.setText(QCoreApplication.translate("MainWindow", u"Brightness", None))
         self.ColorModeTabWidget.setTabText(self.ColorModeTabWidget.indexOf(self.CCT), QCoreApplication.translate("MainWindow", u"CCT Mode", None))
@@ -205,6 +204,6 @@ class Ui_MainWindow(object):
         self.TFL_ANM_Brightness.setText(QCoreApplication.translate("MainWindow", u"Brightness", None))
         self.TFV_ANM_Brightness.setText(QCoreApplication.translate("MainWindow", u"100", None))
         self.ColorModeTabWidget.setTabText(self.ColorModeTabWidget.indexOf(self.ANM), QCoreApplication.translate("MainWindow", u"Animation Mode / Power", None))
-        self.sendConstantlyCheck.setText(QCoreApplication.translate("MainWindow", u"Send Command Continuously", None))
+        self.scanCommandButton.setText(QCoreApplication.translate("MainWindow", u"Scan", None))
     # retranslateUi
 
