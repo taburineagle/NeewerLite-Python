@@ -43,7 +43,7 @@ from bleak import BleakScanner, BleakClient
 from PySide2.QtWidgets import QApplication, QMainWindow
 from ui_NeewerLightUI import Ui_MainWindow
 
-sendValue = "" # an array to hold the values to be sent to the light - default to CCT, 5200K, 100%
+sendValue = "" # an array to hold the values to be sent to the light - default to CCT, 5600K, 100%
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
 availableLights = []
 
@@ -60,6 +60,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def connectMe(self):
         self.sendCommandButton.clicked.connect(lambda: startSend(self.lightSelectorCombo.currentIndex()))
         self.scanCommandButton.clicked.connect(self.startSelfSearch)
+        
+        self.ColorModeTabWidget.currentChanged.connect(self.autoComputeValue)
 
         self.Slider_CCT_Hue.valueChanged.connect(self.computeValueCCT)
         self.Slider_CCT_Bright.valueChanged.connect(self.computeValueCCT)
@@ -78,6 +80,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.Button_3_lightning_A.clicked.connect(lambda x: self.computeValueANM(7))
         self.Button_3_lightning_B.clicked.connect(lambda x: self.computeValueANM(8))
         self.Button_3_lightning_C.clicked.connect(lambda x: self.computeValueANM(9))
+
+    def autoComputeValue(self, i):
+        if i == 0:
+        	self.computeValueCCT() # calculate the current CCT value
+        elif i == 1:
+        	self.computeValueHSL() # calculate the current HSL value
+        elif i == 2:
+        	self.computeValueANM(lastAnimButtonPressed) # calculate the current ANM value, based on the last button pressed
 
     def computeValueCCT(self):
         self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
@@ -102,6 +112,46 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if buttonPressed == 0:
             buttonPressed = lastAnimButtonPressed
         else:
+            # CHANGE THE OLD BUTTON COLOR BACK TO THE DEFAULT COLOR
+            if lastAnimButtonPressed == 1:
+                self.Button_1_police_A.setStyleSheet("background-color : None")
+            elif lastAnimButtonPressed == 2:
+                self.Button_1_police_B.setStyleSheet("background-color : None")
+            elif lastAnimButtonPressed == 3:
+                self.Button_1_police_C.setStyleSheet("background-color : None")
+            elif lastAnimButtonPressed == 4:
+                self.Button_2_party_A.setStyleSheet("background-color : None")
+            elif lastAnimButtonPressed == 5:
+                self.Button_2_party_B.setStyleSheet("background-color : None")
+            elif lastAnimButtonPressed == 6:    
+                self.Button_2_party_C.setStyleSheet("background-color : None")
+            elif lastAnimButtonPressed == 7:
+                self.Button_3_lightning_A.setStyleSheet("background-color : None")
+            elif lastAnimButtonPressed == 8:
+                self.Button_3_lightning_B.setStyleSheet("background-color : None")
+            elif lastAnimButtonPressed == 9:
+                self.Button_3_lightning_C.setStyleSheet("background-color : None")
+                
+            # CHANGE THE NEW BUTTON COLOR TO GREEN TO SHOW WHICH ANIMATION WE'RE CURRENTLY ON
+            if buttonPressed == 1:
+                self.Button_1_police_A.setStyleSheet("background-color : aquamarine")
+            elif buttonPressed == 2:
+                self.Button_1_police_B.setStyleSheet("background-color : aquamarine")
+            elif buttonPressed == 3:
+                self.Button_1_police_C.setStyleSheet("background-color : aquamarine")
+            elif buttonPressed == 4:
+                self.Button_2_party_A.setStyleSheet("background-color : aquamarine")
+            elif buttonPressed == 5:
+                self.Button_2_party_B.setStyleSheet("background-color : aquamarine")
+            elif buttonPressed == 6:    
+                self.Button_2_party_C.setStyleSheet("background-color : aquamarine")
+            elif buttonPressed == 7:
+                self.Button_3_lightning_A.setStyleSheet("background-color : aquamarine")
+            elif buttonPressed == 8:
+                self.Button_3_lightning_B.setStyleSheet("background-color : aquamarine")
+            elif buttonPressed == 9:
+                self.Button_3_lightning_C.setStyleSheet("background-color : aquamarine")
+            
             lastAnimButtonPressed = buttonPressed
 
         calculateByteString(colorMode="ANM",\
@@ -114,6 +164,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         startSearch()
 
         self.lightSelectorCombo.clear()
+
+        if len(availableLights) == 0: # if we return no results, then don't allow sending commands
+            self.sendCommandButton.setEnabled(False)
+        else:
+            self.sendCommandButton.setEnabled(True)
 
         for a in availableLights:
             self.lightSelectorCombo.addItem(a.address + " (" + a.name + ")")
