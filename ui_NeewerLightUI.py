@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'NeewerLightUIPPogsG.ui'
+## Form generated from reading UI file 'NeewerLightUIXvrXHY.ui'
 ##
 ## Created by: Qt User Interface Compiler version 5.15.2
 ##
@@ -17,16 +17,16 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(590, 310)
+        MainWindow.resize(590, 521)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
-        self.sendCommandButton = QPushButton(self.centralwidget)
-        self.sendCommandButton.setObjectName(u"sendCommandButton")
-        self.sendCommandButton.setEnabled(False)
-        self.sendCommandButton.setGeometry(QRect(540, 10, 41, 25))
+        self.tryConnectButton = QPushButton(self.centralwidget)
+        self.tryConnectButton.setObjectName(u"tryConnectButton")
+        self.tryConnectButton.setEnabled(False)
+        self.tryConnectButton.setGeometry(QRect(500, 4, 81, 22))
         self.ColorModeTabWidget = QTabWidget(self.centralwidget)
         self.ColorModeTabWidget.setObjectName(u"ColorModeTabWidget")
-        self.ColorModeTabWidget.setGeometry(QRect(10, 40, 571, 241))
+        self.ColorModeTabWidget.setGeometry(QRect(10, 300, 571, 201))
         self.CCT = QWidget()
         self.CCT.setObjectName(u"CCT")
         self.Slider_CCT_Hue = QSlider(self.CCT)
@@ -71,7 +71,7 @@ class Ui_MainWindow(object):
     
         mySceneCCT.setBackgroundBrush(gradient)
         
-        self.CCT_Temp_Gradient_BG = QGraphicsView(mySceneCCT, self.CCT)
+        self.CCT_Temp_Gradient_BG = QGraphicsView(mySceneCCT, self.CCT)        
         self.CCT_Temp_Gradient_BG.setObjectName(u"CCT_Temp_Gradient_BG")
         self.CCT_Temp_Gradient_BG.setGeometry(QRect(9, 10, 552, 31))
         self.CCT_Temp_Gradient_BG.setFrameShape(QFrame.NoFrame)
@@ -141,7 +141,7 @@ class Ui_MainWindow(object):
     
         mySceneHSL.setBackgroundBrush(gradient)
         
-        self.HSL_Hue_Gradient_BG = QGraphicsView(mySceneHSL, self.HSL)
+        self.HSL_Hue_Gradient_BG = QGraphicsView(mySceneHSL, self.HSL)        
         self.HSL_Hue_Gradient_BG.setObjectName(u"HSL_Hue_Gradient_BG")
         self.HSL_Hue_Gradient_BG.setGeometry(QRect(9, 10, 552, 31))
         self.HSL_Hue_Gradient_BG.setFrameShape(QFrame.NoFrame)
@@ -210,12 +210,40 @@ class Ui_MainWindow(object):
         self.TFV_ANM_Brightness.setGeometry(QRect(520, 40, 31, 20))
         self.TFV_ANM_Brightness.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
         self.ColorModeTabWidget.addTab(self.ANM, "")
-        self.lightSelectorCombo = QComboBox(self.centralwidget)
-        self.lightSelectorCombo.setObjectName(u"lightSelectorCombo")
-        self.lightSelectorCombo.setGeometry(QRect(65, 10, 470, 25))
         self.scanCommandButton = QPushButton(self.centralwidget)
         self.scanCommandButton.setObjectName(u"scanCommandButton")
-        self.scanCommandButton.setGeometry(QRect(10, 10, 51, 25))
+        self.scanCommandButton.setGeometry(QRect(416, 4, 81, 22))
+        self.lightTable = QTableWidget(self.centralwidget)
+        if (self.lightTable.columnCount() < 4):
+            self.lightTable.setColumnCount(4)
+        __qtablewidgetitem = QTableWidgetItem()
+        self.lightTable.setHorizontalHeaderItem(0, __qtablewidgetitem)
+        __qtablewidgetitem1 = QTableWidgetItem()
+        self.lightTable.setHorizontalHeaderItem(1, __qtablewidgetitem1)
+        __qtablewidgetitem2 = QTableWidgetItem()
+        self.lightTable.setHorizontalHeaderItem(2, __qtablewidgetitem2)
+        __qtablewidgetitem3 = QTableWidgetItem()
+        self.lightTable.setHorizontalHeaderItem(3, __qtablewidgetitem3)
+        self.lightTable.setObjectName(u"lightTable")
+        self.lightTable.setGeometry(QRect(10, 32, 571, 261))
+        self.lightTable.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
+        self.lightTable.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.lightTable.setAlternatingRowColors(True)
+        self.lightTable.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.lightTable.setColumnCount(4)
+        self.lightTable.setColumnWidth(0, 120)
+        self.lightTable.setColumnWidth(1, 160)
+        self.lightTable.setColumnWidth(2, 70)
+        self.lightTable.setColumnWidth(3, 204)
+        self.lightTable.verticalHeader().setStretchLastSection(False)
+        self.lightTableTF = QLabel(self.centralwidget)
+        self.lightTableTF.setObjectName(u"lightTableTF")
+        self.lightTableTF.setGeometry(QRect(14, 8, 391, 16))
+        font = QFont()
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
+        self.lightTableTF.setFont(font)
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusBar = QStatusBar(MainWindow)
         self.statusBar.setObjectName(u"statusBar")
@@ -235,8 +263,8 @@ class Ui_MainWindow(object):
     # setupUi
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NeewerLight-Python", None))
-        self.sendCommandButton.setText(QCoreApplication.translate("MainWindow", u"Send!", None))
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NeewerLite-Python 0.01a by Zach Glenwright", None))
+        self.tryConnectButton.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.TFL_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"Color Temperature", None))
         self.TFV_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"5600K", None))
         self.TFV_CCT_Bright.setText(QCoreApplication.translate("MainWindow", u"100", None))
@@ -246,7 +274,7 @@ class Ui_MainWindow(object):
         self.TFV_HSL_2_S.setText(QCoreApplication.translate("MainWindow", u"100", None))
         self.TFL_HSL_2_S.setText(QCoreApplication.translate("MainWindow", u"Saturation", None))
         self.TFL_HSL_1_H.setText(QCoreApplication.translate("MainWindow", u"Hue", None))
-        self.TFL_HSL_3_L.setText(QCoreApplication.translate("MainWindow", u"Brightness", None))
+        self.TFL_HSL_3_L.setText(QCoreApplication.translate("MainWindow", u"Luminance (Brightness)", None))
         self.TFV_HSL_3_L.setText(QCoreApplication.translate("MainWindow", u"100", None))
         self.ColorModeTabWidget.setTabText(self.ColorModeTabWidget.indexOf(self.HSL), QCoreApplication.translate("MainWindow", u"HSL Mode", None))
         self.TFL_A_policeAnim.setText(QCoreApplication.translate("MainWindow", u"<html><head/><body><p><font size=\"8\">&#x1F6A8;</font></p></body></html>", None))
@@ -265,5 +293,14 @@ class Ui_MainWindow(object):
         self.TFV_ANM_Brightness.setText(QCoreApplication.translate("MainWindow", u"100", None))
         self.ColorModeTabWidget.setTabText(self.ColorModeTabWidget.indexOf(self.ANM), QCoreApplication.translate("MainWindow", u"Animation Mode / Power", None))
         self.scanCommandButton.setText(QCoreApplication.translate("MainWindow", u"Scan", None))
+        ___qtablewidgetitem = self.lightTable.horizontalHeaderItem(0)
+        ___qtablewidgetitem.setText(QCoreApplication.translate("MainWindow", u"Light Name", None));
+        ___qtablewidgetitem1 = self.lightTable.horizontalHeaderItem(1)
+        ___qtablewidgetitem1.setText(QCoreApplication.translate("MainWindow", u"MAC Address", None));
+        ___qtablewidgetitem2 = self.lightTable.horizontalHeaderItem(2)
+        ___qtablewidgetitem2.setText(QCoreApplication.translate("MainWindow", u"Linked", None));
+        ___qtablewidgetitem3 = self.lightTable.horizontalHeaderItem(3)
+        ___qtablewidgetitem3.setText(QCoreApplication.translate("MainWindow", u"Status", None));
+        self.lightTableTF.setText(QCoreApplication.translate("MainWindow", u"Available Neewer Lights to Control:", None))
     # retranslateUi
 
