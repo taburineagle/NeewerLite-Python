@@ -145,7 +145,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif i == 1:
         	self.computeValueHSL() # calculate the current HSL value
         elif i == 2:
-        	self.computeValueANM(lastAnimButtonPressed) # calculate the current ANM value, based on the last button pressed
+            pass
+            # TURNED THIS OFF SO THE ANIMATION DOESN'T IMMEDIATELY TRIGGER WHEN GOING TO THIS PAGE
+        	# self.computeValueANM(lastAnimButtonPressed) # calculate the current ANM value, based on the last button pressed
 
     # COMPUTE A BYTESTRING FOR THE CCT SECTION
     def computeValueCCT(self):
