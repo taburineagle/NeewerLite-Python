@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'NeewerLightUIXvrXHY.ui'
+## Form generated from reading UI file 'NeewerLightUIzTWPrP.ui'
 ##
 ## Created by: Qt User Interface Compiler version 5.15.2
 ##
@@ -115,7 +115,7 @@ class Ui_MainWindow(object):
         self.Slider_HSL_1_H.setOrientation(Qt.Horizontal)
         self.TFL_HSL_3_L = QLabel(self.HSL)
         self.TFL_HSL_3_L.setObjectName(u"TFL_HSL_3_L")
-        self.TFL_HSL_3_L.setGeometry(QRect(10, 140, 440, 17))
+        self.TFL_HSL_3_L.setGeometry(QRect(10, 140, 481, 17))
         self.Slider_HSL_3_L = QSlider(self.HSL)
         self.Slider_HSL_3_L.setObjectName(u"Slider_HSL_3_L")
         self.Slider_HSL_3_L.setGeometry(QRect(10, 120, 551, 16))
@@ -209,6 +209,12 @@ class Ui_MainWindow(object):
         self.TFV_ANM_Brightness.setObjectName(u"TFV_ANM_Brightness")
         self.TFV_ANM_Brightness.setGeometry(QRect(520, 40, 31, 20))
         self.TFV_ANM_Brightness.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.turnOnButton = QPushButton(self.ANM)
+        self.turnOnButton.setObjectName(u"turnOnButton")
+        self.turnOnButton.setGeometry(QRect(260, 100, 111, 41))
+        self.turnOffButton = QPushButton(self.ANM)
+        self.turnOffButton.setObjectName(u"turnOffButton")
+        self.turnOffButton.setGeometry(QRect(400, 100, 111, 41))
         self.ColorModeTabWidget.addTab(self.ANM, "")
         self.scanCommandButton = QPushButton(self.centralwidget)
         self.scanCommandButton.setObjectName(u"scanCommandButton")
@@ -263,7 +269,7 @@ class Ui_MainWindow(object):
     # setupUi
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NeewerLite-Python 0.01a by Zach Glenwright", None))
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NeewerLite-Python 0.02a by Zach Glenwright", None))
         self.tryConnectButton.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.TFL_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"Color Temperature", None))
         self.TFV_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"5600K", None))
@@ -291,6 +297,8 @@ class Ui_MainWindow(object):
         self.Button_2_party_C.setText(QCoreApplication.translate("MainWindow", u"C", None))
         self.TFL_ANM_Brightness.setText(QCoreApplication.translate("MainWindow", u"Brightness", None))
         self.TFV_ANM_Brightness.setText(QCoreApplication.translate("MainWindow", u"100", None))
+        self.turnOnButton.setText(QCoreApplication.translate("MainWindow", u"Turn On", None))
+        self.turnOffButton.setText(QCoreApplication.translate("MainWindow", u"Turn Off", None))
         self.ColorModeTabWidget.setTabText(self.ColorModeTabWidget.indexOf(self.ANM), QCoreApplication.translate("MainWindow", u"Animation Mode / Power", None))
         self.scanCommandButton.setText(QCoreApplication.translate("MainWindow", u"Scan", None))
         ___qtablewidgetitem = self.lightTable.horizontalHeaderItem(0)

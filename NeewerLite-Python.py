@@ -1,5 +1,5 @@
 #############################################################
-## Neewer-PyLite
+## NeewerLite-Python
 ## by Zach Glenwright
 #############################################################
 ##   > https://github.com/taburineagle/Neewer-PythonLite <
@@ -73,7 +73,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.Slider_HSL_2_S.valueChanged.connect(self.computeValueHSL)
         self.Slider_HSL_3_L.valueChanged.connect(self.computeValueHSL)
 
-        self.Slider_ANM_Brightness.valueChanged.connect(lambda: self.computeValueANM(0))
+        self.Slider_ANM_Brightness.valueChanged.connect(self.computeValueANM(0))
         self.Button_1_police_A.clicked.connect(lambda: self.computeValueANM(1))
         self.Button_1_police_B.clicked.connect(lambda: self.computeValueANM(2))
         self.Button_1_police_C.clicked.connect(lambda: self.computeValueANM(3))
@@ -83,6 +83,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.Button_3_lightning_A.clicked.connect(lambda: self.computeValueANM(7))
         self.Button_3_lightning_B.clicked.connect(lambda: self.computeValueANM(8))
         self.Button_3_lightning_C.clicked.connect(lambda: self.computeValueANM(9))
+
+        self.turnOnButton.clicked.connect(self.turnLightOn)
+        self.turnOffButton.clicked.connect(self.turnLightOff)
 
     # CHECK TO SEE WHETHER OR NOT TO ENABLE/DISABLE THE "Connect" BUTTON
     def checkConnect(self):
@@ -221,6 +224,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.statusBar.showMessage("Current value (ANM Mode): " + updateStatus())
         self.startSend()
 
+    def turnLightOn(self):
+        global sendValue
+        sendValue = [120, 129, 1, 1, 251]
+        self.statusBar.showMessage("Turning light on")
+        self.startSend()
+                  
+    def turnLightOff(self):
+        global sendValue
+        sendValue = [120, 129, 1, 2, 252]
+        self.statusBar.showMessage("Turning light off")
+        self.startSend()
+
     # ==============================================================
     # FUNCTIONS TO RETURN / MODIFY VALUES RUNNING IN THE GUI
     # ==============================================================
@@ -316,12 +331,6 @@ def calculateByteString(**modeArgs):
         sendValue[3] = int(modeArgs["brightness"]) # brightness value
         sendValue[4] = int(modeArgs["animation"]) # the number of animation you're going to run (check comments above)
         sendValue[5] = calculateChecksum(sendValue) # compute the checksum
-    
-    # TODO: implement the power on/off settings here:
-    elif modeArgs["colorMode"] == "LIGHT_ON":        
-        sendValue = [120, 129, 1, 1, 251]
-    elif modeArgs["colorMode"] == "LIGHT_OFF":
-        sendValue = [120, 129, 1, 2, 252]
     else:        
         sendValue = [0]
 
