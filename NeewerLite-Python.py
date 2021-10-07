@@ -73,7 +73,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.Slider_HSL_2_S.valueChanged.connect(self.computeValueHSL)
         self.Slider_HSL_3_L.valueChanged.connect(self.computeValueHSL)
 
-        self.Slider_ANM_Brightness.valueChanged.connect(self.computeValueANM(0))
+        self.Slider_ANM_Brightness.valueChanged.connect(lambda: self.computeValueANM(0))
         self.Button_1_police_A.clicked.connect(lambda: self.computeValueANM(1))
         self.Button_1_police_B.clicked.connect(lambda: self.computeValueANM(2))
         self.Button_1_police_C.clicked.connect(lambda: self.computeValueANM(3))
