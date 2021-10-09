@@ -14,6 +14,7 @@
 #############################################################
 
 import sys
+import argparse
 
 try:
     from winrt import _winrt
@@ -145,10 +146,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif i == 1:
         	self.computeValueHSL() # calculate the current HSL value
         elif i == 2:
-            pass
-            # TURNED THIS OFF SO THE ANIMATION DOESN'T IMMEDIATELY TRIGGER WHEN GOING TO THIS PAGE
-        	# self.computeValueANM(lastAnimButtonPressed) # calculate the current ANM value, based on the last button pressed
-
+            pass # we don't want the animation automatically triggering when we go to this page
+          
     # COMPUTE A BYTESTRING FOR THE CCT SECTION
     def computeValueCCT(self):
         self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
@@ -295,6 +294,61 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             loop.run_until_complete(disconnectFromLight(a)) # disconnect from each light, one at a time
 
         printDebugString("Closing the program NOW")
+    
+    # SET UP THE GUI BASED ON COMMAND LINE ARGUMENTS
+    def setUpGUI(self, **modeArgs):
+        if modeArgs["colorMode"] == "CCT":
+            self.ColorModeTabWidget.setCurrentIndex(0)
+
+            theBri = testValid("bri", modeArgs["brightness"], 100, 0, 100)
+            
+            if len(modeArgs["temp"]) > 1: # if the temp is at least a valid string (the string has more than one character)
+                theTemp = testValid("temp", modeArgs["temp"][:2], 52, 32, 85)
+            else: # the string has only one character in it, so it's not valid
+                printDebugString(" >> error with --temp specified (not enough digits or not a number), so falling back to default value")
+                theTemp = 52
+            
+            self.Slider_CCT_Hue.setValue(theTemp)
+            self.Slider_CCT_Bright.setValue(theBri)
+
+            self.computeValueCCT()
+        elif modeArgs["colorMode"] == "HSL":
+            self.ColorModeTabWidget.setCurrentIndex(1)
+
+            theHue = testValid("hue", modeArgs["hue"], 240, 0, 360)
+            theSat = testValid("sat", modeArgs["sat"], 100, 0, 100)
+            theBri = testValid("bri", modeArgs["brightness"], 100, 0, 100)
+
+            self.Slider_HSL_1_H.setValue(theHue)
+            self.Slider_HSL_2_S.setValue(theSat)
+            self.Slider_HSL_3_L.setValue(theBri)
+            
+            self.computeValueHSL()
+        elif modeArgs["colorMode"] == "ANM":
+            self.ColorModeTabWidget.setCurrentIndex(2)
+
+            theScene = testValid("scene", modeArgs["scene"], 1, 1, 9)
+            theBri = testValid("bri", modeArgs["brightness"], 100, 0, 100)
+
+            self.Slider_ANM_Brightness.setValue(theBri)
+            self.computeValueANM(theScene)
+
+def testValid(theParam, theValue, defaultValue, startBounds, endBounds):
+    try: # try converting the string into an integer and processing the bounds
+        theValue = int(theValue) # the value is assumed to be within the bounds, so we check it...
+
+        if theValue < startBounds or theValue > endBounds: # the value is not within bounds, so there's an error
+            printDebugString(" >> --" + theParam + " specified isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to default value")
+
+            if theValue < startBounds: # if the value specified is below the starting boundary, make it the starting boundary
+                theValue = startBounds
+            elif theValue > endBounds: # if the value specified is above the ending boundary, make it the ending boundary
+                theValue = endBounds
+        
+        return theValue # return the within-bounds value
+    except ValueError: # if the string can not be converted, then return the defaultValue
+        printDebugString(" >> --" + theParam + " specified is not a number - falling back to default value of " + str(defaultValue))
+        return defaultValue # return the default value
 
 # PRINT A DEBUG STRING TO THE CONSOLE, ALONG WITH THE CURRENT TIME
 def printDebugString(theString):
@@ -494,14 +548,86 @@ def workerThread(_loop):
         elif threadAction == "send":
             threadAction = _loop.run_until_complete(writeToLight()) # write a value to the light(s) - the selectedLights() section is in the write loop itself for responsiveness
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    mainWindow = MainWindow()
-    mainWindow.show()
+def processCommands():
+    # DELETE ANY INVALID ARGUMENTS FROM THE COMMAND LINE BEFORE RUNNING THE ARGUMENT PARSER
+    # TO CLEAN UP THE ARGUMENT LIST TO ENSURE THE PARSER CAN STILL RUN WHEN INVALID ARGUMENTS ARE PRESENT
+    acceptable_arguments = ["--cli", "--silent", "--light", "--mode", "--temp", "--hue", 
+    "--sat", "--bri", "--luminance", "--scene", "--animation", "--help"]
 
-    loop = asyncio.get_event_loop()
-    workerThread = threading.Thread(target=workerThread, args=(loop,), name="workerThread")
-    workerThread.start()
+    for a in range(len(sys.argv) - 1, 0, -1):
+        if not any(x in sys.argv[a] for x in acceptable_arguments): # if the current argument is invalid
+            if sys.argv[a] != "-h": # and the argument isn't "-h" (for help)
+                sys.argv.pop(a) # delete the invalid argument from the list
+ 
+    # PARSE THE ARGUMENT LIST FOR CUSTOM PARAMETERS
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cli", action="store_false", help="Don't show the GUI at all, just send command and quit")
+    parser.add_argument("--silent", action="store_false", help="Don't show any debug information in the console")
+    parser.add_argument("--light", default="", help="The MAC Address (XX:XX:XX:XX:XX:XX) of the light you want to send a command to or ALL to find and control all lights (only valid when also using --cli switch)")
+    parser.add_argument("--mode", default="CCT", help="[DEFAULT: CCT] The current control mode - options are HSL, CCT and either ANM or SCENE")
+    parser.add_argument("--temp", "--temperature", default="5200K", help="[DEFAULT: 5200K] (CCT mode) - the color temperature (3200K+) to set the light to")
+    parser.add_argument("--hue", default="240", help="[DEFAULT: 240] (HSL mode) - the hue (0-360 degrees) to set the light to")
+    parser.add_argument("--sat", "--saturation", default="100", help="[DEFAULT: 100] (HSL mode) The saturation (color intensity) to set the light to")
+    parser.add_argument("--bri", "--brightness", "--luminance", default="100", help="[DEFAULT: 100] (CCT/HSL/ANM mode) The brightness (luminance) to set the light to")
+    parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation (1-9) to use in Scene mode")
+    args = parser.parse_args()
+
+    # RETURN LIST FORMAT:
+    #          [GUI/CLI, WRITE CONSOLE, LIGHT MAC ADDRESS, MODE, (MODE PARAMS)]
+
+    if args.mode == "CCT":
+        return [args.cli, args.silent, args.light, args.mode, args.temp, args.bri]
+    elif args.mode == "HSL":
+        return [args.cli, args.silent, args.light, args.mode, args.hue, args.sat, args.bri]
+    elif args.mode in ("ANM", "SCENE"):
+        return [args.cli, args.silent, args.light, "ANM", args.scene, args.bri]
+    else:
+        print ("Improper mode selected with --mode command - valid entries are CCT, HSL or either ANM or SCENE")
+        sys.exit(0)
+
+if __name__ == '__main__':
+    cmdReturn = [True] # initially set to show the GUI interface over the CLI interface
+
+    if len(sys.argv) > 1: # if we have more than 1 argument on the command line (the script itself is argument 1), then process switches
+        cmdReturn = processCommands()
+        printDebug = cmdReturn[1] # if we use the --quiet option, then don't show debug strings in the console
+
+        printDebugString("Starting program with command-line arguments:")
+        printDebugString(" > Launch GUI: " + str(cmdReturn[0]))
+        printDebugString(" > Show Debug Strings on Console: " + str(cmdReturn[1]))
+        printDebugString(" > Light MAC Address (only valid in NON-GUI mode): " + cmdReturn[2])
+             
+    if cmdReturn[0] == True:
+        app = QApplication(sys.argv)
+        mainWindow = MainWindow()
+
+        # SET UP GUI BASED ON COMMAND LINE ARGUMENTS
+        if len(cmdReturn) > 1:
+            printDebugString(" > Current Mode: " + cmdReturn[3])
+
+            if cmdReturn[3] == "CCT": # set up the GUI in CCT mode with specified parameters (or default, if none)
+                printDebugString(" > Color Temperature: " + cmdReturn[4])
+                printDebugString(" > Brightness: " + cmdReturn[5])
+                mainWindow.setUpGUI(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
+            elif cmdReturn[3] == "HSL": # set up the GUI in HSL mode with specified parameters (or default, if none)
+                printDebugString(" > Hue: " + cmdReturn[4])
+                printDebugString(" > Saturation: " + cmdReturn[5])
+                printDebugString(" > Brightness: " + cmdReturn[6])
+                mainWindow.setUpGUI(colorMode=cmdReturn[3], hue=cmdReturn[4], sat=cmdReturn[5], brightness=cmdReturn[6])
+            elif cmdReturn[3] == "ANM": # set up the GUI in ANM mode with specified parameters (or default, if none)
+                printDebugString(" > Scene: " + cmdReturn[4])
+                printDebugString(" > Brightness: " + cmdReturn[5])
+                mainWindow.setUpGUI(colorMode=cmdReturn[3], scene=cmdReturn[4], brightness=cmdReturn[5])
+                       
+        mainWindow.show()
+        
+        # START THE BACKGROUND THREAD
+        loop = asyncio.get_event_loop()
+        workerThread = threading.Thread(target=workerThread, args=(loop,), name="workerThread")
+        workerThread.start()
        
-    ret = app.exec_()    
-    sys.exit( ret )
+        ret = app.exec_()    
+        sys.exit( ret )
+    else:
+        # TODO: FIND THE LIGHT, PAIR TO IT, AND SEND THE INFORMATION, THEN QUIT OUT
+        sys.exit(0)
