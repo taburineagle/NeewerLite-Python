@@ -39,6 +39,8 @@ availableLights = [] # the list of Neewer lights currently available to control 
 threadAction = "" # the current action to take from the thread
 setLightUUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99" # the UUID to send information to the light
 
+maxNumOfAttempts = 6 # the maximum attempts CLI mode will attempt before quitting out
+
 # FOR TESTING PURPOSES
 startup_findLights = True # whether or not to look for lights when the program starts
 startup_connectLights = True # whether or not to auto-connect to lights after finding them
@@ -300,49 +302,41 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if modeArgs["colorMode"] == "CCT":
             self.ColorModeTabWidget.setCurrentIndex(0)
 
-            theBri = testValid("bri", modeArgs["brightness"], 100, 0, 100)
-            
-            if len(modeArgs["temp"]) > 1: # if the temp is at least a valid string (the string has more than one character)
-                theTemp = testValid("temp", modeArgs["temp"][:2], 52, 32, 85)
-            else: # the string has only one character in it, so it's not valid
-                printDebugString(" >> error with --temp specified (not enough digits or not a number), so falling back to default value")
-                theTemp = 52
-            
-            self.Slider_CCT_Hue.setValue(theTemp)
-            self.Slider_CCT_Bright.setValue(theBri)
+            self.Slider_CCT_Hue.setValue(modeArgs["temp"])
+            self.Slider_CCT_Bright.setValue(modeArgs["brightness"])
 
             self.computeValueCCT()
         elif modeArgs["colorMode"] == "HSL":
             self.ColorModeTabWidget.setCurrentIndex(1)
 
-            theHue = testValid("hue", modeArgs["hue"], 240, 0, 360)
-            theSat = testValid("sat", modeArgs["sat"], 100, 0, 100)
-            theBri = testValid("bri", modeArgs["brightness"], 100, 0, 100)
-
-            self.Slider_HSL_1_H.setValue(theHue)
-            self.Slider_HSL_2_S.setValue(theSat)
-            self.Slider_HSL_3_L.setValue(theBri)
+            self.Slider_HSL_1_H.setValue(modeArgs["hue"])
+            self.Slider_HSL_2_S.setValue(modeArgs["sat"])
+            self.Slider_HSL_3_L.setValue(modeArgs["brightness"])
             
             self.computeValueHSL()
         elif modeArgs["colorMode"] == "ANM":
             self.ColorModeTabWidget.setCurrentIndex(2)
 
-            theScene = testValid("scene", modeArgs["scene"], 1, 1, 9)
-            theBri = testValid("bri", modeArgs["brightness"], 100, 0, 100)
-
-            self.Slider_ANM_Brightness.setValue(theBri)
-            self.computeValueANM(theScene)
+            self.Slider_ANM_Brightness.setValue(modeArgs["brightness"])
+            self.computeValueANM(modeArgs["scene"])
 
 def testValid(theParam, theValue, defaultValue, startBounds, endBounds):
+    if theParam == "temp":
+        if len(theValue) > 1: # if the temp has at least 2 characters in it
+            theValue = theValue[:2] # take the first 2 characters of the string to convert into int
+        else: # it either doesn't have enough characters, or isn't a number
+            printDebugString(" >> error with --temp specified (not enough digits or not a number), so falling back to default value of " + str(defaultValue))
+            theValue = defaultValue # default to 56(00)K for color temperature
+
     try: # try converting the string into an integer and processing the bounds
         theValue = int(theValue) # the value is assumed to be within the bounds, so we check it...
 
         if theValue < startBounds or theValue > endBounds: # the value is not within bounds, so there's an error
-            printDebugString(" >> --" + theParam + " specified isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to default value")
-
             if theValue < startBounds: # if the value specified is below the starting boundary, make it the starting boundary
+                printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to closest boundary of " + str(startBounds))
                 theValue = startBounds
             elif theValue > endBounds: # if the value specified is above the ending boundary, make it the ending boundary
+                printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to closest boundary of " + str(endBounds))
                 theValue = endBounds
         
         return theValue # return the within-bounds value
@@ -449,75 +443,120 @@ async def findDevices():
     return "" # once the device scan is over, set the threadAction to nothing
 
 # CONNECT (LINK) TO A LIGHT
-async def connectToLight(selectedLight):
+async def connectToLight(selectedLight, updateGUI=True):
     global availableLights
+    returnValue = "" # the value to return to the thread (in GUI mode, a string) or True/False (in CLI mode, a boolean value)
 
     printDebugString("Attempting to link to light " + str(selectedLight))
 
     # FILL THE [1] ELEMENT OF THE availableLights ARRAY WITH THE BLEAK CONNECTION
     if availableLights[selectedLight][1] == "":
         availableLights[selectedLight][1] = BleakClient(availableLights[selectedLight][0])
+        await asyncio.sleep(0.25) # wait just a short time before trying to connect
 
     try:
         if not availableLights[selectedLight][1].is_connected: # if the current device isn't linked to Bluetooth
             await availableLights[selectedLight][1].connect() # try connecting it
-            printDebugString("Successfully linked to light " + str(selectedLight))
-            mainWindow.setTheTable(["", "", "Yes", "Waiting to send..."], selectedLight) # if it's successful, show that in the table
-        else:
-            printDebugString("Light " + str(selectedLight) + " is already linked, so not trying to re-link")
-            mainWindow.setTheTable(["", "", "Yes", "Light is already linked!\nWaiting to send..."], selectedLight) # the device is *already* linked, so show that
     except Exception as e:
         printDebugString("Error linking to light " + str(selectedLight))
         print(e)
-        mainWindow.setTheTable(["", "", "No", "There was an error connecting to the light"], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
-      
-    return "" # once the connection is over, then set threadAction to nothing
+
+        if updateGUI == True:
+            mainWindow.setTheTable(["", "", "No", "There was an error connecting to the light"], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
+        else:
+            returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
+
+    if availableLights[selectedLight][1].is_connected:
+        printDebugString("Successfully linked to light " + str(selectedLight))
+
+        if updateGUI == True:
+            mainWindow.setTheTable(["", "", "Yes", "Waiting to send..."], selectedLight) # if it's successful, show that in the table
+        else:
+            returnValue = True  # if we're in CLI mode, and there is no error connecting to the light, return True
+    else:
+        returnValue = False # the light is not connected
+
+    return returnValue # once the connection is over, then set threadAction to nothing
 
 # DISCONNECT FROM A LIGHT
-async def disconnectFromLight(selectedLight):
+async def disconnectFromLight(selectedLight, updateGUI=True):
+    returnValue = "" # same as above, string for GUI mode and boolean for CLI mode, default to blank string
+
     try:
-        if availableLights[selectedLight][1] != "": # if the current light has a Bleak object associated with it, then try to disconnect from it
+        if availableLights[selectedLight][1].is_connected: # if the current light is connected
             await availableLights[selectedLight][1].disconnect()
-            printDebugString("Successfully unlinked from light " + str(selectedLight))
-        else: # we don't have an active link, so skip this one
-            printDebugString("Light " + str(selectedLight) + " isn't linked, so not attempting to disconnect")
     except Exception as e:
+        returnValue = False # if we're in CLI mode, then return False if there is an error disconnecting
         printDebugString("Error unlinking from light " + str(selectedLight))
         print(e)
-       
-    return "" # once disconnection is over, then set threadAction to nothing
 
-# WRITE TO A LIGHT
-async def writeToLight():
+    if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
+        if updateGUI == False:
+            returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
+    
+        printDebugString("Successfully unlinked from light " + str(selectedLight))
+    
+    return returnValue    
+
+# WRITE TO A LIGHT - optional arguments for the CLI version (GUI version doesn't use either of these)
+async def writeToLight(selectedLights=0, updateGUI=True):
+    returnValue = "" # same as above, return value "" for GUI, or boolean for CLI
+
     startTimer = time.time() # the start of the triggering
     printDebugString("Going into send mode")
 
     try:
-        selectedLights = mainWindow.selectedLights() # get the list of currently selected lights from the GUI table
+        if updateGUI == True:
+            selectedLights = mainWindow.selectedLights() # get the list of currently selected lights from the GUI table
+        else:
+            # TODO - CLI: if we're specifying multiple lights here, then we don't need to do the conversion to list (as it's already one)
+            selectedLights = [selectedLights] # convert asked-for light to list
+
         currentSendValue = [] # initialize the value check
         
         # if there are lights selected (otherwise just dump out), and the delay timer is less than it's maximum, then try to send to the lights selected
-        while (len(selectedLights) > 0 and time.time() - startTimer < 1) :
+        while (len(selectedLights) > 0 and time.time() - startTimer < 0.4) :
             if currentSendValue != sendValue: # if the current value is different than what was last sent to the light, then send a new one
                 currentSendValue = sendValue # get this value before sending to multiple lights, to ensure the same value is sent to each one
 
                 for a in range(0, len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
                     if availableLights[selectedLights[a]][1] != "":
-                        await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
-                        mainWindow.setTheTable(["", "", "", "Sent: " + updateStatus(True)], int(selectedLights[a]))
+                        try:
+                            await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
+
+                            if updateGUI == True:
+                                mainWindow.setTheTable(["", "", "", "Sent: " + updateStatus(True)], int(selectedLights[a]))
+                            else:
+                                returnValue = True # we successfully wrote to the light
+                        except Exception as e:
+                            mainWindow.setTheTable(["", "", "", "Error Sending to light!"], int(selectedLights[a]))
                     else:
-                        mainWindow.setTheTable(["", "", "", "Light isn't linked yet, can't send to it"], int(selectedLights[a]))
+                        if updateGUI == True:
+                            mainWindow.setTheTable(["", "", "", "Light isn't linked yet, can't send to it"], int(selectedLights[a]))
+                        else:
+                            returnValue = 0 # the light is not linked, even though it *should* be if it gets to this point, so this is an odd error
                 
                 startTimer = time.time() # if we sent a value, then reset the timer
            
             await asyncio.sleep(0.05) # wait 1/20th of a second to give the Bluetooth bus a little time to recover
-            selectedLights = mainWindow.selectedLights() # re-acquire the current list of selected lights
+            
+            if updateGUI == True:
+                selectedLights = mainWindow.selectedLights() # re-acquire the current list of selected lights
     except Exception as e:
         printDebugString("There was an error communicating with the light.")
         print(e)
 
-    printDebugString("Leaving send mode and going back to background thread")
-    return ""
+        if updateGUI == True:
+            returnValue = False # there was an error writing to this light, so return false to the CLI
+
+    if updateGUI == True:
+        if threadAction != "quit": # if we've been asked to quit somewhere else in the program
+            printDebugString("Leaving send mode and going back to background thread")
+        else:
+            printDebugString("The program has requested to quit, so we're not going back to the background thread")
+            returnValue = "quit"
+
+    return returnValue
 
 # THE BACKGROUND WORKER THREAD
 def workerThread(_loop):
@@ -565,69 +604,149 @@ def processCommands():
     parser.add_argument("--silent", action="store_false", help="Don't show any debug information in the console")
     parser.add_argument("--light", default="", help="The MAC Address (XX:XX:XX:XX:XX:XX) of the light you want to send a command to or ALL to find and control all lights (only valid when also using --cli switch)")
     parser.add_argument("--mode", default="CCT", help="[DEFAULT: CCT] The current control mode - options are HSL, CCT and either ANM or SCENE")
-    parser.add_argument("--temp", "--temperature", default="5200K", help="[DEFAULT: 5200K] (CCT mode) - the color temperature (3200K+) to set the light to")
+    parser.add_argument("--temp", "--temperature", default="56", help="[DEFAULT: 56(00)K] (CCT mode) - the color temperature (3200K+) to set the light to")
     parser.add_argument("--hue", default="240", help="[DEFAULT: 240] (HSL mode) - the hue (0-360 degrees) to set the light to")
     parser.add_argument("--sat", "--saturation", default="100", help="[DEFAULT: 100] (HSL mode) The saturation (color intensity) to set the light to")
     parser.add_argument("--bri", "--brightness", "--luminance", default="100", help="[DEFAULT: 100] (CCT/HSL/ANM mode) The brightness (luminance) to set the light to")
     parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation (1-9) to use in Scene mode")
     args = parser.parse_args()
 
-    # RETURN LIST FORMAT:
-    #          [GUI/CLI, WRITE CONSOLE, LIGHT MAC ADDRESS, MODE, (MODE PARAMS)]
+    if args.silent == True:
+        printDebugString("Starting program with command-line arguments:")
 
     if args.mode == "CCT":
-        return [args.cli, args.silent, args.light, args.mode, args.temp, args.bri]
+        return [args.cli, args.silent, args.light, args.mode, 
+                testValid("temp", args.temp, 56, 32, 85),
+                testValid("bri", args.bri, 100, 0, 100)]
     elif args.mode == "HSL":
-        return [args.cli, args.silent, args.light, args.mode, args.hue, args.sat, args.bri]
+        return [args.cli, args.silent, args.light, args.mode, 
+                testValid("hue", args.hue, 240, 0, 360),
+                testValid("sat", args.sat, 100, 0, 100),
+                testValid("bri", args.bri, 100, 0, 100)]
     elif args.mode in ("ANM", "SCENE"):
-        return [args.cli, args.silent, args.light, "ANM", args.scene, args.bri]
+        return [args.cli, args.silent, args.light, "ANM", 
+                testValid("scene", args.scene, 1, 1, 9),
+                testValid("bri", args.bri, 100, 0, 100)]
     else:
         print ("Improper mode selected with --mode command - valid entries are CCT, HSL or either ANM or SCENE")
         sys.exit(0)
 
 if __name__ == '__main__':
+    loop = asyncio.get_event_loop() # get the current asyncio loop
     cmdReturn = [True] # initially set to show the GUI interface over the CLI interface
 
     if len(sys.argv) > 1: # if we have more than 1 argument on the command line (the script itself is argument 1), then process switches
         cmdReturn = processCommands()
         printDebug = cmdReturn[1] # if we use the --quiet option, then don't show debug strings in the console
-
-        printDebugString("Starting program with command-line arguments:")
+      
         printDebugString(" > Launch GUI: " + str(cmdReturn[0]))
         printDebugString(" > Show Debug Strings on Console: " + str(cmdReturn[1]))
-        printDebugString(" > Light MAC Address (only valid in NON-GUI mode): " + cmdReturn[2])
-             
-    if cmdReturn[0] == True:
+
+        printDebugString(" > Mode: " + cmdReturn[3])
+
+        if cmdReturn[3] == "CCT":
+            printDebugString(" > Color Temperature: " + str(cmdReturn[4]) + "00K")
+            printDebugString(" > Brightness: " + str(cmdReturn[5]))
+        elif cmdReturn[3] == "HSL":
+            printDebugString(" > Hue: " + str(cmdReturn[4]))
+            printDebugString(" > Saturation: " + str(cmdReturn[5]))
+            printDebugString(" > Brightness: " + str(cmdReturn[6]))
+        elif cmdReturn[3] == "ANM":
+            printDebugString(" > Scene: " + str(cmdReturn[4]))
+            printDebugString(" > Brightness: " + str(cmdReturn[5]))
+
+        if cmdReturn[0] == False: # if we're not showing the GUI, we need to specify a MAC address
+            if cmdReturn[2] != "":
+                printDebugString("-------------------------------------------------------------------------------------")
+                printDebugString(" > CLI >> MAC Address of light to send command to: " + cmdReturn[2])
+                availableLights = [[cmdReturn[2], ""]]
+            else:
+                printDebugString("-------------------------------------------------------------------------------------")
+                printDebugString(" > CLI >> You did not specify a light to send the command to - use the --light switch")
+                printDebugString(" > CLI >> and write either a MAC Address (XX:XX:XX:XX:XX:XX) to a Neewer light or")
+                printDebugString(" > CLI >> ALL to send to all available Neewer lights found by Bluetooth")
+                printDebugString("-------------------------------------------------------------------------------------")
+                          
+    if cmdReturn[0] == True: # launch the GUI with the command-line arguments
         app = QApplication(sys.argv)
         mainWindow = MainWindow()
 
         # SET UP GUI BASED ON COMMAND LINE ARGUMENTS
         if len(cmdReturn) > 1:
-            printDebugString(" > Current Mode: " + cmdReturn[3])
-
             if cmdReturn[3] == "CCT": # set up the GUI in CCT mode with specified parameters (or default, if none)
-                printDebugString(" > Color Temperature: " + cmdReturn[4])
-                printDebugString(" > Brightness: " + cmdReturn[5])
                 mainWindow.setUpGUI(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
             elif cmdReturn[3] == "HSL": # set up the GUI in HSL mode with specified parameters (or default, if none)
-                printDebugString(" > Hue: " + cmdReturn[4])
-                printDebugString(" > Saturation: " + cmdReturn[5])
-                printDebugString(" > Brightness: " + cmdReturn[6])
                 mainWindow.setUpGUI(colorMode=cmdReturn[3], hue=cmdReturn[4], sat=cmdReturn[5], brightness=cmdReturn[6])
             elif cmdReturn[3] == "ANM": # set up the GUI in ANM mode with specified parameters (or default, if none)
-                printDebugString(" > Scene: " + cmdReturn[4])
-                printDebugString(" > Brightness: " + cmdReturn[5])
                 mainWindow.setUpGUI(colorMode=cmdReturn[3], scene=cmdReturn[4], brightness=cmdReturn[5])
                        
         mainWindow.show()
         
         # START THE BACKGROUND THREAD
-        loop = asyncio.get_event_loop()
         workerThread = threading.Thread(target=workerThread, args=(loop,), name="workerThread")
         workerThread.start()
        
         ret = app.exec_()    
         sys.exit( ret )
-    else:
-        # TODO: FIND THE LIGHT, PAIR TO IT, AND SEND THE INFORMATION, THEN QUIT OUT
+    else: # don't launch the GUI, send command to a light/lights and quit out
+        if len(cmdReturn) > 1:
+            if cmdReturn[3] == "CCT": # calculate CCT bytestring
+                calculateByteString(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
+            elif cmdReturn[3] == "HSL": # calculate HSL bytestring
+                calculateByteString(colorMode=cmdReturn[3], HSL_H=cmdReturn[4], HSL_S=cmdReturn[5], HSL_L=cmdReturn[6])
+            elif cmdReturn[3] == "ANM": # calculate ANM/SCENE bytestring
+                calculateByteString(colorMode=cmdReturn[3], animation=cmdReturn[4], brightness=cmdReturn[5])
+
+        if availableLights != []:
+            printDebugString(" > CLI >> Bytestring to send to light:" + updateStatus())
+           
+            # CONNECT TO THE LIGHT AND SEND INFORMATION TO IT
+            isFinished = False
+            numOfAttempts = 1
+
+            while isFinished == False:
+                printDebugString("-------------------------------------------------------------------------------------")
+                printDebugString(" > CLI >> Attempting to connect to light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
+                printDebugString("-------------------------------------------------------------------------------------")
+                isFinished = loop.run_until_complete(connectToLight(0, False))
+
+                if numOfAttempts < maxNumOfAttempts:
+                    numOfAttempts = numOfAttempts + 1
+                else:
+                    printDebugString("Error connecting to light " + str(maxNumOfAttempts) + " times - quitting out")
+                    sys.exit(1)
+
+            isFinished = False
+            numOfAttempts = 1
+        
+            while isFinished == False:
+                printDebugString("-------------------------------------------------------------------------------------")
+                printDebugString(" > CLI >> Attempting to write to light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
+                printDebugString("-------------------------------------------------------------------------------------")
+                isFinished = loop.run_until_complete(writeToLight(0, False))
+                
+                if numOfAttempts < maxNumOfAttempts:
+                    numOfAttempts = numOfAttempts + 1
+                else:
+                    printDebugString("Error writing to light " + str(maxNumOfAttempts) + " times - quitting out")
+                    sys.exit(1)
+
+            isFinished = False
+            numOfAttempts = 1
+
+            while isFinished == False:
+                printDebugString("-------------------------------------------------------------------------------------")
+                printDebugString(" > CLI >> Attempting to disconnect from light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
+                printDebugString("-------------------------------------------------------------------------------------")
+                isFinished = loop.run_until_complete(disconnectFromLight(0))
+                
+                if numOfAttempts < maxNumOfAttempts:
+                    numOfAttempts = numOfAttempts + 1
+                else:
+                    printDebugString("Error disconnecting from light " + str(maxNumOfAttempts) + " times - quitting out")
+                    sys.exit(1)
+        else:
+            printDebugString("-------------------------------------------------------------------------------------")
+            printDebugString(" > CLI >> Calculated bytestring:" + updateStatus())
+
         sys.exit(0)
