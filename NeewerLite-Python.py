@@ -445,6 +445,7 @@ async def findDevices():
 # CONNECT (LINK) TO A LIGHT
 async def connectToLight(selectedLight, updateGUI=True):
     global availableLights
+    isConnected = False # whether or not the light is connected
     returnValue = "" # the value to return to the thread (in GUI mode, a string) or True/False (in CLI mode, a boolean value)
 
     printDebugString("Attempting to link to light " + str(selectedLight))
@@ -456,7 +457,9 @@ async def connectToLight(selectedLight, updateGUI=True):
 
     try:
         if not availableLights[selectedLight][1].is_connected: # if the current device isn't linked to Bluetooth
-            await availableLights[selectedLight][1].connect() # try connecting it
+            isConnected = await availableLights[selectedLight][1].connect() # try connecting it (and return the connection status)
+        else:
+            isConnected = True # the light is already connected, so mark it as being connected
     except Exception as e:
         printDebugString("Error linking to light " + str(selectedLight))
         print(e)
@@ -466,7 +469,7 @@ async def connectToLight(selectedLight, updateGUI=True):
         else:
             returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
 
-    if availableLights[selectedLight][1].is_connected:
+    if isConnected == True:
         printDebugString("Successfully linked to light " + str(selectedLight))
 
         if updateGUI == True:
