@@ -34,7 +34,7 @@ from ui_NeewerLightUI import Ui_MainWindow
 sendValue = [] # an array to hold the values to be sent to the light
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
 
-availableLights = [] # the list of Neewer lights currently available to control - format: [Bleak Scan Object, Bleak Connection]
+availableLights = [] # the list of Neewer lights currently available to control - format: [Bleak Scan Object, Bleak Connection, Custom Name, Last Params]
 
 threadAction = "" # the current action to take from the thread
 setLightUUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99" # the UUID to send information to the light
@@ -92,8 +92,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # CHECK TO SEE WHETHER OR NOT TO ENABLE/DISABLE THE "Connect" BUTTON
     def checkConnect(self):
-        if len(self.lightTable.selectionModel().selectedRows()) > 0:
+        selectedRows = self.lightTable.selectionModel().selectedRows()
+
+        if len(selectedRows) > 0:
             self.tryConnectButton.setEnabled(True) # if we have a light selected in the table, then enable the "Connect" button
+
+            if len(selectedRows) == 1: # if we have one item selected, then try to restore the last setting sent to it
+                currentlySelectedRow = selectedRows[0].row() # get the row index of the 1 selected item
+
+                # RECALL LAST SENT SETTING FOR THIS PARTICULAR LIGHT, IF A SETTING EXISTS
+                if availableLights[currentlySelectedRow][3] != []:
+                    sendValue = availableLights[currentlySelectedRow][3] # make the current "sendValue" the last set parameter so it doesn't re-send it on re-load
+
+                    if sendValue[1] == 135:
+                        self.setUpGUI(colorMode="CCT",
+                                      brightness=sendValue[3],
+                                      temp=sendValue[4])
+                    elif sendValue[1] == 134:
+                        self.setUpGUI(colorMode="HSL",
+                                      hue=sendValue[3] + (256 * sendValue[4]),
+                                      sat=sendValue[5],
+                                      brightness=sendValue[6])
+                    elif sendValue[1] == 136:
+                        self.setUpGUI(colorMode="ANM",
+                                      brightness=sendValue[3],
+                                      scene=sendValue[4])
         else:
             self.tryConnectButton.setEnabled(False) # otherwise, disable it
 
@@ -438,7 +461,8 @@ async def findDevices():
 
     for a in range(0, len(currentScan)): # scan the newly found NEEWER devices
         if currentScan[a] not in availableLights: # if this specific device is NOT in the globally available list of devices
-            availableLights.append([currentScan[a], ""]) # add it to the global list, leaving item 2 for the Bleak connection object
+            #TODO: Check a preferences file here for custom light names for element [2]
+            availableLights.append([currentScan[a], "", "", []]) # add it to the global list, leaving item 2 for the Bleak connection object
  
     return "" # once the device scan is over, set the threadAction to nothing
 
@@ -529,6 +553,9 @@ async def writeToLight(selectedLights=0, updateGUI=True):
 
                             if updateGUI == True:
                                 mainWindow.setTheTable(["", "", "", "Sent: " + updateStatus(True)], int(selectedLights[a]))
+
+                                # STORE THE CURRENTLY SENT VALUE TO THE MAIN ARRAY TO RECALL LATER
+                                availableLights[selectedLights[a]][3] = currentSendValue                                
                             else:
                                 returnValue = True # we successfully wrote to the light
                         except Exception as e:
