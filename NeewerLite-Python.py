@@ -29,12 +29,14 @@ import time
 from bleak import BleakScanner, BleakClient
 from datetime import datetime
 from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
+from PySide2.QtGui import QLinearGradient, QColor
 from ui_NeewerLightUI import Ui_MainWindow
 
 sendValue = [] # an array to hold the values to be sent to the light
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
 
-availableLights = [] # the list of Neewer lights currently available to control - format: [Bleak Scan Object, Bleak Connection, Custom Name, Last Params]
+availableLights = [] # the list of Neewer lights currently available to control - format: 
+                     # [Bleak Scan Object, Bleak Connection, Custom Name, Last Params, Extend CCT Range]
 
 threadAction = "" # the current action to take from the thread
 setLightUUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99" # the UUID to send information to the light
@@ -65,10 +67,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.scanCommandButton.clicked.connect(self.startSelfSearch)
         self.tryConnectButton.clicked.connect(self.startConnect)
               
-        self.lightTable.itemSelectionChanged.connect(self.checkConnect)    
-        
-        self.ColorModeTabWidget.currentChanged.connect(self.autoComputeValue)
-
+        self.ColorModeTabWidget.currentChanged.connect(self.tabChanged)
+        self.lightTable.itemSelectionChanged.connect(self.setupSelectionChanged)
+  
         self.Slider_CCT_Hue.valueChanged.connect(self.computeValueCCT)
         self.Slider_CCT_Bright.valueChanged.connect(self.computeValueCCT)
 
@@ -90,15 +91,64 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.turnOnButton.clicked.connect(self.turnLightOn)
         self.turnOffButton.clicked.connect(self.turnLightOff)
 
-    # CHECK TO SEE WHETHER OR NOT TO ENABLE/DISABLE THE "Connect" BUTTON
-    def checkConnect(self):
-        selectedRows = self.lightTable.selectionModel().selectedRows()
+        self.savePrefsButton.clicked.connect(self.savePrefs)
+
+    def checkLightTab(self, selectedLight = -1):
+        if self.ColorModeTabWidget.currentIndex() == 0: # if we're on the CCT tab, do the check
+            if selectedLight == -1: # if we don't have a light selected
+                self.setupCCTBounds(56) # restore the bounds to their default of 56(00)K
+            else:
+                if availableLights[selectedLight][4] == True: # if we're supposed to be extending the range
+                    if self.Slider_CCT_Hue.maximum() == 56: # if we're set to extend the range, but we're still set to 56(00)K, then change the range
+                        self.setupCCTBounds(85)
+                else:
+                    if self.Slider_CCT_Hue.maximum() == 85: # if we're set to NOT extend the range, but we're still set to 85(00)K, then reduce the range
+                        self.setupCCTBounds(56)
+        elif self.ColorModeTabWidget.currentIndex() == 3: # if we're on the Preferences tab instead
+            if selectedLight != -1: # if there is a specific selected light
+                self.setupPrefsTab(selectedLight) # update the Prefs tab with the information for that selected light
+
+    def setupCCTBounds(self, gradientBounds):
+        self.Slider_CCT_Hue.setMaximum(gradientBounds) # set the max value of the color temperature slider to the new max bounds
+
+        gradient = QLinearGradient(0, 0, 532, 31)
+
+        # SET GRADIENT OF CCT SLIDER IN CHUNKS OF 5 VALUES BASED ON BOUNDARY
+        if gradientBounds == 56: # the color temperature boundary is 5600K
+            gradient.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
+            gradient.setColorAt(0.25, QColor(255, 204, 153, 255)) # 3800K
+            gradient.setColorAt(0.50, QColor(255, 217, 182, 255)) # 4400K
+            gradient.setColorAt(0.75, QColor(255, 228, 206, 255)) # 5000K
+            gradient.setColorAt(1.0, QColor(255, 238, 227, 255)) # 5600K
+        else: # the color temperature boundary is 8500K
+            gradient.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
+            gradient.setColorAt(0.25, QColor(255, 219, 186, 255)) # 4500K
+            gradient.setColorAt(0.50, QColor(255, 240, 233, 255)) # 5800K
+            gradient.setColorAt(0.75, QColor(243, 242, 255, 255)) # 7100K
+            gradient.setColorAt(1.0, QColor(220, 229, 255, 255)) # 8500K
+  
+        self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(gradient) # change the gradient to fit the new boundary
+
+    def setupPrefsTab(self, selectedLight):
+        self.customNameTF.setText(availableLights[selectedLight][2]) # set the "custom name" field to the custom name of this light
+
+        if availableLights[selectedLight][4] == True:
+            self.widerRangeCheck.setChecked(True)
+        else:
+            self.widerRangeCheck.setChecked(False)
+
+    # CHECK TO SEE WHETHER OR NOT TO ENABLE/DISABLE THE "Connect" BUTTON OR CHANGE THE PREFS TAB
+    def setupSelectionChanged(self):
+        selectedRows = self.selectedLights() # get the list of currently selected lights
 
         if len(selectedRows) > 0:
             self.tryConnectButton.setEnabled(True) # if we have a light selected in the table, then enable the "Connect" button
 
             if len(selectedRows) == 1: # if we have one item selected, then try to restore the last setting sent to it
-                currentlySelectedRow = selectedRows[0].row() # get the row index of the 1 selected item
+                self.ColorModeTabWidget.setTabEnabled(3, True) # enable the "Preferences" tab for this light
+
+                currentlySelectedRow = selectedRows[0] # get the row index of the 1 selected item                
+                self.checkLightTab(currentlySelectedRow) # if we're on CCT, check to see if this light can use extended values + on Prefs, update Prefs
 
                 # RECALL LAST SENT SETTING FOR THIS PARTICULAR LIGHT, IF A SETTING EXISTS
                 if availableLights[currentlySelectedRow][3] != []:
@@ -117,8 +167,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         self.setUpGUI(colorMode="ANM",
                                       brightness=sendValue[3],
                                       scene=sendValue[4])
-        else:
-            self.tryConnectButton.setEnabled(False) # otherwise, disable it
+            else:
+                self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have multiple lights selected
+        else:            
+            self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have no lights selected
+            self.tryConnectButton.setEnabled(False) # if we have no lights selected, disable the Connect button
+            self.checkLightTab() # check to see if we're on the CCT tab - if we are, then restore order
+
+    def savePrefs(self):
+        selectedRows = self.selectedLights() # get the list of currently selected lights
+
+        if len(selectedRows) == 1: # if we have 1 selected light
+            availableLights[selectedRows[0]][2] = self.customNameTF.text() # set this light's custom name to the text box
+            availableLights[selectedRows[0]][4] = self.widerRangeCheck.isChecked() # if the "wider range" box is checked, then allow wider ranges
+
+            if availableLights[selectedRows[0]][2] != "":
+                self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")", 
+                                  "", "", ""], selectedRows[0]) # add the custom name to this specific light
 
     # ADD A LIGHT TO THE TABLE VIEW
     def setTheTable(self, infoArray, rowToChange = -1):
@@ -165,14 +230,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             threadAction = "send"
     
     # IF YOU CLICK ON ONE OF THE TABS, THIS WILL SWITCH THE VIEW/SEND A NEW SIGNAL FROM THAT SPECIFIC TAB
-    def autoComputeValue(self, i):
-        if i == 0:
-        	self.computeValueCCT() # calculate the current CCT value
-        elif i == 1:
+    def tabChanged(self, i):
+        if i == 0 or i == 3: # check the current selected lights on the CCT and Prefs tabs
+            currentSelection = self.selectedLights() # get the list of currently selected lights
+
+        if i == 0: # we clicked on the CCT tab
+            # CHECK THE CURRENT SELECTED LIGHT TO SEE IF IT CAN USE EXTENDED COLOR TEMPERATURES
+            if len(currentSelection) == 1: # if we have just one light selected
+                self.checkLightTab(currentSelection[0]) # check the current light's CCT bounds
+            else:
+                self.checkLightTab() # reset the bounds to the normal values (5600K)
+            
+            self.computeValueCCT() # calculate the current CCT value
+        elif i == 1: # we clicked on the HSL tab
         	self.computeValueHSL() # calculate the current HSL value
-        elif i == 2:
-            pass # we don't want the animation automatically triggering when we go to this page
-          
+        elif i == 2: # we clicked on the ANM tab
+            pass # skip this, we don't want the animation automatically triggering when we go to this page
+        elif i == 3: # we clicked on the PREFS tab
+            if len(currentSelection) == 1: # this tab function ^^ should *ONLY* call if we have just one light selected, but just in *case*
+                self.setupPrefsTab(currentSelection[0])
+                         
     # COMPUTE A BYTESTRING FOR THE CCT SECTION
     def computeValueCCT(self):
         self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
@@ -295,9 +372,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         for a in range(0, len(availableLights)):
             if availableLights[a][1] == "": # the light is not currently linked, so put "waiting to connect" as status
-                self.setTheTable([availableLights[a][0].name, availableLights[a][0].address, "No", "Waiting to connect..."])
+                if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
+                    self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")", availableLights[a][0].address, "No", "Waiting to connect..."])
+                else: # the light does not have a custom name, so just use the model # of the light
+                    self.setTheTable([availableLights[a][0].name, availableLights[a][0].address, "No", "Waiting to connect..."])
             else: # we have previously tried to connect, so we have a Bleak object - so put "waiting to send" as status
-                self.setTheTable([availableLights[a][0].name, availableLights[a][0].address, "Yes", "Waiting to send..."])
+                if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
+                    self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")", availableLights[a][0].address, "Yes", "Waiting to send..."])
+                else: # the light does not have a custom name, so just use the model # of the light
+                    self.setTheTable([availableLights[a][0].name, availableLights[a][0].address, "Yes", "Waiting to send..."])
 
     # THE FINAL FUNCTION TO UNLINK ALL LIGHTS WHEN QUITTING THE PROGRAM
     def closeEvent(self, event):
@@ -460,10 +543,9 @@ async def findDevices():
             currentScan.append(d) # and if it finds the phrase, add it to this session's available lights
 
     for a in range(0, len(currentScan)): # scan the newly found NEEWER devices
-        if currentScan[a] not in availableLights: # if this specific device is NOT in the globally available list of devices
-            #TODO: Check a preferences file here for custom light names for element [2]
-            availableLights.append([currentScan[a], "", "", []]) # add it to the global list, leaving item 2 for the Bleak connection object
- 
+        if currentScan[a].address not in availableLights: # if this specific device is NOT in the globally available list of devices
+            availableLights.append([currentScan[a], "", "", [], False]) # add it to the global list
+            
     return "" # once the device scan is over, set the threadAction to nothing
 
 # CONNECT (LINK) TO A LIGHT
@@ -516,12 +598,15 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
         returnValue = False # if we're in CLI mode, then return False if there is an error disconnecting
         printDebugString("Error unlinking from light " + str(selectedLight))
         print(e)
-
-    if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
-        if updateGUI == False:
-            returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
     
-        printDebugString("Successfully unlinked from light " + str(selectedLight))
+    try:
+        if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
+            if updateGUI == False:
+                returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
+    
+            printDebugString("Successfully unlinked from light " + str(selectedLight))
+    except AttributeError:
+        printDebugString("Light " + str(selectedLight) + " has no Bleak object attached to it, so not attempting to disconnect from it")
     
     return returnValue    
 
@@ -618,11 +703,15 @@ def workerThread(_loop):
             threadAction = _loop.run_until_complete(writeToLight()) # write a value to the light(s) - the selectedLights() section is in the write loop itself for responsiveness
 
 def processCommands():
+    # CONVERT ALL ARGUMENTS INTO lower case (to allow ALL CAPS arguments to parse correctly)
+    for a in range(0, len(sys.argv)):
+        sys.argv[a] = sys.argv[a].lower()
+
     # DELETE ANY INVALID ARGUMENTS FROM THE COMMAND LINE BEFORE RUNNING THE ARGUMENT PARSER
-    # TO CLEAN UP THE ARGUMENT LIST TO ENSURE THE PARSER CAN STILL RUN WHEN INVALID ARGUMENTS ARE PRESENT
+    # TO CLEAN UP THE ARGUMENT LIST AND ENSURE THE PARSER CAN STILL RUN WHEN INVALID ARGUMENTS ARE PRESENT
     acceptable_arguments = ["--cli", "--silent", "--light", "--mode", "--temp", "--hue", 
     "--sat", "--bri", "--luminance", "--scene", "--animation", "--help"]
-
+   
     for a in range(len(sys.argv) - 1, 0, -1):
         if not any(x in sys.argv[a] for x in acceptable_arguments): # if the current argument is invalid
             if sys.argv[a] != "-h": # and the argument isn't "-h" (for help)
@@ -644,17 +733,17 @@ def processCommands():
     if args.silent == True:
         printDebugString("Starting program with command-line arguments:")
 
-    if args.mode == "CCT":
-        return [args.cli, args.silent, args.light, args.mode, 
+    if args.mode == "cct":
+        return [args.cli, args.silent, args.light, "CCT",
                 testValid("temp", args.temp, 56, 32, 85),
                 testValid("bri", args.bri, 100, 0, 100)]
-    elif args.mode == "HSL":
-        return [args.cli, args.silent, args.light, args.mode, 
+    elif args.mode == "hsl":
+        return [args.cli, args.silent, args.light, "HSL",
                 testValid("hue", args.hue, 240, 0, 360),
                 testValid("sat", args.sat, 100, 0, 100),
                 testValid("bri", args.bri, 100, 0, 100)]
-    elif args.mode in ("ANM", "SCENE"):
-        return [args.cli, args.silent, args.light, "ANM", 
+    elif args.mode in ("anm", "scene"):
+        return [args.cli, args.silent, args.light, "ANM",
                 testValid("scene", args.scene, 1, 1, 9),
                 testValid("bri", args.bri, 100, 0, 100)]
     else:
@@ -688,7 +777,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == False: # if we're not showing the GUI, we need to specify a MAC address
             if cmdReturn[2] != "":
                 printDebugString("-------------------------------------------------------------------------------------")
-                printDebugString(" > CLI >> MAC Address of light to send command to: " + cmdReturn[2])
+                printDebugString(" > CLI >> MAC Address of light to send command to: " + cmdReturn[2].upper())
                 availableLights = [[cmdReturn[2], ""]]
             else:
                 printDebugString("-------------------------------------------------------------------------------------")

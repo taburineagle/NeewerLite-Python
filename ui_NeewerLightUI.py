@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'NeewerLightUIzTWPrP.ui'
+## Form generated from reading UI file 'NeewerLightUIbiBKop.ui'
 ##
 ## Created by: Qt User Interface Compiler version 5.15.2
 ##
@@ -33,12 +33,16 @@ class Ui_MainWindow(object):
         self.Slider_CCT_Hue.setObjectName(u"Slider_CCT_Hue")
         self.Slider_CCT_Hue.setGeometry(QRect(10, 20, 551, 16))
         self.Slider_CCT_Hue.setMinimum(32)
-        self.Slider_CCT_Hue.setMaximum(85)
+        self.Slider_CCT_Hue.setMaximum(56)
         self.Slider_CCT_Hue.setValue(56)
         self.Slider_CCT_Hue.setOrientation(Qt.Horizontal)
         self.TFL_CCT_Hue = QLabel(self.CCT)
         self.TFL_CCT_Hue.setObjectName(u"TFL_CCT_Hue")
         self.TFL_CCT_Hue.setGeometry(QRect(10, 40, 440, 17))
+        font = QFont()
+        font.setBold(True)
+        font.setWeight(75)
+        self.TFL_CCT_Hue.setFont(font)
         self.TFV_CCT_Hue = QLabel(self.CCT)
         self.TFV_CCT_Hue.setObjectName(u"TFV_CCT_Hue")
         self.TFV_CCT_Hue.setGeometry(QRect(510, 40, 51, 20))
@@ -50,6 +54,7 @@ class Ui_MainWindow(object):
         self.TFL_CCT_Bright = QLabel(self.CCT)
         self.TFL_CCT_Bright.setObjectName(u"TFL_CCT_Bright")
         self.TFL_CCT_Bright.setGeometry(QRect(10, 90, 440, 17))
+        self.TFL_CCT_Bright.setFont(font)
         self.Slider_CCT_Bright = QSlider(self.CCT)
         self.Slider_CCT_Bright.setObjectName(u"Slider_CCT_Bright")
         self.Slider_CCT_Bright.setGeometry(QRect(10, 70, 551, 16))
@@ -58,16 +63,15 @@ class Ui_MainWindow(object):
         self.Slider_CCT_Bright.setOrientation(Qt.Horizontal)
 
         # DRAW THE LINEAR GRADIENT TO INDICATE THE COLOR TEMPERATURE VALUE IN THE CCT TAB
+        # NEW DEFAULT OF 5600K FOR LIGHTS THAT DON'T SCALE UP TO 8500K
         mySceneCCT = QGraphicsScene(self)
 
         gradient = QLinearGradient(0, 0, 532, 31)
-        gradient.setColorAt(0.0, QColor(255, 187, 120, 255))
-        gradient.setColorAt(0.16, QColor(255, 209, 163, 255))
-        gradient.setColorAt(0.33, QColor(255, 227, 202, 255))
-        gradient.setColorAt(0.49, QColor(255, 240, 233, 255))
-        gradient.setColorAt(0.66, QColor(252, 247, 255, 255))
-        gradient.setColorAt(0.83, QColor(233, 237, 255, 255))
-        gradient.setColorAt(1.0, QColor(221, 230, 255, 255))
+        gradient.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
+        gradient.setColorAt(0.25, QColor(255, 204, 153, 255)) # 3800K
+        gradient.setColorAt(0.50, QColor(255, 217, 182, 255)) # 4400K
+        gradient.setColorAt(0.75, QColor(255, 228, 206, 255)) # 5000K
+        gradient.setColorAt(1.0, QColor(255, 238, 227, 255)) # 5600K
     
         mySceneCCT.setBackgroundBrush(gradient)
         
@@ -104,9 +108,11 @@ class Ui_MainWindow(object):
         self.TFL_HSL_2_S = QLabel(self.HSL)
         self.TFL_HSL_2_S.setObjectName(u"TFL_HSL_2_S")
         self.TFL_HSL_2_S.setGeometry(QRect(10, 90, 440, 17))
+        self.TFL_HSL_2_S.setFont(font)
         self.TFL_HSL_1_H = QLabel(self.HSL)
         self.TFL_HSL_1_H.setObjectName(u"TFL_HSL_1_H")
         self.TFL_HSL_1_H.setGeometry(QRect(10, 40, 440, 17))
+        self.TFL_HSL_1_H.setFont(font)
         self.Slider_HSL_1_H = QSlider(self.HSL)
         self.Slider_HSL_1_H.setObjectName(u"Slider_HSL_1_H")
         self.Slider_HSL_1_H.setGeometry(QRect(10, 20, 551, 16))
@@ -116,6 +122,7 @@ class Ui_MainWindow(object):
         self.TFL_HSL_3_L = QLabel(self.HSL)
         self.TFL_HSL_3_L.setObjectName(u"TFL_HSL_3_L")
         self.TFL_HSL_3_L.setGeometry(QRect(10, 140, 481, 17))
+        self.TFL_HSL_3_L.setFont(font)
         self.Slider_HSL_3_L = QSlider(self.HSL)
         self.Slider_HSL_3_L.setObjectName(u"Slider_HSL_3_L")
         self.Slider_HSL_3_L.setGeometry(QRect(10, 120, 551, 16))
@@ -205,6 +212,7 @@ class Ui_MainWindow(object):
         self.TFL_ANM_Brightness = QLabel(self.ANM)
         self.TFL_ANM_Brightness.setObjectName(u"TFL_ANM_Brightness")
         self.TFL_ANM_Brightness.setGeometry(QRect(220, 40, 300, 17))
+        self.TFL_ANM_Brightness.setFont(font)
         self.TFV_ANM_Brightness = QLabel(self.ANM)
         self.TFV_ANM_Brightness.setObjectName(u"TFV_ANM_Brightness")
         self.TFV_ANM_Brightness.setGeometry(QRect(520, 40, 31, 20))
@@ -216,6 +224,28 @@ class Ui_MainWindow(object):
         self.turnOffButton.setObjectName(u"turnOffButton")
         self.turnOffButton.setGeometry(QRect(400, 100, 111, 41))
         self.ColorModeTabWidget.addTab(self.ANM, "")
+        self.lightPrefs = QWidget()
+        self.lightPrefs.setObjectName(u"lightPrefs")
+        self.customNameDescription = QLabel(self.lightPrefs)
+        self.customNameDescription.setObjectName(u"customNameDescription")
+        self.customNameDescription.setGeometry(QRect(10, 14, 541, 16))
+        self.customNameDescription.setFont(font)
+        self.customNameTF = QLineEdit(self.lightPrefs)
+        self.customNameTF.setObjectName(u"customNameTF")
+        self.customNameTF.setGeometry(QRect(10, 34, 541, 20))
+        self.customNameTF.setMaxLength(80)
+        self.widerRangeCheck = QCheckBox(self.lightPrefs)
+        self.widerRangeCheck.setObjectName(u"widerRangeCheck")
+        self.widerRangeCheck.setGeometry(QRect(10, 70, 541, 17))
+        self.widerRangeCheck.setFont(font)
+        self.widerRangeDescription = QLabel(self.lightPrefs)
+        self.widerRangeDescription.setObjectName(u"widerRangeDescription")
+        self.widerRangeDescription.setGeometry(QRect(10, 90, 541, 41))
+        self.widerRangeDescription.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+        self.savePrefsButton = QPushButton(self.lightPrefs)
+        self.savePrefsButton.setObjectName(u"savePrefsButton")
+        self.savePrefsButton.setGeometry(QRect(420, 140, 141, 23))
+        self.ColorModeTabWidget.addTab(self.lightPrefs, "")
         self.scanCommandButton = QPushButton(self.centralwidget)
         self.scanCommandButton.setObjectName(u"scanCommandButton")
         self.scanCommandButton.setGeometry(QRect(416, 4, 81, 22))
@@ -245,11 +275,11 @@ class Ui_MainWindow(object):
         self.lightTableTF = QLabel(self.centralwidget)
         self.lightTableTF.setObjectName(u"lightTableTF")
         self.lightTableTF.setGeometry(QRect(14, 8, 391, 16))
-        font = QFont()
-        font.setPointSize(10)
-        font.setBold(True)
-        font.setWeight(75)
-        self.lightTableTF.setFont(font)
+        font1 = QFont()
+        font1.setPointSize(10)
+        font1.setBold(True)
+        font1.setWeight(75)
+        self.lightTableTF.setFont(font1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusBar = QStatusBar(MainWindow)
         self.statusBar.setObjectName(u"statusBar")
@@ -263,13 +293,14 @@ class Ui_MainWindow(object):
         self.Slider_ANM_Brightness.valueChanged.connect(self.TFV_ANM_Brightness.setNum)
 
         self.ColorModeTabWidget.setCurrentIndex(0)
+        self.ColorModeTabWidget.setTabEnabled(3, False) # disable the Prefs tab by default
 
 
         QMetaObject.connectSlotsByName(MainWindow)
     # setupUi
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NeewerLite-Python 0.02a by Zach Glenwright", None))
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NeewerLite-Python 0.03a by Zach Glenwright", None))
         self.tryConnectButton.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.TFL_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"Color Temperature", None))
         self.TFV_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"5600K", None))
@@ -300,6 +331,12 @@ class Ui_MainWindow(object):
         self.turnOnButton.setText(QCoreApplication.translate("MainWindow", u"Turn On", None))
         self.turnOffButton.setText(QCoreApplication.translate("MainWindow", u"Turn Off", None))
         self.ColorModeTabWidget.setTabText(self.ColorModeTabWidget.indexOf(self.ANM), QCoreApplication.translate("MainWindow", u"Animation Mode / Power", None))
+        self.customNameDescription.setText(QCoreApplication.translate("MainWindow", u"Custom Name for this light: (optional)", None))
+        self.widerRangeCheck.setText(QCoreApplication.translate("MainWindow", u"Allow wider range of color temperatures for the CCT slider", None))
+        self.widerRangeDescription.setText(QCoreApplication.translate("MainWindow", u"Some Neewer lights (like the SL-80) allow setting the CCT value higher than 5600K - if the current light\n"
+"supports this, turn this option on to give you a wider range of options for this light.", None))
+        self.savePrefsButton.setText(QCoreApplication.translate("MainWindow", u"Save Preferences", None))
+        self.ColorModeTabWidget.setTabText(self.ColorModeTabWidget.indexOf(self.lightPrefs), QCoreApplication.translate("MainWindow", u"Light Preferences", None))
         self.scanCommandButton.setText(QCoreApplication.translate("MainWindow", u"Scan", None))
         ___qtablewidgetitem = self.lightTable.horizontalHeaderItem(0)
         ___qtablewidgetitem.setText(QCoreApplication.translate("MainWindow", u"Light Name", None));
