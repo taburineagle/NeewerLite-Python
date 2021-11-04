@@ -13,24 +13,50 @@
 ##   > https://github.com/keefo/NeewerLite <
 #############################################################
 
+# IMPORT BLEAK (this is the library that allows the program to communicate with the lights) - THIS IS NECESSARY!
+try:
+    from bleak import BleakScanner, BleakClient
+except Exception as e:
+    print("You need the bleak Python package installed to use NeewerLite-Python.  Bleak is the library that connects to Bluetooth devices.")
+    print("Install the Bleak package first before running NeewerLite-Python.")
+    sys.exit(0) # you can't use the program itself without Bleak, so kill the program if we don't have it
+
 import sys
 import argparse
 
+import asyncio
+import threading
+import time
+
+from datetime import datetime
+
+# IMPORT THE WINDOWS LIBRARY (if you don't do this, it will throw an exception on Windows only)
 try:
     from winrt import _winrt
     _winrt.uninit_apartment()
 except Exception as e:
     pass # if there is an exception to this module loading, you're not on Windows
 
-import asyncio
-import threading
-import time
+# IMPORT PYSIDE2 (the GUI libraries)
+try:
+    from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
+    from PySide2.QtGui import QLinearGradient, QColor
+except Exception as e:
+    print("You don't have the PySide2 Python library installed.  If you're only running NeewerLite-Python from")
+    print("a command-line (from a Raspberry Pi CLI for instance), you don't need this package. If you want to launch")
+    print("NeewerLite-Python with the GUI, you need to install the PySide2 package.")
 
-from bleak import BleakScanner, BleakClient
-from datetime import datetime
-from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
-from PySide2.QtGui import QLinearGradient, QColor
-from ui_NeewerLightUI import Ui_MainWindow
+# IMPORT THE GUI ITSELF
+try:
+    from ui_NeewerLightUI import Ui_MainWindow
+except Exception as e:
+    pass # don't do anything yet, the GUI can't be imported
+
+# IMPORT THE HTTP SERVER
+try:
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+except Exception as e:
+    pass # if there are any HTTP errors, don't do anything yet
 
 sendValue = [] # an array to hold the values to be sent to the light
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
@@ -702,23 +728,45 @@ def workerThread(_loop):
         elif threadAction == "send":
             threadAction = _loop.run_until_complete(writeToLight()) # write a value to the light(s) - the selectedLights() section is in the write loop itself for responsiveness
 
-def processCommands():
+def processCommands(listToProcess=[]):
+    inStartupMode = False # if we're in startup mode (so report that to the log), start as False initially to be set to True below
+
+    # SET THE CURRENT LIST TO THE sys.argv SYSTEM PARAMETERS LIST IF A LIST ISN'T SPECIFIED
+    # SO WE CAN USE THIS SAME FUNCTION TO PARSE HTML ARGUMENTS USING THE HTTP SERVER AND COMMAND-LINE ARGUMENTS
+    if len(listToProcess) == 0: # if there aren't any elements in the list, then check against sys.argv
+        listToProcess = sys.argv[1:] # the list to parse is the system args minus the first one
+        inStartupMode = True
+
+    # ADD DASHES TO ANY PARAMETERS THAT DON'T CURRENTLY HAVE THEM AS WELL AS
     # CONVERT ALL ARGUMENTS INTO lower case (to allow ALL CAPS arguments to parse correctly)
-    for a in range(0, len(sys.argv)):
-        sys.argv[a] = sys.argv[a].lower()
+    for a in range(0, len(listToProcess)):
+        if listToProcess[a] != "-h" and listToProcess[a][:2] != "--": # if the dashes aren't in the current item (and it's not the -h flag)
+            if listToProcess[a][:1] == "-": # if the current parameter only has one dash (typed wrongly)
+                listToProcess[a] = "--" + listToProcess[a][1:].lower() # then remove that, and add the double dash and switch to lowercase
+            else: # the parameter has no dashes at all, so add them
+                listToProcess[a] = "--" + listToProcess[a].lower() # add the dashes + switch to lowercase to properly parse as arguments below
+        else: # if the dashes are already in the current item
+            listToProcess[a] = listToProcess[a].lower() # we don't need to add dashes, so just switch to lowercase
 
     # DELETE ANY INVALID ARGUMENTS FROM THE COMMAND LINE BEFORE RUNNING THE ARGUMENT PARSER
     # TO CLEAN UP THE ARGUMENT LIST AND ENSURE THE PARSER CAN STILL RUN WHEN INVALID ARGUMENTS ARE PRESENT
-    acceptable_arguments = ["--cli", "--silent", "--light", "--mode", "--temp", "--hue", 
-    "--sat", "--bri", "--luminance", "--scene", "--animation", "--help"]
+    if inStartupMode == True:
+        acceptable_arguments = ["--http", "--cli", "--silent", "--light", "--mode", "--temp", "--hue", 
+        "--sat", "--bri", "--luminance", "--scene", "--animation", "--help"]
+    else: # if we're doing HTTP processing, we don't need the http, cli, silent and help flags, so toss 'em
+        acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--luminance", "--scene", "--animation"]
    
-    for a in range(len(sys.argv) - 1, 0, -1):
-        if not any(x in sys.argv[a] for x in acceptable_arguments): # if the current argument is invalid
-            if sys.argv[a] != "-h": # and the argument isn't "-h" (for help)
-                sys.argv.pop(a) # delete the invalid argument from the list
+    for a in range(len(listToProcess) - 1, 0, -1):
+        if not any(x in listToProcess[a] for x in acceptable_arguments): # if the current argument is invalid
+            if inStartupMode == True:
+                if listToProcess[a] != "-h": # and the argument isn't "-h" (for help)
+                    listToProcess.pop(a) # delete the invalid argument from the list
+            else: # if we're not in startup mode, then also delete the "-h" flag
+                listToProcess.pop(a) # delete the invalid argument from the list
  
     # PARSE THE ARGUMENT LIST FOR CUSTOM PARAMETERS
     parser = argparse.ArgumentParser()
+    parser.add_argument("--http", action="store_true", help="Use an HTTP server to send commands to Neewer lights using a web browser")
     parser.add_argument("--cli", action="store_false", help="Don't show the GUI at all, just send command and quit")
     parser.add_argument("--silent", action="store_false", help="Don't show any debug information in the console")
     parser.add_argument("--light", default="", help="The MAC Address (XX:XX:XX:XX:XX:XX) of the light you want to send a command to or ALL to find and control all lights (only valid when also using --cli switch)")
@@ -728,10 +776,18 @@ def processCommands():
     parser.add_argument("--sat", "--saturation", default="100", help="[DEFAULT: 100] (HSL mode) The saturation (color intensity) to set the light to")
     parser.add_argument("--bri", "--brightness", "--luminance", default="100", help="[DEFAULT: 100] (CCT/HSL/ANM mode) The brightness (luminance) to set the light to")
     parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation (1-9) to use in Scene mode")
-    args = parser.parse_args()
-
+    args = parser.parse_args(listToProcess)
+    
     if args.silent == True:
-        printDebugString("Starting program with command-line arguments:")
+        if inStartupMode == True:
+            printDebugString("Starting program with command-line arguments")
+        else:
+            printDebugString("Processing HTTP arguments")
+            args.cli = False # we're running the CLI, so no GUI (TODO: possibly make HTTP server and GUI work in tandem)
+            args.silent = printDebug # we're not changing the silent flag, pass on the current printDebug setting
+
+    if args.http == True:
+        return ["HTTP", args.silent] # special mode - don't do any other mode/color/etc. processing, just jump into running the HTML server
 
     if args.mode == "cct":
         return [args.cli, args.silent, args.light, "CCT",
@@ -750,6 +806,37 @@ def processCommands():
         print ("Improper mode selected with --mode command - valid entries are CCT, HSL or either ANM or SCENE")
         sys.exit(0)
 
+class MyServer(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # TODO, possibly: Add check here to make sure URL arguments aren't absolutely huge, to avoid a buffer overrun error
+        # /NeewerLite-Python/mode=HSL|hue=120|sat=100|bri=100|light=XX:XX:XX:XX:XX:XX:XX is 78 characters, so the URL should
+        # theoretically not be any longer than, say 120 characters total - you'd send a command to one light at a time - look
+        # into this!  Maybe a slightly longer allowance if you're sending to multiple lights (possibly in the light= parameter)
+        # separated into multiple light MAC addresses, like light=XX:XX:XX:XX:XX:XX:XX:XX;YY:YY:YY:YY:YY:YY:YY:YY, etc. for no
+        # more than... 4 lights possibly?  6?
+
+        acceptableURL = "/NeewerLite-Python/"
+
+        if acceptableURL in self.path: # if the URL contains "/NeewerLite-Python/" then it's a valid URL
+            paramsList = self.path.replace(acceptableURL, "").split("|") # split the included parameters into a list
+            paramsList = processCommands(paramsList)
+            print(paramsList)
+
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+       
+            self.wfile.write(bytes("<html><head><title>NeewerLite-Python HTTP Server</title></head>", "utf-8"))
+            self.wfile.write(bytes("<body>", "utf-8"))
+            self.wfile.write(bytes("<p>Request: %s</p>" % self.path, "utf-8"))
+
+            for a in range(0, len(paramsList)):
+               self.wfile.write(bytes("<p>  > " + str(paramsList[a]) + "</p>", "utf-8"))
+
+            self.wfile.write(bytes("</body></html>", "utf-8"))
+        else:
+            self.send_error(404, "The URL you specified (" + self.path + ") was not correct.  The NeewerLite-Python HTTP server only accepts URLs starting with /NeewerLite-Python/ and a list of parameters after the forward slash, separated by a | character in between each specified parameter.  An example of a correct URL would be: http://(server IP address):8080/NeewerLite-Python/mode=HSL|hue=120|sat=60|brightness=20|light=XX:XX:XX:XX:XX:XX")
+
 if __name__ == '__main__':
     loop = asyncio.get_event_loop() # get the current asyncio loop
     cmdReturn = [True] # initially set to show the GUI interface over the CLI interface
@@ -757,7 +844,23 @@ if __name__ == '__main__':
     if len(sys.argv) > 1: # if we have more than 1 argument on the command line (the script itself is argument 1), then process switches
         cmdReturn = processCommands()
         printDebug = cmdReturn[1] # if we use the --quiet option, then don't show debug strings in the console
-      
+
+        # START HTTP SERVER HERE AND SIT IN THIS LOOP UNTIL THE END
+        if cmdReturn[0] == "HTTP":
+            webServer = HTTPServer(("", 8080), MyServer)
+
+            try:
+                printDebugString("Starting the HTTP Server on Port 8080...")
+                printDebugString("-------------------------------------------------------------------------------------")
+                webServer.serve_forever()
+            except KeyboardInterrupt:
+                pass
+            finally:
+                printDebugString("Stopping the HTTP Server...")
+                webServer.server_close()
+
+            sys.exit(0)            
+
         printDebugString(" > Launch GUI: " + str(cmdReturn[0]))
         printDebugString(" > Show Debug Strings on Console: " + str(cmdReturn[1]))
 

@@ -348,4 +348,3 @@ class Ui_MainWindow(object):
         ___qtablewidgetitem3.setText(QCoreApplication.translate("MainWindow", u"Status", None));
         self.lightTableTF.setText(QCoreApplication.translate("MainWindow", u"Available Neewer Lights to Control:", None))
     # retranslateUi
-
