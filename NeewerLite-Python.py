@@ -570,6 +570,7 @@ async def findDevices():
 
     for a in range(0, len(currentScan)): # scan the newly found NEEWER devices
         if currentScan[a].address not in availableLights: # if this specific device is NOT in the globally available list of devices
+            printDebugString("Found new light! [" + currentScan[a].name + "] MAC Address: " + currentScan[a].address)
             availableLights.append([currentScan[a], "", "", [], False]) # add it to the global list
             
     return "" # once the device scan is over, set the threadAction to nothing
@@ -580,7 +581,7 @@ async def connectToLight(selectedLight, updateGUI=True):
     isConnected = False # whether or not the light is connected
     returnValue = "" # the value to return to the thread (in GUI mode, a string) or True/False (in CLI mode, a boolean value)
 
-    printDebugString("Attempting to link to light " + str(selectedLight))
+    printDebugString("Attempting to link to light " + str(selectedLight) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
 
     # FILL THE [1] ELEMENT OF THE availableLights ARRAY WITH THE BLEAK CONNECTION
     if availableLights[selectedLight][1] == "":
@@ -593,7 +594,7 @@ async def connectToLight(selectedLight, updateGUI=True):
         else:
             isConnected = True # the light is already connected, so mark it as being connected
     except Exception as e:
-        printDebugString("Error linking to light " + str(selectedLight))
+        printDebugString("Error linking to light " + str(selectedLight) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
         print(e)
 
         if updateGUI == True:
@@ -602,7 +603,7 @@ async def connectToLight(selectedLight, updateGUI=True):
             returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
 
     if isConnected == True:
-        printDebugString("Successfully linked to light " + str(selectedLight))
+        printDebugString("Successfully linked to light " + str(selectedLight) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
 
         if updateGUI == True:
             mainWindow.setTheTable(["", "", "Yes", "Waiting to send..."], selectedLight) # if it's successful, show that in the table
@@ -622,7 +623,7 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
             await availableLights[selectedLight][1].disconnect()
     except Exception as e:
         returnValue = False # if we're in CLI mode, then return False if there is an error disconnecting
-        printDebugString("Error unlinking from light " + str(selectedLight))
+        printDebugString("Error unlinking from light " + str(selectedLight)  + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
         print(e)
     
     try:
@@ -630,7 +631,7 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
             if updateGUI == False:
                 returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
     
-            printDebugString("Successfully unlinked from light " + str(selectedLight))
+            printDebugString("Successfully unlinked from light " + str(selectedLight)  + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
     except AttributeError:
         printDebugString("Light " + str(selectedLight) + " has no Bleak object attached to it, so not attempting to disconnect from it")
     
@@ -754,19 +755,49 @@ def processCommands(listToProcess=[]):
         acceptable_arguments = ["--http", "--cli", "--silent", "--light", "--mode", "--temp", "--hue", 
         "--sat", "--bri", "--luminance", "--scene", "--animation", "--help"]
     else: # if we're doing HTTP processing, we don't need the http, cli, silent and help flags, so toss 'em
-        acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--luminance", "--scene", "--animation"]
+        acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--luminance", 
+        "--scene", "--animation", "--list", "--discover", "--link"]
    
-    for a in range(len(listToProcess) - 1, 0, -1):
+    # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST
+    for a in range(len(listToProcess) - 1, -1, -1):
         if not any(x in listToProcess[a] for x in acceptable_arguments): # if the current argument is invalid
             if inStartupMode == True:
                 if listToProcess[a] != "-h": # and the argument isn't "-h" (for help)
                     listToProcess.pop(a) # delete the invalid argument from the list
             else: # if we're not in startup mode, then also delete the "-h" flag
                 listToProcess.pop(a) # delete the invalid argument from the list
- 
+    
+    # IF THERE ARE NO VALID PARAMETERS LEFT TO PARSE, THEN RETURN THAT TO THE HTTP SERVER
+    if inStartupMode == False and len(listToProcess) == 0:
+        printDebugString("There are no usable parameters from the HTTP request!")
+        return []
+
+    # FORCE VALUES THAT NEED PARAMETERS TO HAVE ONE, AND VALUES THAT REQUIRE NO PARAMETERS TO HAVE NONE
+    for a in range(0, len(listToProcess)):
+        if listToProcess[a].find("--silent") != -1: 
+            listToProcess[a] = "--silent"
+        elif listToProcess[a].find("--cli") != -1: 
+            listToProcess[a] = "--cli"
+        elif listToProcess[a].find("--html") != -1: 
+            listToProcess[a] = "--html"
+        elif listToProcess[a].find("--list") != -1: 
+            listToProcess[a] = "--list"
+        elif listToProcess[a].find("--discover") != -1: 
+            listToProcess[a] = "--discover"
+        elif listToProcess[a] == "--link": 
+            listToProcess[a] = "--link=-1"
+
     # PARSE THE ARGUMENT LIST FOR CUSTOM PARAMETERS
     parser = argparse.ArgumentParser()
+    
     parser.add_argument("--http", action="store_true", help="Use an HTTP server to send commands to Neewer lights using a web browser")
+
+    # HTML SERVER SPECIFIC PARAMETERS
+    if inStartupMode == False:
+        parser.add_argument("--list", action="store_true") # list the currently available lights to the HTTP server
+        parser.add_argument("--discover", action="store_true") # tell the HTTP server to search for newly added lights
+        parser.add_argument("--link", default=-1) # link a specific light to NeewerPython-Lite
+
     parser.add_argument("--cli", action="store_false", help="Don't show the GUI at all, just send command and quit")
     parser.add_argument("--silent", action="store_false", help="Don't show any debug information in the console")
     parser.add_argument("--light", default="", help="The MAC Address (XX:XX:XX:XX:XX:XX) of the light you want to send a command to or ALL to find and control all lights (only valid when also using --cli switch)")
@@ -788,7 +819,18 @@ def processCommands(listToProcess=[]):
 
     if args.http == True:
         return ["HTTP", args.silent] # special mode - don't do any other mode/color/etc. processing, just jump into running the HTML server
+       
+    if inStartupMode == False:
+        # HTTP specific parameter returns!
+        if args.list == True:
+            return["list"] # list the currently available lights
+    
+        if args.discover == True:
+            return["discover"] # discover new lights
 
+        if args.link != -1:
+            return["link", args.link] # return the value defined by the parameter
+        
     if args.mode == "cct":
         return [args.cli, args.silent, args.light, "CCT",
                 testValid("temp", args.temp, 56, 32, 85),
@@ -806,6 +848,59 @@ def processCommands(listToProcess=[]):
         print ("Improper mode selected with --mode command - valid entries are CCT, HSL or either ANM or SCENE")
         sys.exit(0)
 
+def processHTMLCommands(paramsList):
+    paramsList = processCommands(paramsList) # process the commands returned from the HTTP parameters
+    
+    print(paramsList)
+
+    if len(paramsList) == 0:
+        return [] # if there are no valid parameters returned from above, return an empty list of parameters back to the HTTP function
+    else:
+        pass # do the actual processing here
+
+    loop = asyncio.get_event_loop()
+
+    if paramsList[0] == "discover": # we asked to discover new lights
+        loop.run_until_complete(findDevices()) # find the lights available to control
+                
+        # try to connect to each light
+        for a in range(0, len(availableLights)):
+            loop.run_until_complete(connectToLight(a, False))
+    elif paramsList[0] == "link": # we asked to connect to a specific light
+        pass
+    elif paramsList[0] == "list": # we asked to list the currently available lights
+        print(availableLights)
+    else: # we want to write a value to a specific light
+        if paramsList[3] == "CCT": # calculate CCT bytestring
+            calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
+        elif paramsList[3] == "HSL": # calculate HSL bytestring
+            calculateByteString(colorMode=paramsList[3], HSL_H=paramsList[4], HSL_S=paramsList[5], HSL_L=paramsList[6])
+        elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
+            calculateByteString(colorMode=paramsList[3], animation=paramsList[4], brightness=paramsList[5])
+
+        try: # if the specified light is just an index, then return the light you asked for
+            currentLight = int(paramsList[2])
+
+            # if the specified index is a negative index or beyond the range of lights available, then it's not valid
+            if currentLight < 0 or currentLight > len(availableLights):
+                currentLight = -1
+        except ValueError: # we're most likely asking for a MAC address instead of an integer index
+            currentLight = -1
+
+            for a in range(0, len(availableLights)):
+                if paramsList[2].upper() == availableLights[a][0].address.upper(): # if the MAC address specified matches the current light
+                    currentLight = a
+                    break
+                else:
+                    print(availableLights[a][0].address.upper())
+            
+        if currentLight != -1:
+            loop.run_until_complete(writeToLight(currentLight, False))
+        else:
+            print("Could not find that light!")
+
+    return paramsList
+
 class MyServer(BaseHTTPRequestHandler):
     def do_GET(self):
         # TODO, possibly: Add check here to make sure URL arguments aren't absolutely huge, to avoid a buffer overrun error
@@ -819,19 +914,55 @@ class MyServer(BaseHTTPRequestHandler):
 
         if acceptableURL in self.path: # if the URL contains "/NeewerLite-Python/" then it's a valid URL
             paramsList = self.path.replace(acceptableURL, "").split("|") # split the included parameters into a list
-            paramsList = processCommands(paramsList)
-            print(paramsList)
-
+            paramsList = processHTMLCommands(paramsList)
+          
             self.send_response(200)
             self.send_header("Content-type", "text/html")
             self.end_headers()
-       
+
             self.wfile.write(bytes("<html><head><title>NeewerLite-Python HTTP Server</title></head>", "utf-8"))
             self.wfile.write(bytes("<body>", "utf-8"))
-            self.wfile.write(bytes("<p>Request: %s</p>" % self.path, "utf-8"))
 
-            for a in range(0, len(paramsList)):
-               self.wfile.write(bytes("<p>  > " + str(paramsList[a]) + "</p>", "utf-8"))
+            if len(paramsList) == 0: # if we have no valid parameters, then say that in the error report
+                self.wfile.write(bytes("<h1>Invalid request!</h1>", "utf-8"))
+                self.wfile.write(bytes("Last Request: <em>" + self.path + "</em><br>", "utf-8"))
+                self.wfile.write(bytes("You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a | character.<br><br>", "utf-8"))
+                self.wfile.write(bytes("Valid parameters to use -<br>", "utf-8"))
+                self.wfile.write(bytes("<strong>list</strong> - list the current lights NeewerPython-Lite has available to it<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/list</em><br>", "utf-8"))
+                self.wfile.write(bytes("<strong>discover</strong> - tell NeewerLite-Python to scan for new lights<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/discover</em><br>", "utf-8"))
+                self.wfile.write(bytes("<strong>link=</strong> - (value: <em>index of light to link to</em>) manually link to a specific light<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/link=0</em><br>", "utf-8"))
+                self.wfile.write(bytes("<strong>light=</strong> - the MAC address or index of the light you want to send a command to<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66</em><br>", "utf-8"))
+                self.wfile.write(bytes("<strong>mode=</strong> - the mode (value: <em>HSL, CCT, and either ANM or SCENE</em>) - the color mode to switch the light to<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/mode=CCT</em><br>", "utf-8"))
+                self.wfile.write(bytes("(CCT mode only) <strong>temp=</strong> or <strong>temperature=</strong> - (value: <em>3200 to 8500</em>) the color temperature in CCT mode to set the light to<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/temp=5200</em><br>", "utf-8"))
+                self.wfile.write(bytes("(HSL mode only) <strong>hue=</strong> - (value: <em>0 to 360</em>) the hue value in HSL mode to set the light to<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/hue=240</em><br>", "utf-8"))
+                self.wfile.write(bytes("(HSL mode only) <strong>sat=</strong> or <strong>saturation=</strong> - (value: <em>0 to 100</em>) the color saturation value in HSL mode to set the light to<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/sat=65</em><br>", "utf-8"))
+                self.wfile.write(bytes("(ANM/SCENE mode only) <strong>scene=</strong> - (value: <em>1 to 9</em>) which animation (scene) to switch the light to<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/scene=3</em><br>", "utf-8"))
+                self.wfile.write(bytes("(CCT/HSL/ANM modes) <strong>bri=</strong>, <strong>brightness=</strong> or <strong>luminance=</strong> - (value: <em>0 to 100</em>) how bright you want the light<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/brightness=80</em><br>", "utf-8"))
+                self.wfile.write(bytes("<br><br>More examples -<br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>CCT</em> mode, with a color temperature of <em>5200</em> and brightness of <em>40</em><br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=CCT|temp=5200|bri=40</em><br><br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>HSL</em> mode, with a hue of <em>70</em>, saturation of <em>50</em> and brightness of <em>10</em><br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=HSL|hue=70|sat=50|bri=10</em><br><br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;Set the <em>first light available</em> (which uses index 0) to <em>SCENE</em> mode, using the <em>first</em> animation and brightness of <em>55</em><br>", "utf-8"))
+                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=0|mode=SCENE|scene=1|bri=55</em><br>", "utf-8"))
+            else:
+                self.wfile.write(bytes("<h1>Request Successful!</h1>", "utf-8"))
+                self.wfile.write(bytes("Last Request: <em>" + self.path + "</em><br><br>", "utf-8"))
+
+                self.wfile.write(bytes("Provided Parameters:<br>", "utf-8"))
+
+                for a in range(0, len(paramsList)):
+                    self.wfile.write(bytes("&nbsp;&nbsp;" + str(paramsList[a]) + "<br>", "utf-8"))
 
             self.wfile.write(bytes("</body></html>", "utf-8"))
         else:
@@ -852,6 +983,16 @@ if __name__ == '__main__':
             try:
                 printDebugString("Starting the HTTP Server on Port 8080...")
                 printDebugString("-------------------------------------------------------------------------------------")
+
+                '''
+                loop.run_until_complete(findDevices()) # find the lights available to control
+                
+                # try to connect to each light
+                for a in range(0, len(availableLights)):
+                    loop.run_until_complete(connectToLight(a, False))
+                '''
+
+                # start the HTTP server and wait for requests
                 webServer.serve_forever()
             except KeyboardInterrupt:
                 pass
