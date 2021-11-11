@@ -647,9 +647,9 @@ async def writeToLight(selectedLights=0, updateGUI=True):
     try:
         if updateGUI == True:
             selectedLights = mainWindow.selectedLights() # get the list of currently selected lights from the GUI table
-        else:
-            # TODO - CLI: if we're specifying multiple lights here, then we don't need to do the conversion to list (as it's already one)
-            selectedLights = [selectedLights] # convert asked-for light to list
+        else:           
+            if type(selectedLights) is int: # if we specify an integer-based index
+                selectedLights = [selectedLights] # convert asked-for light to list
 
         currentSendValue = [] # initialize the value check
         
@@ -831,16 +831,16 @@ def processCommands(listToProcess=[]):
         if args.link != -1:
             return["link", args.link] # return the value defined by the parameter
         
-    if args.mode == "cct":
+    if args.mode.lower() == "cct":
         return [args.cli, args.silent, args.light, "CCT",
                 testValid("temp", args.temp, 56, 32, 85),
                 testValid("bri", args.bri, 100, 0, 100)]
-    elif args.mode == "hsl":
+    elif args.mode.lower() == "hsl":
         return [args.cli, args.silent, args.light, "HSL",
                 testValid("hue", args.hue, 240, 0, 360),
                 testValid("sat", args.sat, 100, 0, 100),
                 testValid("bri", args.bri, 100, 0, 100)]
-    elif args.mode in ("anm", "scene"):
+    elif args.mode.lower() in ("anm", "scene"):
         return [args.cli, args.silent, args.light, "ANM",
                 testValid("scene", args.scene, 1, 1, 9),
                 testValid("bri", args.bri, 100, 0, 100)]
@@ -867,9 +867,13 @@ def processHTMLCommands(paramsList):
         for a in range(0, len(availableLights)):
             loop.run_until_complete(connectToLight(a, False))
     elif paramsList[0] == "link": # we asked to connect to a specific light
-        pass
+        selectedLights = returnLightIndexFromMacAddress(paramsList[1])
+
+        if len(selectedLights) > 0:
+            for a in range(0, len(selectedLights)):
+                loop.run_until_complete(connectToLight(selectedLights[a], False))
     elif paramsList[0] == "list": # we asked to list the currently available lights
-        print(availableLights)
+        print(availableLights) # possibly move this section into the HTML renderer itself
     else: # we want to write a value to a specific light
         if paramsList[3] == "CCT": # calculate CCT bytestring
             calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
@@ -877,29 +881,37 @@ def processHTMLCommands(paramsList):
             calculateByteString(colorMode=paramsList[3], HSL_H=paramsList[4], HSL_S=paramsList[5], HSL_L=paramsList[6])
         elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
             calculateByteString(colorMode=paramsList[3], animation=paramsList[4], brightness=paramsList[5])
+           
+        selectedLights = returnLightIndexFromMacAddress(paramsList[2])
 
+        if len(selectedLights) > 0:
+            loop.run_until_complete(writeToLight(selectedLights, False))
+
+    return paramsList
+
+def returnLightIndexFromMacAddress(addresses):
+    addressesToCheck = addresses.split(";")
+    foundIndexes = [] # the list of indexes for the lights you specified
+
+    for a in range(0, len(addressesToCheck)):
         try: # if the specified light is just an index, then return the light you asked for
-            currentLight = int(paramsList[2])
+            currentLight = int(addressesToCheck[a]) # check to see if the current light can be converted to an integer
 
-            # if the specified index is a negative index or beyond the range of lights available, then it's not valid
+            # if the above succeeds, make sure that the index returned is a valid light index
             if currentLight < 0 or currentLight > len(availableLights):
-                currentLight = -1
+                currentLight = -1 # if the index is less than 0, or higher than the last available light, then... nada
         except ValueError: # we're most likely asking for a MAC address instead of an integer index
             currentLight = -1
 
-            for a in range(0, len(availableLights)):
-                if paramsList[2].upper() == availableLights[a][0].address.upper(): # if the MAC address specified matches the current light
-                    currentLight = a
+            for b in range(0, len(availableLights)):
+                if addressesToCheck[a].upper() == availableLights[b][0].address.upper(): # if the MAC address specified matches the current light
+                    currentLight = b
                     break
-                else:
-                    print(availableLights[a][0].address.upper())
-            
-        if currentLight != -1:
-            loop.run_until_complete(writeToLight(currentLight, False))
-        else:
-            print("Could not find that light!")
 
-    return paramsList
+        if currentLight != -1: # the found light index is valid
+            foundIndexes.append(currentLight) # add the found index to the list of indexes
+
+    return foundIndexes
 
 class MyServer(BaseHTTPRequestHandler):
     def do_GET(self):
