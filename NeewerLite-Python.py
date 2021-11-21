@@ -17,10 +17,11 @@
 try:
     from bleak import BleakScanner, BleakClient
 except Exception as e:
-    print("You need the bleak Python package installed to use NeewerLite-Python.  Bleak is the library that connects to Bluetooth devices.")
+    print("You need the bleak Python package installed to use NeewerLite-Python.  Bleak is the library that connects the program to Bluetooth devices.")
     print("Install the Bleak package first before running NeewerLite-Python.")
     sys.exit(0) # you can't use the program itself without Bleak, so kill the program if we don't have it
 
+import os
 import sys
 import argparse
 
@@ -43,8 +44,8 @@ try:
     from PySide2.QtGui import QLinearGradient, QColor
 except Exception as e:
     print("You don't have the PySide2 Python library installed.  If you're only running NeewerLite-Python from")
-    print("a command-line (from a Raspberry Pi CLI for instance), you don't need this package. If you want to launch")
-    print("NeewerLite-Python with the GUI, you need to install the PySide2 package.")
+    print("a command-line (from a Raspberry Pi CLI for instance), or using the HTTP server, you don't need this package.")
+    print("If you want to launch NeewerLite-Python with the GUI, you need to install the PySide2 package.")
 
 # IMPORT THE GUI ITSELF
 try:
@@ -58,34 +59,34 @@ try:
 except Exception as e:
     pass # if there are any HTTP errors, don't do anything yet
 
+CCTSlider = -1 # the current slider moved in the CCT window - 1 - Brightness / 2 - Hue / -1 - Both Brightness and Hue
 sendValue = [] # an array to hold the values to be sent to the light
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
 
-availableLights = [] # the list of Neewer lights currently available to control - format: 
-                     # [Bleak Scan Object, Bleak Connection, Custom Name, Last Params, Extend CCT Range]
+availableLights = [] # the list of Neewer lights currently available to control - format:
+                     #  0                  1                 2            3            4                 5                           6
+                     # [Bleak Scan Object, Bleak Connection, Custom Name, Last Params, Extend CCT Range, Send BRI/HUE independently, Light On/Off]
 
 threadAction = "" # the current action to take from the thread
 setLightUUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99" # the UUID to send information to the light
 
 maxNumOfAttempts = 6 # the maximum attempts CLI mode will attempt before quitting out
 
-# FOR TESTING PURPOSES
+# FOR TESTING PURPOSES / FIRST-LAUNCH PREFERENCES
 startup_findLights = True # whether or not to look for lights when the program starts
 startup_connectLights = True # whether or not to auto-connect to lights after finding them
 printDebug = True # show debug messages in the console for all of the program's events
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
-        global startup_findLights
-
         QMainWindow.__init__(self)
         self.setupUi(self) # set up the main UI
         self.connectMe() # connect the function handlers to the widgets
-        
-        if startup_findLights == False: # if we're not set to detect lights on startup, then just automatically compute the value
-            self.computeValueCCT()
-        else: # if we are, then display the "searching" status on the status bar
+                
+        if startup_findLights == True: # if we're set up to find lights on startup, then indicate that
             self.statusBar.showMessage("Please wait - searching for Neewer lights...")
+        else:
+            self.statusBar.showMessage("Welcome to NeewerLite-Python!  Hit the Scan button above to scan for lights.")
 
         self.show
     
@@ -94,10 +95,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tryConnectButton.clicked.connect(self.startConnect)
               
         self.ColorModeTabWidget.currentChanged.connect(self.tabChanged)
-        self.lightTable.itemSelectionChanged.connect(self.setupSelectionChanged)
+        self.lightTable.itemSelectionChanged.connect(self.selectionChanged)
   
-        self.Slider_CCT_Hue.valueChanged.connect(self.computeValueCCT)
-        self.Slider_CCT_Bright.valueChanged.connect(self.computeValueCCT)
+        self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
+        self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
 
         self.Slider_HSL_1_H.valueChanged.connect(self.computeValueHSL)
         self.Slider_HSL_2_S.valueChanged.connect(self.computeValueHSL)
@@ -157,59 +158,107 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def setupPrefsTab(self, selectedLight):
         self.customNameTF.setText(availableLights[selectedLight][2]) # set the "custom name" field to the custom name of this light
-
+     
+        # IF THE OPTION TO ALLOW WIDER COLOR TEMPERATURES IS ENABLED, THEN ENABLE THAT CHECKBOX
         if availableLights[selectedLight][4] == True:
             self.widerRangeCheck.setChecked(True)
         else:
             self.widerRangeCheck.setChecked(False)
 
+        # IF THE OPTION TO SEND ONLY CCT MODE IS ENABLED, THEN ENABLE THAT CHECKBOX
+        if availableLights[selectedLight][5] == True:
+            self.onlyCCTModeCheck.setChecked(True)
+        else:
+            self.onlyCCTModeCheck.setChecked(False)
+
     # CHECK TO SEE WHETHER OR NOT TO ENABLE/DISABLE THE "Connect" BUTTON OR CHANGE THE PREFS TAB
-    def setupSelectionChanged(self):
+    def selectionChanged(self):
         selectedRows = self.selectedLights() # get the list of currently selected lights
 
-        if len(selectedRows) > 0:
-            self.tryConnectButton.setEnabled(True) # if we have a light selected in the table, then enable the "Connect" button
+        if len(selectedRows) > 0: # if we have a selection
+            self.tryConnectButton.setEnabled(True) # if we have light(s) selected in the table, then enable the "Connect" button
 
-            if len(selectedRows) == 1: # if we have one item selected, then try to restore the last setting sent to it
+            if len(selectedRows) == 1: # we have exactly one light selected
                 self.ColorModeTabWidget.setTabEnabled(3, True) # enable the "Preferences" tab for this light
+
+                if availableLights[selectedRows[0]][5] == True: # if this light is CCT only, then disable the HSL and ANM tabs
+                    self.ColorModeTabWidget.setTabEnabled(1, False) # disable the HSL mode tab
+                    self.ColorModeTabWidget.setTabEnabled(2, False) # disable the ANM/SCENE tab
+                else: # we can use HSL and ANM/SCENE modes, so enable those tabs
+                    self.ColorModeTabWidget.setTabEnabled(1, True) # enable the HSL mode tab
+                    self.ColorModeTabWidget.setTabEnabled(2, True) # enable the ANM/SCENE tab
 
                 currentlySelectedRow = selectedRows[0] # get the row index of the 1 selected item                
                 self.checkLightTab(currentlySelectedRow) # if we're on CCT, check to see if this light can use extended values + on Prefs, update Prefs
 
                 # RECALL LAST SENT SETTING FOR THIS PARTICULAR LIGHT, IF A SETTING EXISTS
-                if availableLights[currentlySelectedRow][3] != []:
-                    sendValue = availableLights[currentlySelectedRow][3] # make the current "sendValue" the last set parameter so it doesn't re-send it on re-load
+                if availableLights[currentlySelectedRow][3] != []: # if the last set parameters aren't empty
+                    if availableLights[currentlySelectedRow][6] != False: # if the light is listed as being turned ON
+                        sendValue = availableLights[currentlySelectedRow][3] # make the current "sendValue" the last set parameter so it doesn't re-send it on re-load
 
-                    if sendValue[1] == 135:
-                        self.setUpGUI(colorMode="CCT",
+                        if sendValue[1] == 135: # the last parameter was a CCT mode change
+                            self.setUpGUI(colorMode="CCT",
                                       brightness=sendValue[3],
                                       temp=sendValue[4])
-                    elif sendValue[1] == 134:
-                        self.setUpGUI(colorMode="HSL",
+                        elif sendValue[1] == 134: # the last parameter was a HSL mode change
+                            self.setUpGUI(colorMode="HSL",
                                       hue=sendValue[3] + (256 * sendValue[4]),
                                       sat=sendValue[5],
                                       brightness=sendValue[6])
-                    elif sendValue[1] == 136:
-                        self.setUpGUI(colorMode="ANM",
+                        elif sendValue[1] == 136: # the last parameter was a ANM/SCENE mode change
+                            self.setUpGUI(colorMode="ANM",
                                       brightness=sendValue[3],
                                       scene=sendValue[4])
+                    else:
+                        self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if the light is off and there ARE prior parameters 
+                else:
+                    self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if there are no prior parameters
             else:
+                self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSL" mode tab
+                self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
                 self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have multiple lights selected
-        else:            
-            self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have no lights selected
+        else: # the selection has been cleared or there are no lights to select
             self.tryConnectButton.setEnabled(False) # if we have no lights selected, disable the Connect button
+
+            self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSL" mode tab
+            self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
+            self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have no lights selected
+            
             self.checkLightTab() # check to see if we're on the CCT tab - if we are, then restore order
 
     def savePrefs(self):
         selectedRows = self.selectedLights() # get the list of currently selected lights
 
-        if len(selectedRows) == 1: # if we have 1 selected light
+        if len(selectedRows) == 1: # if we have 1 selected light - which should never be false, as we can't use Prefs with more than 1
             availableLights[selectedRows[0]][2] = self.customNameTF.text() # set this light's custom name to the text box
             availableLights[selectedRows[0]][4] = self.widerRangeCheck.isChecked() # if the "wider range" box is checked, then allow wider ranges
+            availableLights[selectedRows[0]][5] = self.onlyCCTModeCheck.isChecked() # if the option to send BRI and HUE separately is checked, then turn that on
 
+            # IF A CUSTOM NAME IS SET UP FOR THIS LIGHT, THEN CHANGE THE TABLE TO REFLECT THAT
             if availableLights[selectedRows[0]][2] != "":
                 self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")", 
-                                  "", "", ""], selectedRows[0]) # add the custom name to this specific light
+                                  "", "", ""], selectedRows[0])
+        
+            # CREATE THE light_prefs FOLDER IF IT DOESN'T EXIST
+            try:
+                os.mkdir(os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs")
+            except FileExistsError:
+                pass # the folder already exists, so we don't need to create it
+
+            # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
+            exportFileName = availableLights[selectedRows[0]][0].address.split(":") # take the colons out of the MAC address
+            exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
+
+            # BUILD THE PREFERENCES STRING
+            exportString = availableLights[selectedRows[0]][2] + "|" # the custom name
+            exportString = exportString + str(availableLights[selectedRows[0]][4]) + "|" # whether or not to allow this light to have wider range
+            exportString = exportString + str(availableLights[selectedRows[0]][5]) # whether or not to allow only HSL mode for this light
+
+            # WRITE THE PREFERENCES FILE
+            with open(exportFileName, "w") as prefsFileToWrite:
+                prefsFileToWrite.write(exportString)
+
+            printDebugString("Exported preferences for this light to " + exportFileName)
 
     # ADD A LIGHT TO THE TABLE VIEW
     def setTheTable(self, infoArray, rowToChange = -1):
@@ -257,34 +306,41 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     
     # IF YOU CLICK ON ONE OF THE TABS, THIS WILL SWITCH THE VIEW/SEND A NEW SIGNAL FROM THAT SPECIFIC TAB
     def tabChanged(self, i):
-        if i == 0 or i == 3: # check the current selected lights on the CCT and Prefs tabs
-            currentSelection = self.selectedLights() # get the list of currently selected lights
-
+        currentSelection = self.selectedLights() # get the list of currently selected lights
+        
         if i == 0: # we clicked on the CCT tab
-            # CHECK THE CURRENT SELECTED LIGHT TO SEE IF IT CAN USE EXTENDED COLOR TEMPERATURES
-            if len(currentSelection) == 1: # if we have just one light selected
-                self.checkLightTab(currentSelection[0]) # check the current light's CCT bounds
-            else:
-                self.checkLightTab() # reset the bounds to the normal values (5600K)
-            
-            self.computeValueCCT() # calculate the current CCT value
+            if len(currentSelection) > 0: # if we have something selected
+                if len(currentSelection) == 1: # if we have just one light selected
+                    # CHECK THE CURRENT SELECTED LIGHT TO SEE IF IT CAN USE EXTENDED COLOR TEMPERATURES
+                    self.checkLightTab(currentSelection[0]) # set up the current light's CCT bounds
+
+                    if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update CCT value
+                        self.computeValueCCT() # calculate the current CCT value
+                else: # if we have more than one light selected
+                    self.checkLightTab() # reset the bounds to the normal values (5600K)
         elif i == 1: # we clicked on the HSL tab
-        	self.computeValueHSL() # calculate the current HSL value
+            if len(currentSelection) == 1: # if we have only one thing selected
+                if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update HSL value
+        	        self.computeValueHSL() # calculate the current HSL value
         elif i == 2: # we clicked on the ANM tab
-            pass # skip this, we don't want the animation automatically triggering when we go to this page
+            pass # skip this, we don't want the animation automatically triggering when we go to this page - but keep it for readability
         elif i == 3: # we clicked on the PREFS tab
             if len(currentSelection) == 1: # this tab function ^^ should *ONLY* call if we have just one light selected, but just in *case*
                 self.setupPrefsTab(currentSelection[0])
                          
     # COMPUTE A BYTESTRING FOR THE CCT SECTION
-    def computeValueCCT(self):
+    def computeValueCCT(self, hueOrBrightness = -1):
+        global CCTSlider
+        # CCTSlider = -1 # force this value to -1 to send both hue and brightness at the same time on SNL-660
+        CCTSlider = hueOrBrightness # set the global CCT "current slider" to the slider you just... slid        
+
         self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
         
         calculateByteString(colorMode="CCT",\
                             temp=str(int(self.Slider_CCT_Hue.value())),\
                             brightness=str(int(self.Slider_CCT_Bright.value())))
-
-        self.statusBar.showMessage("Current value (CCT Mode): " + updateStatus())
+        
+        self.statusBar.showMessage("Current value (CCT Mode): " + updateStatus())        
         self.startSend()
 
     # COMPUTE A BYTESTRING FOR THE HSL SECTION
@@ -376,7 +432,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if threadAction != "quit":
             currentSelection = self.lightTable.selectionModel().selectedRows()
 
-            for a in range(0, len(currentSelection)):
+            for a in range(len(currentSelection)):
                 selectionList.append(currentSelection[a].row()) # add the row index of the nth selected light to the selectionList array
 
         return selectionList # return the row IDs that are currently selected, or an empty array ([]) otherwise
@@ -396,7 +452,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else: # if we didn't find any (additional) lights on the last scan
             self.statusBar.showMessage("We didn't locate any Neewer lights on the last search")        
 
-        for a in range(0, len(availableLights)):
+        for a in range(len(availableLights)):
             if availableLights[a][1] == "": # the light is not currently linked, so put "waiting to connect" as status
                 if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
                     self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")", availableLights[a][0].address, "No", "Waiting to connect..."])
@@ -410,7 +466,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # THE FINAL FUNCTION TO UNLINK ALL LIGHTS WHEN QUITTING THE PROGRAM
     def closeEvent(self, event):
-        global availableLights
         global threadAction
 
         self.statusBar.showMessage("Quitting program - unlinking from lights...")
@@ -421,8 +476,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # TRY TO DISCONNECT EACH LIGHT FROM BLUETOOTH BEFORE QUITTING THE PROGRAM COMPLETELY
         for a in range (0, len(availableLights)):
-            printDebugString("Unlinking from light #" + str(a) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
-            self.statusBar.showMessage("Unlinking from light #" + str(a) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)...")
+            printDebugString("Unlinking from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
+            self.statusBar.showMessage("Unlinking from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)...")
             QApplication.processEvents() # force update to show statusbar progress
             
             loop.run_until_complete(disconnectFromLight(a)) # disconnect from each light, one at a time
@@ -478,8 +533,6 @@ def testValid(theParam, theValue, defaultValue, startBounds, endBounds):
 
 # PRINT A DEBUG STRING TO THE CONSOLE, ALONG WITH THE CURRENT TIME
 def printDebugString(theString):
-    global printDebug
-
     if printDebug == True:
         now = datetime.now()
         currentTime = now.strftime("%H:%M:%S")
@@ -516,26 +569,45 @@ def calculateByteString(**modeArgs):
     else:        
         sendValue = [0]
 
+# RECALCULATE THE BYTESTRING FOR CCT-ONLY NEEWER LIGHTS INTO HUE AND BRIGHTNESS SEPARATELY
+def calculateSeparateBytestrings(sendValue):
+    # CALCULATE BRIGHTNESS ONLY PARAMETER FROM MAIN PARAMETER
+    newValueBRI = [120, 130, 1, sendValue[3], 0]
+    newValueBRI[4] = calculateChecksum(newValueBRI)
+
+    # CALCULATE HUE ONLY PARAMETER FROM MAIN PARAMETER
+    newValueHUE = [120, 131, 1, sendValue[4], 0]
+    newValueHUE[4] = calculateChecksum(newValueHUE)
+
+    if CCTSlider == -1: # return both newly computed values
+        return [newValueBRI, newValueHUE]
+    elif CCTSlider == 1: # return only the brightness value
+        return newValueBRI
+    elif CCTSlider == 2: # return only the hue value
+        return newValueHUE
+
 # MAKE CURRENT BYTESTRING INTO A STRING OF HEX CHARACTERS TO SHOW THE CURRENT VALUE BEING GENERATED BY THE PROGRAM
-def updateStatus(splitString = False):
+def updateStatus(splitString = False, customValue=False):
         currentHexString = ""
 
-        if splitString == False: # False is for the status bar (shows the bytestring as one long line)
-            for a in range(0, len(sendValue)):
-                currentHexString = currentHexString + " " + str(hex(sendValue[a]))
-        else: # True is for the table view (split the line in half, show the first 3 on the top line, then the actual payload below)
-            for a in range(0, 3):
-                currentHexString = currentHexString + " " + str(hex(sendValue[a]))
-            
-            if sendValue[1] == 134:
-                currentHexString = currentHexString + " (HSL)\n"
-            elif sendValue[1] == 135:
-                currentHexString = currentHexString + " (CCT)\n"
-            elif sendValue[1] == 136:
-                currentHexString = currentHexString + " (ANM)\n"
+        if customValue == False:
+            customValue = sendValue
 
-            for a in range(3, len(sendValue)):
-                currentHexString = currentHexString + " " + str(hex(sendValue[a]))
+        if splitString == False: # False is for the status bar (shows the bytestring computed as one long line)
+            for a in range(len(customValue)):
+                currentHexString = currentHexString + " " + str(hex(customValue[a]))
+        else: # True is for the table view, this view no longer shows bytestring, but readable status of current mode (temp/bri/hue, etc.)
+            currentHexString = ""
+            
+            if customValue[1] == 134:
+                currentHexString = "(HSL MODE):\n"
+                currentHexString = currentHexString + "  H: " + str(customValue[3] + (256 * customValue[4])) + u'\N{DEGREE SIGN}' + " / S: " + str(customValue[5]) + " / L: " + str(customValue[6])
+            elif customValue[1] == 135:
+                currentHexString = "(CCT MODE):\n"
+                currentHexString = currentHexString + "  TEMP: " + str(customValue[4]) + "00K / BRI: " + str(customValue[3])
+            elif customValue[1] == 136:
+                currentHexString = "(ANM/SCENE MODE):\n"
+                currentHexString = currentHexString + "  SCENE: " + str(customValue[4]) + " / BRI: " + str(customValue[3])
 
         return currentHexString
 
@@ -543,7 +615,7 @@ def updateStatus(splitString = False):
 def calculateChecksum(sendValue):
     checkSum = 0
 
-    for a in range(0, len(sendValue) - 1):
+    for a in range(len(sendValue) - 1):
         if sendValue[a] < 0:
             checkSum = checkSum + int(sendValue[a] + 256)
         else:
@@ -568,12 +640,41 @@ async def findDevices():
         else:
             currentScan.append(d) # and if it finds the phrase, add it to this session's available lights
 
-    for a in range(0, len(currentScan)): # scan the newly found NEEWER devices
+    for a in range(len(currentScan)): # scan the newly found NEEWER devices
         if currentScan[a].address not in availableLights: # if this specific device is NOT in the globally available list of devices
             printDebugString("Found new light! [" + currentScan[a].name + "] MAC Address: " + currentScan[a].address)
-            availableLights.append([currentScan[a], "", "", [], False]) # add it to the global list
+            customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
+            availableLights.append([currentScan[a], "", customPrefs[0], [], customPrefs[1], customPrefs[2], True]) # add it to the global list
             
     return "" # once the device scan is over, set the threadAction to nothing
+
+def getCustomLightPrefs(MACAddress, lightName = ""):
+    customPrefsPath = MACAddress.split(":")
+    customPrefsPath = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(customPrefsPath)
+
+    if os.path.exists(customPrefsPath):
+        printDebugString("A custom preferences file was found for " + MACAddress + "!")
+                
+        # READ THE PREFERENCES FILE INTO A LIST
+        fileToOpen = open(customPrefsPath)
+        customPrefs = fileToOpen.read().split("|")
+        fileToOpen.close()
+
+        # CHANGE STRING "Booleans" INTO ACTUAL BOOLEANS
+        for b in range(1,3):
+            if customPrefs[b] == "True":
+                customPrefs[b] = True
+            else:
+                customPrefs[b] = False
+    else: # if there is no custom preferences file, still check the name against a list of per-light parameters
+        if lightName == "NEEWER-SL80": # we can use extended ranges with the SL80
+            customPrefs = ["", True, False]
+        elif lightName == "NEEWER-SNL660": # we can ONLY use CCT mode with the SNL-660
+            customPrefs = ["", False, True]
+        else: # return a blank slate
+             customPrefs = ["", False, False]
+            
+    return customPrefs
 
 # CONNECT (LINK) TO A LIGHT
 async def connectToLight(selectedLight, updateGUI=True):
@@ -581,7 +682,7 @@ async def connectToLight(selectedLight, updateGUI=True):
     isConnected = False # whether or not the light is connected
     returnValue = "" # the value to return to the thread (in GUI mode, a string) or True/False (in CLI mode, a boolean value)
 
-    printDebugString("Attempting to link to light " + str(selectedLight) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
+    printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
 
     # FILL THE [1] ELEMENT OF THE availableLights ARRAY WITH THE BLEAK CONNECTION
     if availableLights[selectedLight][1] == "":
@@ -594,7 +695,7 @@ async def connectToLight(selectedLight, updateGUI=True):
         else:
             isConnected = True # the light is already connected, so mark it as being connected
     except Exception as e:
-        printDebugString("Error linking to light " + str(selectedLight) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
+        printDebugString("Error linking to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
         print(e)
 
         if updateGUI == True:
@@ -603,8 +704,8 @@ async def connectToLight(selectedLight, updateGUI=True):
             returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
 
     if isConnected == True:
-        printDebugString("Successfully linked to light " + str(selectedLight) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
-
+        printDebugString("Successfully linked to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
+        
         if updateGUI == True:
             mainWindow.setTheTable(["", "", "Yes", "Waiting to send..."], selectedLight) # if it's successful, show that in the table
         else:
@@ -612,7 +713,7 @@ async def connectToLight(selectedLight, updateGUI=True):
     else:
         returnValue = False # the light is not connected
 
-    return returnValue # once the connection is over, then set threadAction to nothing
+    return returnValue # once the connection is over, then return either True or False (for CLI) or nothing (for GUI)
 
 # DISCONNECT FROM A LIGHT
 async def disconnectFromLight(selectedLight, updateGUI=True):
@@ -620,22 +721,23 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
 
     try:
         if availableLights[selectedLight][1].is_connected: # if the current light is connected
-            await availableLights[selectedLight][1].disconnect()
+            await availableLights[selectedLight][1].disconnect() # disconnect the selected light
     except Exception as e:
         returnValue = False # if we're in CLI mode, then return False if there is an error disconnecting
-        printDebugString("Error unlinking from light " + str(selectedLight)  + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
+
+        printDebugString("Error unlinking from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
         print(e)
     
     try:
         if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
             if updateGUI == False:
                 returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
-    
-            printDebugString("Successfully unlinked from light " + str(selectedLight)  + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
+            
+            printDebugString("Successfully unlinked from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
     except AttributeError:
-        printDebugString("Light " + str(selectedLight) + " has no Bleak object attached to it, so not attempting to disconnect from it")
+        printDebugString("Light " + str(selectedLight + 1) + " has no Bleak object attached to it, so not attempting to disconnect from it")
     
-    return returnValue    
+    return returnValue
 
 # WRITE TO A LIGHT - optional arguments for the CLI version (GUI version doesn't use either of these)
 async def writeToLight(selectedLights=0, updateGUI=True):
@@ -658,21 +760,56 @@ async def writeToLight(selectedLights=0, updateGUI=True):
             if currentSendValue != sendValue: # if the current value is different than what was last sent to the light, then send a new one
                 currentSendValue = sendValue # get this value before sending to multiple lights, to ensure the same value is sent to each one
 
-                for a in range(0, len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
-                    if availableLights[selectedLights[a]][1] != "":
+                for a in range(len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
+                    if availableLights[selectedLights[a]][1] != "": # if a Bleak connection is there
                         try:
-                            await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
+                            if availableLights[(int(selectedLights[a]))][5] == True: # if we're using the old style of light
+                                if currentSendValue[1] == 135: # if we're on CCT mode
+                                    if CCTSlider == -1: # and we need to write both HUE and BRI to the light
+                                        splitCommands = calculateSeparateBytestrings(currentSendValue) # get both commands from the converter
+
+                                        # WRITE BOTH LUMINANCE AND HUE VALUES TOGETHER, BUT SEPARATELY
+                                        await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(splitCommands[0]), False)
+                                        await asyncio.sleep(0.05) # wait 1/20th of a second to give the Bluetooth bus a little time to recover
+                                        await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(splitCommands[1]), False)
+                                    else: # we're only writing either HUE or BRI independently
+                                        await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(calculateSeparateBytestrings(currentSendValue)), False)
+                                elif currentSendValue[1] == 129: # we're using an old light, but we're either turning the light on or off                                    
+                                    await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
+                                elif currentSendValue[1] == 134: # we can't use HSL mode with this light, so show that
+                                    if updateGUI == True:
+                                        mainWindow.setTheTable(["", "", "", "This light can not use HSL mode"], int(selectedLights[a]))
+                                    else:
+                                        returnValue = True # we successfully wrote to the light (or tried to at least)
+                                elif currentSendValue[1] == 136: # we can't use ANM/SCENE mode with this light, so show that
+                                    if updateGUI == True:
+                                        mainWindow.setTheTable(["", "", "", "This light can not use ANM/SCENE mode"], int(selectedLights[a]))
+                                    else:
+                                        returnValue = True # we successfully wrote to the light (or tried to at least)
+                            else: # we're using a "newer" Neewer light, so just send the original calculated value
+                                await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
 
                             if updateGUI == True:
-                                mainWindow.setTheTable(["", "", "", "Sent: " + updateStatus(True)], int(selectedLights[a]))
-
-                                # STORE THE CURRENTLY SENT VALUE TO THE MAIN ARRAY TO RECALL LATER
-                                availableLights[selectedLights[a]][3] = currentSendValue                                
+                                # if we're not looking at an old light, or if we are, we're not in either HSL or ANM modes, then update the status of that light
+                                if not (availableLights[(int(selectedLights[a]))][5] == True and (currentSendValue[1] == 134 or currentSendValue[1] == 136)):
+                                    if currentSendValue[1] != 129: # if we're not turning the light on or off
+                                        mainWindow.setTheTable(["", "", "", updateStatus(True)], int(selectedLights[a]))
+                                    else: # we ARE turning the light on or off
+                                        if currentSendValue[3] == 1: # we turned the light on
+                                            availableLights[int(selectedLights[a])][6] = True # toggle the "light on" parameter of this light to ON
+                                            mainWindow.setTheTable(["", "", "", "Light turned on"], int(selectedLights[a]))
+                                        else: # we turned the light off
+                                            availableLights[int(selectedLights[a])][6] = False # toggle the "light on" parameter of this light to OFF
+                                            mainWindow.setTheTable(["", "", "", "Light turned off - a long period of inactivity might unlink the light from the program"], int(selectedLights[a]))
                             else:
                                 returnValue = True # we successfully wrote to the light
+
+                            if currentSendValue[1] != 129: # if we didn't just send a command to turn the light on/off
+                                availableLights[selectedLights[a]][3] = currentSendValue # store the currenly sent value to recall later
                         except Exception as e:
-                            mainWindow.setTheTable(["", "", "", "Error Sending to light!"], int(selectedLights[a]))
-                    else:
+                            if updateGUI == True:
+                                mainWindow.setTheTable(["", "", "", "Error Sending to light!"], int(selectedLights[a]))
+                    else: # if there is no Bleak object associated with this light (otherwise, it's been found, but not linked)
                         if updateGUI == True:
                             mainWindow.setTheTable(["", "", "", "Light isn't linked yet, can't send to it"], int(selectedLights[a]))
                         else:
@@ -699,6 +836,18 @@ async def writeToLight(selectedLights=0, updateGUI=True):
             returnValue = "quit"
 
     return returnValue
+
+# USE THIS FUNCTION TO CONNECT TO ONE LIGHT (for CLI mode) AND RETRIEVE ANY CUSTOM PREFS (necessary for lights like the SNL-660)
+async def connectToOneLight(MACAddress):
+    global availableLights
+
+    try:
+        currentLightToAdd = await BleakScanner.find_device_by_address(MACAddress)
+        customLightPrefs = getCustomLightPrefs(currentLightToAdd.address, currentLightToAdd.name)
+        availableLights = [[currentLightToAdd, "", customLightPrefs[0], [], customLightPrefs[1], customLightPrefs[2], True]]
+    except Exception as e:
+        printDebugString("Error finding the Neewer light with MAC address " + MACAddress)
+        print(e)
 
 # THE BACKGROUND WORKER THREAD
 def workerThread(_loop):
@@ -740,7 +889,7 @@ def processCommands(listToProcess=[]):
 
     # ADD DASHES TO ANY PARAMETERS THAT DON'T CURRENTLY HAVE THEM AS WELL AS
     # CONVERT ALL ARGUMENTS INTO lower case (to allow ALL CAPS arguments to parse correctly)
-    for a in range(0, len(listToProcess)):
+    for a in range(len(listToProcess)):
         if listToProcess[a] != "-h" and listToProcess[a][:2] != "--": # if the dashes aren't in the current item (and it's not the -h flag)
             if listToProcess[a][:1] == "-": # if the current parameter only has one dash (typed wrongly)
                 listToProcess[a] = "--" + listToProcess[a][1:].lower() # then remove that, and add the double dash and switch to lowercase
@@ -773,7 +922,7 @@ def processCommands(listToProcess=[]):
         return []
 
     # FORCE VALUES THAT NEED PARAMETERS TO HAVE ONE, AND VALUES THAT REQUIRE NO PARAMETERS TO HAVE NONE
-    for a in range(0, len(listToProcess)):
+    for a in range(len(listToProcess)):
         if listToProcess[a].find("--silent") != -1: 
             listToProcess[a] = "--silent"
         elif listToProcess[a].find("--cli") != -1: 
@@ -814,7 +963,7 @@ def processCommands(listToProcess=[]):
             printDebugString("Starting program with command-line arguments")
         else:
             printDebugString("Processing HTTP arguments")
-            args.cli = False # we're running the CLI, so no GUI (TODO: possibly make HTTP server and GUI work in tandem)
+            args.cli = False # we're running the CLI, so don't initialize the GUI
             args.silent = printDebug # we're not changing the silent flag, pass on the current printDebug setting
 
     if args.http == True:
@@ -848,54 +997,40 @@ def processCommands(listToProcess=[]):
         print ("Improper mode selected with --mode command - valid entries are CCT, HSL or either ANM or SCENE")
         sys.exit(0)
 
-def processHTMLCommands(paramsList):
-    paramsList = processCommands(paramsList) # process the commands returned from the HTTP parameters
-    
-    print(paramsList)
-
-    if len(paramsList) == 0:
-        return [] # if there are no valid parameters returned from above, return an empty list of parameters back to the HTTP function
-    else:
-        pass # do the actual processing here
-
-    loop = asyncio.get_event_loop()
-
-    if paramsList[0] == "discover": # we asked to discover new lights
-        loop.run_until_complete(findDevices()) # find the lights available to control
+def processHTMLCommands(_loop, paramsList):
+    if len(paramsList) != 0:
+        if paramsList[0] == "discover": # we asked to discover new lights
+            loop.run_until_complete(findDevices()) # find the lights available to control
                 
-        # try to connect to each light
-        for a in range(0, len(availableLights)):
-            loop.run_until_complete(connectToLight(a, False))
-    elif paramsList[0] == "link": # we asked to connect to a specific light
-        selectedLights = returnLightIndexFromMacAddress(paramsList[1])
+            # try to connect to each light
+            for a in range(len(availableLights)):
+                loop.run_until_complete(connectToLight(a, False))
+        elif paramsList[0] == "link": # we asked to connect to a specific light
+            selectedLights = returnLightIndexesFromMacAddress(paramsList[1])
 
-        if len(selectedLights) > 0:
-            for a in range(0, len(selectedLights)):
-                loop.run_until_complete(connectToLight(selectedLights[a], False))
-    elif paramsList[0] == "list": # we asked to list the currently available lights
-        print(availableLights) # possibly move this section into the HTML renderer itself
-    else: # we want to write a value to a specific light
-        if paramsList[3] == "CCT": # calculate CCT bytestring
-            calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
-        elif paramsList[3] == "HSL": # calculate HSL bytestring
-            calculateByteString(colorMode=paramsList[3], HSL_H=paramsList[4], HSL_S=paramsList[5], HSL_L=paramsList[6])
-        elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
-            calculateByteString(colorMode=paramsList[3], animation=paramsList[4], brightness=paramsList[5])
+            if len(selectedLights) > 0:
+                for a in range(len(selectedLights)):
+                    loop.run_until_complete(connectToLight(selectedLights[a], False))
+        else: # we want to write a value to a specific light
+            if paramsList[3] == "CCT": # calculate CCT bytestring
+                calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
+            elif paramsList[3] == "HSL": # calculate HSL bytestring
+                calculateByteString(colorMode=paramsList[3], HSL_H=paramsList[4], HSL_S=paramsList[5], HSL_L=paramsList[6])
+            elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
+                calculateByteString(colorMode=paramsList[3], animation=paramsList[4], brightness=paramsList[5])
            
-        selectedLights = returnLightIndexFromMacAddress(paramsList[2])
+            selectedLights = returnLightIndexesFromMacAddress(paramsList[2])
 
-        if len(selectedLights) > 0:
-            loop.run_until_complete(writeToLight(selectedLights, False))
+            if len(selectedLights) > 0:
+                loop.run_until_complete(writeToLight(selectedLights, False))
 
-    return paramsList
-
-def returnLightIndexFromMacAddress(addresses):
+def returnLightIndexesFromMacAddress(addresses):
     addressesToCheck = addresses.split(";")
     foundIndexes = [] # the list of indexes for the lights you specified
 
-    for a in range(0, len(addressesToCheck)):
+    for a in range(len(addressesToCheck)):
         try: # if the specified light is just an index, then return the light you asked for
-            currentLight = int(addressesToCheck[a]) # check to see if the current light can be converted to an integer
+            currentLight = int(addressesToCheck[a]) - 1 # check to see if the current light can be converted to an integer
 
             # if the above succeeds, make sure that the index returned is a valid light index
             if currentLight < 0 or currentLight > len(availableLights):
@@ -903,7 +1038,7 @@ def returnLightIndexFromMacAddress(addresses):
         except ValueError: # we're most likely asking for a MAC address instead of an integer index
             currentLight = -1
 
-            for b in range(0, len(availableLights)):
+            for b in range(len(availableLights)):
                 if addressesToCheck[a].upper() == availableLights[b][0].address.upper(): # if the MAC address specified matches the current light
                     currentLight = b
                     break
@@ -913,72 +1048,181 @@ def returnLightIndexFromMacAddress(addresses):
 
     return foundIndexes
 
-class MyServer(BaseHTTPRequestHandler):
+class NLPythonServer(BaseHTTPRequestHandler):
     def do_GET(self):
-        # TODO, possibly: Add check here to make sure URL arguments aren't absolutely huge, to avoid a buffer overrun error
-        # /NeewerLite-Python/mode=HSL|hue=120|sat=100|bri=100|light=XX:XX:XX:XX:XX:XX:XX is 78 characters, so the URL should
-        # theoretically not be any longer than, say 120 characters total - you'd send a command to one light at a time - look
-        # into this!  Maybe a slightly longer allowance if you're sending to multiple lights (possibly in the light= parameter)
-        # separated into multiple light MAC addresses, like light=XX:XX:XX:XX:XX:XX:XX:XX;YY:YY:YY:YY:YY:YY:YY:YY, etc. for no
-        # more than... 4 lights possibly?  6?
+        if self.path == "/favicon.ico": # if favicon.ico is specified, then send a 404 error and stop processing
+            try:
+                self.send_error(404)
+            except ConnectionAbortedError:
+                printDebugString("Could not serve the error page, the HTTP server is already busy with another request.")
+            
+            return
+        else:
+            # CHECK THE LENGTH OF THE URL REQUEST AND SEE IF IT'S TOO LONG
+            if len(self.path) > 150:
+                # THE LAST REQUEST WAS WAY TOO LONG, SO QUICKLY RENDER AN ERROR PAGE AND RETURN FROM THE HTTP RENDERER
+                writeHTMLSections(self, "header")
+                writeHTMLSections(self, "errorHelp", "The last request you provided was too long!  The NeewerLite-Python HTTP server can only accept URL commands less than 132 characters long after /NeewerLite-Python/.")
+                writeHTMLSections(self, "footer")
 
-        acceptableURL = "/NeewerLite-Python/"
+                return
 
-        if acceptableURL in self.path: # if the URL contains "/NeewerLite-Python/" then it's a valid URL
-            paramsList = self.path.replace(acceptableURL, "").split("|") # split the included parameters into a list
-            paramsList = processHTMLCommands(paramsList)
-          
-            self.send_response(200)
-            self.send_header("Content-type", "text/html")
-            self.end_headers()
+            # CHECK TO SEE IF THE IP REQUESTING ACCESS IS IN THE LIST OF "acceptableIPs"
 
-            self.wfile.write(bytes("<html><head><title>NeewerLite-Python HTTP Server</title></head>", "utf-8"))
-            self.wfile.write(bytes("<body>", "utf-8"))
+            # This is the list of local IPs that the server lets through (outside requests return "Forbidden"
+            # unless you specify that IP address or range - wildcards are just not typed in (192.168 is the same as 192.168.*.*) - in this list)
+            # The list currently contains a wildcard of internal router IPs (192.168.*.*, 10.0.0.*, 127.20.*.*) and the loopback IP (127.0.0.1)
+            # but any outside requests (unless you whitelist it below) will be forbidden from making a request
 
-            if len(paramsList) == 0: # if we have no valid parameters, then say that in the error report
-                self.wfile.write(bytes("<h1>Invalid request!</h1>", "utf-8"))
-                self.wfile.write(bytes("Last Request: <em>" + self.path + "</em><br>", "utf-8"))
-                self.wfile.write(bytes("You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a | character.<br><br>", "utf-8"))
-                self.wfile.write(bytes("Valid parameters to use -<br>", "utf-8"))
-                self.wfile.write(bytes("<strong>list</strong> - list the current lights NeewerPython-Lite has available to it<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/list</em><br>", "utf-8"))
-                self.wfile.write(bytes("<strong>discover</strong> - tell NeewerLite-Python to scan for new lights<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/discover</em><br>", "utf-8"))
-                self.wfile.write(bytes("<strong>link=</strong> - (value: <em>index of light to link to</em>) manually link to a specific light<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/link=0</em><br>", "utf-8"))
-                self.wfile.write(bytes("<strong>light=</strong> - the MAC address or index of the light you want to send a command to<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66</em><br>", "utf-8"))
-                self.wfile.write(bytes("<strong>mode=</strong> - the mode (value: <em>HSL, CCT, and either ANM or SCENE</em>) - the color mode to switch the light to<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/mode=CCT</em><br>", "utf-8"))
-                self.wfile.write(bytes("(CCT mode only) <strong>temp=</strong> or <strong>temperature=</strong> - (value: <em>3200 to 8500</em>) the color temperature in CCT mode to set the light to<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/temp=5200</em><br>", "utf-8"))
-                self.wfile.write(bytes("(HSL mode only) <strong>hue=</strong> - (value: <em>0 to 360</em>) the hue value in HSL mode to set the light to<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/hue=240</em><br>", "utf-8"))
-                self.wfile.write(bytes("(HSL mode only) <strong>sat=</strong> or <strong>saturation=</strong> - (value: <em>0 to 100</em>) the color saturation value in HSL mode to set the light to<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/sat=65</em><br>", "utf-8"))
-                self.wfile.write(bytes("(ANM/SCENE mode only) <strong>scene=</strong> - (value: <em>1 to 9</em>) which animation (scene) to switch the light to<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/scene=3</em><br>", "utf-8"))
-                self.wfile.write(bytes("(CCT/HSL/ANM modes) <strong>bri=</strong>, <strong>brightness=</strong> or <strong>luminance=</strong> - (value: <em>0 to 100</em>) how bright you want the light<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/brightness=80</em><br>", "utf-8"))
-                self.wfile.write(bytes("<br><br>More examples -<br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>CCT</em> mode, with a color temperature of <em>5200</em> and brightness of <em>40</em><br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=CCT|temp=5200|bri=40</em><br><br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>HSL</em> mode, with a hue of <em>70</em>, saturation of <em>50</em> and brightness of <em>10</em><br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=HSL|hue=70|sat=50|bri=10</em><br><br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;Set the <em>first light available</em> (which uses index 0) to <em>SCENE</em> mode, using the <em>first</em> animation and brightness of <em>55</em><br>", "utf-8"))
-                self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=0|mode=SCENE|scene=1|bri=55</em><br>", "utf-8"))
+            acceptableIPs = ["192.168", "10.0.0", "172.20", "127.0.0.1"]
+
+            clientIP = self.client_address[0] # the IP address of the machine making the request
+            acceptedIP = False
+
+            for check in range(len(acceptableIPs)): # check all the "accepted" IP addresses against the current requesting IP
+                if acceptedIP != True: # if we haven't found the IP in the accepted list, then keep checking
+                    if acceptableIPs[check] in clientIP:
+                        acceptedIP = True # if we're good to go, then we can just move on
+
+            # IF THE IP MAKING THE REQUEST IS NOT IN THE LIST OF APPROVED ADDRESSES, THEN RETURN A "FORBIDDEN" ERROR
+            if acceptedIP == False:
+                self.send_error(403, "The IP of the device you're making the request from (" + clientIP + ") has to be in the list of accepted IP addresses in order to use the NeewerLite-Python HTTP Server, any outside addresses will generate this Forbidden error.  To use this device with NeewerLite-Python, add its IP address (or range of IP addresses) to the list of acceptable IPs")
+                return
+
+            acceptableURL = "/NeewerLite-Python/"
+
+            if not acceptableURL in self.path: # if we ask for something that's not the main directory, then redirect to the main error page
+                self.send_response(302)
+                self.send_header('Location', acceptableURL)
+                self.end_headers()
+
+                return
+            else: # if the URL contains "/NeewerLite-Python/" then it's a valid URL
+                writeHTMLSections(self, "header")
+
+                paramsList = self.path.replace(acceptableURL, "").split("|") # split the included parameters into a list
+                paramsList = processCommands(paramsList) # process the commands returned from the HTTP parameters
+                print(paramsList)          
+
+            if len(paramsList) == 0: # if we have no valid parameters, then say that in the error report                
+                writeHTMLSections(self, "errorHelp", "You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a | character.")
             else:
                 self.wfile.write(bytes("<h1>Request Successful!</h1>", "utf-8"))
-                self.wfile.write(bytes("Last Request: <em>" + self.path + "</em><br><br>", "utf-8"))
+                self.wfile.write(bytes("Last Request: <em>" + self.path + "</em><br>", "utf-8"))
+                self.wfile.write(bytes("From IP: <em>" + clientIP + "</em><br><br>", "utf-8"))
 
-                self.wfile.write(bytes("Provided Parameters:<br>", "utf-8"))
+                if paramsList[0] != "list":
+                    self.wfile.write(bytes("Provided Parameters:<br>", "utf-8"))
 
-                for a in range(0, len(paramsList)):
-                    self.wfile.write(bytes("&nbsp;&nbsp;" + str(paramsList[a]) + "<br>", "utf-8"))
+                    if len(paramsList) <= 2:
+                        for a in range(len(paramsList)):
+                            self.wfile.write(bytes("&nbsp;&nbsp;" + str(paramsList[a]) + "<br>", "utf-8"))
+                    else:
+                        self.wfile.write(bytes("&nbsp;&nbsp;Light(s) to connect to: " + str(paramsList[2]) + "<br>", "utf-8"))
+                        self.wfile.write(bytes("&nbsp;&nbsp;Mode: " + str(paramsList[3]) + "<br>", "utf-8"))
 
-            self.wfile.write(bytes("</body></html>", "utf-8"))
-        else:
-            self.send_error(404, "The URL you specified (" + self.path + ") was not correct.  The NeewerLite-Python HTTP server only accepts URLs starting with /NeewerLite-Python/ and a list of parameters after the forward slash, separated by a | character in between each specified parameter.  An example of a correct URL would be: http://(server IP address):8080/NeewerLite-Python/mode=HSL|hue=120|sat=60|brightness=20|light=XX:XX:XX:XX:XX:XX")
+                        if paramsList[3] == "CCT":
+                            self.wfile.write(bytes("&nbsp;&nbsp;Color Temperature: " + str(paramsList[4]) + "00K<br>", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<br>", "utf-8"))
+                        elif paramsList[3] == "HSL":
+                            self.wfile.write(bytes("&nbsp;&nbsp;Hue: " + str(paramsList[4]) + "<br>", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Saturation: " + str(paramsList[5]) + "<br>", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[6]) + "<br>", "utf-8"))
+                        elif paramsList[3] == "ANM" or paramsList[3] == "SCENE":
+                            self.wfile.write(bytes("&nbsp;&nbsp;Animation Scene: " + str(paramsList[4]) + "<br>", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<br>", "utf-8"))
+
+                    # PROCESS THE HTML COMMANDS IN ANOTHER THREAD
+                    loop = asyncio.get_event_loop()
+                    htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(loop, paramsList,), name="htmlProcessThread")
+                    htmlProcessThread.start()
+                else: # build the list of lights to display in the browser
+                    totalLights = len(availableLights)
+                  
+                    if totalLights == 0: # there are no lights available to you at the moment!
+                        self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <a href=""discover"">click here</a>.<br>", "utf-8"))
+                    else:
+                        self.wfile.write(bytes("List of available Neewer lights:<HR>", "utf-8"))
+                        self.wfile.write(bytes("<TABLE WIDTH=""98%"" BORDER=""1"">", "utf-8"))
+                        self.wfile.write(bytes("<TR>", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">ID #", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:20%;text-align:left"">Custom Name</TH>", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:20%;text-align:left"">Light Type</TH>", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:20%;text-align:left"">MAC Address</TH>", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">Linked</TH>", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:30%;text-align:left"">Last Sent Value</TH>", "utf-8"))
+                        self.wfile.write(bytes("</TR>", "utf-8"))
+
+                        for a in range(totalLights):
+                            self.wfile.write(bytes("<TR>", "utf-8"))
+                            self.wfile.write(bytes("<TD>" + str(a + 1) + "</TD>", "utf-8")) # light ID #
+                            self.wfile.write(bytes("<TD>" + availableLights[a][2] + "</TD>", "utf-8")) # light custom name
+                            self.wfile.write(bytes("<TD>" + availableLights[a][0].name + "</TD>", "utf-8")) # light type
+                            self.wfile.write(bytes("<TD>" + availableLights[a][0].address + "</TD>", "utf-8")) # light MAC address
+
+                            try:
+                                if availableLights[a][1].is_connected:
+                                    self.wfile.write(bytes("<TD>" + "Yes" + "</TD>", "utf-8")) # is the light linked?
+                                else:
+                                    self.wfile.write(bytes("<TD>" + "<A HREF=link=" + str(a + 1) + ">No</A></TD>", "utf-8")) # is the light linked?
+                            except Exception as e:
+                                self.wfile.write(bytes("<TD>" + "<A HREF=link=" + str(a + 1) + ">Nope!</A></TD>", "utf-8")) # is the light linked?
+
+                            self.wfile.write(bytes("<TD>" + updateStatus(False, availableLights[a][3]) + "</TD>", "utf-8")) # the last sent value to the light
+                            self.wfile.write(bytes("</TR>", "utf-8"))
+                        
+                        self.wfile.write(bytes("</TABLE>", "utf-8"))
+
+            writeHTMLSections(self, "footer") # add the footer to the bottom of the page
+
+def writeHTMLSections(self, theSection, errorMsg = ""):
+    if theSection == "header":
+        self.send_response(200)
+        self.send_header("Content-type", "text/html")
+        self.end_headers()
+
+        self.wfile.write(bytes("<html><head><title>NeewerLite-Python HTTP Server</title></head>", "utf-8"))
+        self.wfile.write(bytes("<body>", "utf-8"))
+    elif theSection == "errorHelp":
+        self.wfile.write(bytes("<h1>Invalid request!</h1>", "utf-8"))
+        self.wfile.write(bytes("Last Request: <em>" + self.path + "</em><br>", "utf-8"))
+        self.wfile.write(bytes(errorMsg + "<br><br>", "utf-8"))
+        self.wfile.write(bytes("Valid parameters to use -<br>", "utf-8"))
+        self.wfile.write(bytes("<strong>list</strong> - list the current lights NeewerPython-Lite has available to it<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/list</em><br>", "utf-8"))
+        self.wfile.write(bytes("<strong>discover</strong> - tell NeewerLite-Python to scan for new lights<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/discover</em><br>", "utf-8"))
+        self.wfile.write(bytes("<strong>link=</strong> - (value: <em>index of light to link to</em>) manually link to a specific light - you can specify multiple lights with semicolons (so link=1;2 would try to link to both lights 1 and 2)<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/link=1</em><br>", "utf-8"))
+        self.wfile.write(bytes("<strong>light=</strong> - the MAC address (or current index of the light) you want to send a command to - you can specify multiple lights with semicolons (so light=1;2 would send a command to both lights 1 and 2)<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66</em><br>", "utf-8"))
+        self.wfile.write(bytes("<strong>mode=</strong> - the mode (value: <em>HSL, CCT, and either ANM or SCENE</em>) - the color mode to switch the light to<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/mode=CCT</em><br>", "utf-8"))
+        self.wfile.write(bytes("(CCT mode only) <strong>temp=</strong> or <strong>temperature=</strong> - (value: <em>3200 to 8500</em>) the color temperature in CCT mode to set the light to<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/temp=5200</em><br>", "utf-8"))
+        self.wfile.write(bytes("(HSL mode only) <strong>hue=</strong> - (value: <em>0 to 360</em>) the hue value in HSL mode to set the light to<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/hue=240</em><br>", "utf-8"))
+        self.wfile.write(bytes("(HSL mode only) <strong>sat=</strong> or <strong>saturation=</strong> - (value: <em>0 to 100</em>) the color saturation value in HSL mode to set the light to<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/sat=65</em><br>", "utf-8"))
+        self.wfile.write(bytes("(ANM/SCENE mode only) <strong>scene=</strong> - (value: <em>1 to 9</em>) which animation (scene) to switch the light to<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/scene=3</em><br>", "utf-8"))
+        self.wfile.write(bytes("(CCT/HSL/ANM modes) <strong>bri=</strong>, <strong>brightness=</strong> or <strong>luminance=</strong> - (value: <em>0 to 100</em>) how bright you want the light<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/brightness=80</em><br>", "utf-8"))
+        self.wfile.write(bytes("<br><br>More examples -<br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>CCT</em> mode, with a color temperature of <em>5200</em> and brightness of <em>40</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=CCT|temp=5200|bri=40</em><br><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>HSL</em> mode, with a hue of <em>70</em>, saturation of <em>50</em> and brightness of <em>10</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=HSL|hue=70|sat=50|bri=10</em><br><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;Set the first light available to <em>SCENE</em> mode, using the <em>first</em> animation and brightness of <em>55</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=1|mode=SCENE|scene=1|bri=55</em><br>", "utf-8"))
+    elif theSection == "footer":
+        footerLinks = "Shortcut links: "
+        footerLinks = footerLinks + "<A HREF=""discover"">Scan for New Lights</A> | "
+        footerLinks = footerLinks + "<A HREF=""list"">List Currently Available Lights</A>"
+                        
+        self.wfile.write(bytes("<HR>" + footerLinks + "<br>", "utf-8"))
+        self.wfile.write(bytes("NeewerLite-Python 0.4c by Zach Glenwright<br>", "utf-8"))
+        self.wfile.write(bytes("</body></html>", "utf-8"))
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop() # get the current asyncio loop
@@ -990,19 +1234,11 @@ if __name__ == '__main__':
 
         # START HTTP SERVER HERE AND SIT IN THIS LOOP UNTIL THE END
         if cmdReturn[0] == "HTTP":
-            webServer = HTTPServer(("", 8080), MyServer)
+            webServer = HTTPServer(("", 8080), NLPythonServer)
 
             try:
                 printDebugString("Starting the HTTP Server on Port 8080...")
                 printDebugString("-------------------------------------------------------------------------------------")
-
-                '''
-                loop.run_until_complete(findDevices()) # find the lights available to control
-                
-                # try to connect to each light
-                for a in range(0, len(availableLights)):
-                    loop.run_until_complete(connectToLight(a, False))
-                '''
 
                 # start the HTTP server and wait for requests
                 webServer.serve_forever()
@@ -1034,7 +1270,8 @@ if __name__ == '__main__':
             if cmdReturn[2] != "":
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> MAC Address of light to send command to: " + cmdReturn[2].upper())
-                availableLights = [[cmdReturn[2], ""]]
+
+                loop.run_until_complete(connectToOneLight(cmdReturn[2])) # get Bleak object linking to this specific light and getting custom prefs
             else:
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> You did not specify a light to send the command to - use the --light switch")
