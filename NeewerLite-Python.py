@@ -13,14 +13,6 @@
 ##   > https://github.com/keefo/NeewerLite <
 #############################################################
 
-# IMPORT BLEAK (this is the library that allows the program to communicate with the lights) - THIS IS NECESSARY!
-try:
-    from bleak import BleakScanner, BleakClient
-except Exception as e:
-    print("You need the bleak Python package installed to use NeewerLite-Python.  Bleak is the library that connects the program to Bluetooth devices.")
-    print("Install the Bleak package first before running NeewerLite-Python.")
-    sys.exit(0) # you can't use the program itself without Bleak, so kill the program if we don't have it
-
 import os
 import sys
 import argparse
@@ -30,6 +22,16 @@ import threading
 import time
 
 from datetime import datetime
+
+# IMPORT BLEAK (this is the library that allows the program to communicate with the lights) - THIS IS NECESSARY!
+try:
+    from bleak import BleakScanner, BleakClient
+except ModuleNotFoundError as e:
+    print("===== CAN NOT FIND BLEAK LIBRARY =====")
+    print("You need the bleak Python package installed to use NeewerLite-Python.")
+    print("Bleak is the library that connects the program to Bluetooth devices.")
+    print("Please install the Bleak package first before running NeewerLite-Python.")
+    sys.exit(1) # you can't use the program itself without Bleak, so kill the program if we don't have it
 
 # IMPORT THE WINDOWS LIBRARY (if you don't do this, it will throw an exception on Windows only)
 try:
@@ -43,15 +45,23 @@ try:
     from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
     from PySide2.QtGui import QLinearGradient, QColor
 except Exception as e:
+    print("===== CAN NOT FIND PYSIDE2 LIBRARY =====")
     print("You don't have the PySide2 Python library installed.  If you're only running NeewerLite-Python from")
     print("a command-line (from a Raspberry Pi CLI for instance), or using the HTTP server, you don't need this package.")
     print("If you want to launch NeewerLite-Python with the GUI, you need to install the PySide2 package.")
+    print()
 
 # IMPORT THE GUI ITSELF
 try:
     from ui_NeewerLightUI import Ui_MainWindow
 except Exception as e:
-    pass # don't do anything yet, the GUI can't be imported
+    print("===== COULD NOT LOAD GUI =====")
+    print("If you don't need to use the GUI, you are fine going without the PySide2 pacakge.")
+    print("but using NeewerLite-Python with the GUI requires the PySide2 library.")
+    print()
+    print("If you have already installed the PySide2 library but are still getting this error message,")
+    print("Make sure you have the ui_NeewerLightUI.py script in the same directory as NeewerLite-Python.py")
+    print()
 
 # IMPORT THE HTTP SERVER
 try:
