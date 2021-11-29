@@ -994,7 +994,7 @@ def processCommands(listToProcess=[]):
         return [args.cli, args.silent, args.light, "CCT",
                 testValid("temp", args.temp, 56, 32, 85),
                 testValid("bri", args.bri, 100, 0, 100)]
-    elif args.mode.lower() == "hsl":
+    elif args.mode.lower() == "hsi":
         return [args.cli, args.silent, args.light, "HSI",
                 testValid("hue", args.hue, 240, 0, 360),
                 testValid("sat", args.sat, 100, 0, 100),
