@@ -110,9 +110,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
         self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
 
-        self.Slider_HSL_1_H.valueChanged.connect(self.computeValueHSL)
-        self.Slider_HSL_2_S.valueChanged.connect(self.computeValueHSL)
-        self.Slider_HSL_3_L.valueChanged.connect(self.computeValueHSL)
+        self.Slider_HSI_1_H.valueChanged.connect(self.computeValueHSI)
+        self.Slider_HSI_2_S.valueChanged.connect(self.computeValueHSI)
+        self.Slider_HSI_3_L.valueChanged.connect(self.computeValueHSI)
 
         self.Slider_ANM_Brightness.valueChanged.connect(lambda: self.computeValueANM(0))
         self.Button_1_police_A.clicked.connect(lambda: self.computeValueANM(1))
@@ -191,11 +191,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if len(selectedRows) == 1: # we have exactly one light selected
                 self.ColorModeTabWidget.setTabEnabled(3, True) # enable the "Preferences" tab for this light
 
-                if availableLights[selectedRows[0]][5] == True: # if this light is CCT only, then disable the HSL and ANM tabs
-                    self.ColorModeTabWidget.setTabEnabled(1, False) # disable the HSL mode tab
+                if availableLights[selectedRows[0]][5] == True: # if this light is CCT only, then disable the HSI and ANM tabs
+                    self.ColorModeTabWidget.setTabEnabled(1, False) # disable the HSI mode tab
                     self.ColorModeTabWidget.setTabEnabled(2, False) # disable the ANM/SCENE tab
-                else: # we can use HSL and ANM/SCENE modes, so enable those tabs
-                    self.ColorModeTabWidget.setTabEnabled(1, True) # enable the HSL mode tab
+                else: # we can use HSI and ANM/SCENE modes, so enable those tabs
+                    self.ColorModeTabWidget.setTabEnabled(1, True) # enable the HSI mode tab
                     self.ColorModeTabWidget.setTabEnabled(2, True) # enable the ANM/SCENE tab
 
                 currentlySelectedRow = selectedRows[0] # get the row index of the 1 selected item                
@@ -210,8 +210,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                             self.setUpGUI(colorMode="CCT",
                                       brightness=sendValue[3],
                                       temp=sendValue[4])
-                        elif sendValue[1] == 134: # the last parameter was a HSL mode change
-                            self.setUpGUI(colorMode="HSL",
+                        elif sendValue[1] == 134: # the last parameter was a HSI mode change
+                            self.setUpGUI(colorMode="HSI",
                                       hue=sendValue[3] + (256 * sendValue[4]),
                                       sat=sendValue[5],
                                       brightness=sendValue[6])
@@ -224,13 +224,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 else:
                     self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if there are no prior parameters
             else:
-                self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSL" mode tab
+                self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSI" mode tab
                 self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
                 self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have multiple lights selected
         else: # the selection has been cleared or there are no lights to select
             self.tryConnectButton.setEnabled(False) # if we have no lights selected, disable the Connect button
 
-            self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSL" mode tab
+            self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSI" mode tab
             self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
             self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have no lights selected
             
@@ -262,7 +262,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # BUILD THE PREFERENCES STRING
             exportString = availableLights[selectedRows[0]][2] + "|" # the custom name
             exportString = exportString + str(availableLights[selectedRows[0]][4]) + "|" # whether or not to allow this light to have wider range
-            exportString = exportString + str(availableLights[selectedRows[0]][5]) # whether or not to allow only HSL mode for this light
+            exportString = exportString + str(availableLights[selectedRows[0]][5]) # whether or not to allow only CCT mode for this light
 
             # WRITE THE PREFERENCES FILE
             with open(exportFileName, "w") as prefsFileToWrite:
@@ -328,10 +328,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         self.computeValueCCT() # calculate the current CCT value
                 else: # if we have more than one light selected
                     self.checkLightTab() # reset the bounds to the normal values (5600K)
-        elif i == 1: # we clicked on the HSL tab
+        elif i == 1: # we clicked on the HSI tab
             if len(currentSelection) == 1: # if we have only one thing selected
-                if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update HSL value
-        	        self.computeValueHSL() # calculate the current HSL value
+                if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update HSI value
+        	        self.computeValueHSI() # calculate the current HSI value
         elif i == 2: # we clicked on the ANM tab
             pass # skip this, we don't want the animation automatically triggering when we go to this page - but keep it for readability
         elif i == 3: # we clicked on the PREFS tab
@@ -353,14 +353,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.statusBar.showMessage("Current value (CCT Mode): " + updateStatus())        
         self.startSend()
 
-    # COMPUTE A BYTESTRING FOR THE HSL SECTION
-    def computeValueHSL(self):
-        calculateByteString(colorMode="HSL",\
-                            HSL_H=str(int(self.Slider_HSL_1_H.value())),\
-                            HSL_S=str(int(self.Slider_HSL_2_S.value())),\
-                            HSL_L=str(int(self.Slider_HSL_3_L.value())))
+    # COMPUTE A BYTESTRING FOR THE HSI SECTION
+    def computeValueHSI(self):
+        calculateByteString(colorMode="HSI",\
+                            HSI_H=str(int(self.Slider_HSI_1_H.value())),\
+                            HSI_S=str(int(self.Slider_HSI_2_S.value())),\
+                            HSI_I=str(int(self.Slider_HSI_3_L.value())))
 
-        self.statusBar.showMessage("Current value (HSL Mode): " + updateStatus())
+        self.statusBar.showMessage("Current value (HSI Mode): " + updateStatus())
         self.startSend()
  
     # COMPUTE A BYTESTRING FOR THE ANIM SECTION
@@ -503,14 +503,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.Slider_CCT_Bright.setValue(modeArgs["brightness"])
 
             self.computeValueCCT()
-        elif modeArgs["colorMode"] == "HSL":
+        elif modeArgs["colorMode"] == "HSI":
             self.ColorModeTabWidget.setCurrentIndex(1)
 
-            self.Slider_HSL_1_H.setValue(modeArgs["hue"])
-            self.Slider_HSL_2_S.setValue(modeArgs["sat"])
-            self.Slider_HSL_3_L.setValue(modeArgs["brightness"])
+            self.Slider_HSI_1_H.setValue(modeArgs["hue"])
+            self.Slider_HSI_2_S.setValue(modeArgs["sat"])
+            self.Slider_HSI_3_L.setValue(modeArgs["brightness"])
             
-            self.computeValueHSL()
+            self.computeValueHSI()
         elif modeArgs["colorMode"] == "ANM":
             self.ColorModeTabWidget.setCurrentIndex(2)
 
@@ -560,14 +560,14 @@ def calculateByteString(**modeArgs):
         sendValue[3] = int(modeArgs["brightness"]) # the brightness value
         sendValue[4] = int(modeArgs["temp"]) # the color temp value, ranging from 32(00K) to 85(00)K - some lights (like the SL-80) can go as high as 8500K
         sendValue[5] = calculateChecksum(sendValue) # compute the checksum
-    elif modeArgs["colorMode"] == "HSL":
-        # We're in HSL (any color of the spectrum) mode
+    elif modeArgs["colorMode"] == "HSI":
+        # We're in HSI (any color of the spectrum) mode
         sendValue = [120, 134, 4, 0, 0, 0, 0, 0]
 
-        sendValue[3] = int(modeArgs["HSL_H"]) & 255 # hue value, up to 255
-        sendValue[4] = (int(modeArgs["HSL_H"]) & 65280) >> 8 # offset value, computed from above value
-        sendValue[5] = int(modeArgs["HSL_S"]) # saturation value
-        sendValue[6] = int(modeArgs["HSL_L"]) # brightness value
+        sendValue[3] = int(modeArgs["HSI_H"]) & 255 # hue value, up to 255
+        sendValue[4] = (int(modeArgs["HSI_H"]) & 65280) >> 8 # offset value, computed from above value
+        sendValue[5] = int(modeArgs["HSI_S"]) # saturation value
+        sendValue[6] = int(modeArgs["HSI_I"]) # intensity value
         sendValue[7] = calculateChecksum(sendValue) # compute the checksum
     elif modeArgs["colorMode"] == "ANM":
         # We're in ANM (animation) mode
@@ -610,8 +610,8 @@ def updateStatus(splitString = False, customValue=False):
             currentHexString = ""
             
             if customValue[1] == 134:
-                currentHexString = "(HSL MODE):\n"
-                currentHexString = currentHexString + "  H: " + str(customValue[3] + (256 * customValue[4])) + u'\N{DEGREE SIGN}' + " / S: " + str(customValue[5]) + " / L: " + str(customValue[6])
+                currentHexString = "(HSI MODE):\n"
+                currentHexString = currentHexString + "  H: " + str(customValue[3] + (256 * customValue[4])) + u'\N{DEGREE SIGN}' + " / S: " + str(customValue[5]) + " / I: " + str(customValue[6])
             elif customValue[1] == 135:
                 currentHexString = "(CCT MODE):\n"
                 currentHexString = currentHexString + "  TEMP: " + str(customValue[4]) + "00K / BRI: " + str(customValue[3])
@@ -786,9 +786,9 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                                         await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(calculateSeparateBytestrings(currentSendValue)), False)
                                 elif currentSendValue[1] == 129: # we're using an old light, but we're either turning the light on or off                                    
                                     await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
-                                elif currentSendValue[1] == 134: # we can't use HSL mode with this light, so show that
+                                elif currentSendValue[1] == 134: # we can't use HSI mode with this light, so show that
                                     if updateGUI == True:
-                                        mainWindow.setTheTable(["", "", "", "This light can not use HSL mode"], int(selectedLights[a]))
+                                        mainWindow.setTheTable(["", "", "", "This light can not use HSI mode"], int(selectedLights[a]))
                                     else:
                                         returnValue = True # we successfully wrote to the light (or tried to at least)
                                 elif currentSendValue[1] == 136: # we can't use ANM/SCENE mode with this light, so show that
@@ -800,7 +800,7 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                                 await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
 
                             if updateGUI == True:
-                                # if we're not looking at an old light, or if we are, we're not in either HSL or ANM modes, then update the status of that light
+                                # if we're not looking at an old light, or if we are, we're not in either HSI or ANM modes, then update the status of that light
                                 if not (availableLights[(int(selectedLights[a]))][5] == True and (currentSendValue[1] == 134 or currentSendValue[1] == 136)):
                                     if currentSendValue[1] != 129: # if we're not turning the light on or off
                                         mainWindow.setTheTable(["", "", "", updateStatus(True)], int(selectedLights[a]))
@@ -912,9 +912,9 @@ def processCommands(listToProcess=[]):
     # TO CLEAN UP THE ARGUMENT LIST AND ENSURE THE PARSER CAN STILL RUN WHEN INVALID ARGUMENTS ARE PRESENT
     if inStartupMode == True:
         acceptable_arguments = ["--http", "--cli", "--silent", "--light", "--mode", "--temp", "--hue", 
-        "--sat", "--bri", "--luminance", "--scene", "--animation", "--help"]
+        "--sat", "--bri", "--intensity", "--scene", "--animation", "--help"]
     else: # if we're doing HTTP processing, we don't need the http, cli, silent and help flags, so toss 'em
-        acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--luminance", 
+        acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity", 
         "--scene", "--animation", "--list", "--discover", "--link"]
    
     # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST
@@ -960,11 +960,11 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--cli", action="store_false", help="Don't show the GUI at all, just send command and quit")
     parser.add_argument("--silent", action="store_false", help="Don't show any debug information in the console")
     parser.add_argument("--light", default="", help="The MAC Address (XX:XX:XX:XX:XX:XX) of the light you want to send a command to or ALL to find and control all lights (only valid when also using --cli switch)")
-    parser.add_argument("--mode", default="CCT", help="[DEFAULT: CCT] The current control mode - options are HSL, CCT and either ANM or SCENE")
+    parser.add_argument("--mode", default="CCT", help="[DEFAULT: CCT] The current control mode - options are HSI, CCT and either ANM or SCENE")
     parser.add_argument("--temp", "--temperature", default="56", help="[DEFAULT: 56(00)K] (CCT mode) - the color temperature (3200K+) to set the light to")
-    parser.add_argument("--hue", default="240", help="[DEFAULT: 240] (HSL mode) - the hue (0-360 degrees) to set the light to")
-    parser.add_argument("--sat", "--saturation", default="100", help="[DEFAULT: 100] (HSL mode) The saturation (color intensity) to set the light to")
-    parser.add_argument("--bri", "--brightness", "--luminance", default="100", help="[DEFAULT: 100] (CCT/HSL/ANM mode) The brightness (luminance) to set the light to")
+    parser.add_argument("--hue", default="240", help="[DEFAULT: 240] (HSI mode) - the hue (0-360 degrees) to set the light to")
+    parser.add_argument("--sat", "--saturation", default="100", help="[DEFAULT: 100] (HSI mode) The saturation (how vibrant the color is) to set the light to")
+    parser.add_argument("--bri", "--brightness", "--intensity", default="100", help="[DEFAULT: 100] (CCT/HSI/ANM mode) The brightness (intensity) to set the light to")
     parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation (1-9) to use in Scene mode")
     args = parser.parse_args(listToProcess)
     
@@ -995,7 +995,7 @@ def processCommands(listToProcess=[]):
                 testValid("temp", args.temp, 56, 32, 85),
                 testValid("bri", args.bri, 100, 0, 100)]
     elif args.mode.lower() == "hsl":
-        return [args.cli, args.silent, args.light, "HSL",
+        return [args.cli, args.silent, args.light, "HSI",
                 testValid("hue", args.hue, 240, 0, 360),
                 testValid("sat", args.sat, 100, 0, 100),
                 testValid("bri", args.bri, 100, 0, 100)]
@@ -1004,7 +1004,7 @@ def processCommands(listToProcess=[]):
                 testValid("scene", args.scene, 1, 1, 9),
                 testValid("bri", args.bri, 100, 0, 100)]
     else:
-        print ("Improper mode selected with --mode command - valid entries are CCT, HSL or either ANM or SCENE")
+        print ("Improper mode selected with --mode command - valid entries are CCT, HSI or either ANM or SCENE")
         sys.exit(0)
 
 def processHTMLCommands(_loop, paramsList):
@@ -1024,8 +1024,8 @@ def processHTMLCommands(_loop, paramsList):
         else: # we want to write a value to a specific light
             if paramsList[3] == "CCT": # calculate CCT bytestring
                 calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
-            elif paramsList[3] == "HSL": # calculate HSL bytestring
-                calculateByteString(colorMode=paramsList[3], HSL_H=paramsList[4], HSL_S=paramsList[5], HSL_L=paramsList[6])
+            elif paramsList[3] == "HSI": # calculate HSI bytestring
+                calculateByteString(colorMode=paramsList[3], HSI_H=paramsList[4], HSI_S=paramsList[5], HSI_I=paramsList[6])
             elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
                 calculateByteString(colorMode=paramsList[3], animation=paramsList[4], brightness=paramsList[5])
            
@@ -1134,7 +1134,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         if paramsList[3] == "CCT":
                             self.wfile.write(bytes("&nbsp;&nbsp;Color Temperature: " + str(paramsList[4]) + "00K<br>", "utf-8"))
                             self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<br>", "utf-8"))
-                        elif paramsList[3] == "HSL":
+                        elif paramsList[3] == "HSI":
                             self.wfile.write(bytes("&nbsp;&nbsp;Hue: " + str(paramsList[4]) + "<br>", "utf-8"))
                             self.wfile.write(bytes("&nbsp;&nbsp;Saturation: " + str(paramsList[5]) + "<br>", "utf-8"))
                             self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[6]) + "<br>", "utf-8"))
@@ -1206,23 +1206,23 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/link=1</em><br>", "utf-8"))
         self.wfile.write(bytes("<strong>light=</strong> - the MAC address (or current index of the light) you want to send a command to - you can specify multiple lights with semicolons (so light=1;2 would send a command to both lights 1 and 2)<br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66</em><br>", "utf-8"))
-        self.wfile.write(bytes("<strong>mode=</strong> - the mode (value: <em>HSL, CCT, and either ANM or SCENE</em>) - the color mode to switch the light to<br>", "utf-8"))
+        self.wfile.write(bytes("<strong>mode=</strong> - the mode (value: <em>HSI, CCT, and either ANM or SCENE</em>) - the color mode to switch the light to<br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/mode=CCT</em><br>", "utf-8"))
         self.wfile.write(bytes("(CCT mode only) <strong>temp=</strong> or <strong>temperature=</strong> - (value: <em>3200 to 8500</em>) the color temperature in CCT mode to set the light to<br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/temp=5200</em><br>", "utf-8"))
-        self.wfile.write(bytes("(HSL mode only) <strong>hue=</strong> - (value: <em>0 to 360</em>) the hue value in HSL mode to set the light to<br>", "utf-8"))
+        self.wfile.write(bytes("(HSI mode only) <strong>hue=</strong> - (value: <em>0 to 360</em>) the hue value in HSI mode to set the light to<br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/hue=240</em><br>", "utf-8"))
-        self.wfile.write(bytes("(HSL mode only) <strong>sat=</strong> or <strong>saturation=</strong> - (value: <em>0 to 100</em>) the color saturation value in HSL mode to set the light to<br>", "utf-8"))
+        self.wfile.write(bytes("(HSI mode only) <strong>sat=</strong> or <strong>saturation=</strong> - (value: <em>0 to 100</em>) the color saturation value in HSI mode to set the light to<br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/sat=65</em><br>", "utf-8"))
         self.wfile.write(bytes("(ANM/SCENE mode only) <strong>scene=</strong> - (value: <em>1 to 9</em>) which animation (scene) to switch the light to<br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/scene=3</em><br>", "utf-8"))
-        self.wfile.write(bytes("(CCT/HSL/ANM modes) <strong>bri=</strong>, <strong>brightness=</strong> or <strong>luminance=</strong> - (value: <em>0 to 100</em>) how bright you want the light<br>", "utf-8"))
+        self.wfile.write(bytes("(CCT/HSI/ANM modes) <strong>bri=</strong>, <strong>brightness=</strong> or <strong>intensity=</strong> - (value: <em>0 to 100</em>) how bright you want the light<br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/brightness=80</em><br>", "utf-8"))
         self.wfile.write(bytes("<br><br>More examples -<br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>CCT</em> mode, with a color temperature of <em>5200</em> and brightness of <em>40</em><br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=CCT|temp=5200|bri=40</em><br><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>HSL</em> mode, with a hue of <em>70</em>, saturation of <em>50</em> and brightness of <em>10</em><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=HSL|hue=70|sat=50|bri=10</em><br><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>HSI</em> mode, with a hue of <em>70</em>, saturation of <em>50</em> and brightness of <em>10</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=HSI|hue=70|sat=50|bri=10</em><br><br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Set the first light available to <em>SCENE</em> mode, using the <em>first</em> animation and brightness of <em>55</em><br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=1|mode=SCENE|scene=1|bri=55</em><br>", "utf-8"))
     elif theSection == "footer":
@@ -1268,7 +1268,7 @@ if __name__ == '__main__':
         if cmdReturn[3] == "CCT":
             printDebugString(" > Color Temperature: " + str(cmdReturn[4]) + "00K")
             printDebugString(" > Brightness: " + str(cmdReturn[5]))
-        elif cmdReturn[3] == "HSL":
+        elif cmdReturn[3] == "HSI":
             printDebugString(" > Hue: " + str(cmdReturn[4]))
             printDebugString(" > Saturation: " + str(cmdReturn[5]))
             printDebugString(" > Brightness: " + str(cmdReturn[6]))
@@ -1297,7 +1297,7 @@ if __name__ == '__main__':
         if len(cmdReturn) > 1:
             if cmdReturn[3] == "CCT": # set up the GUI in CCT mode with specified parameters (or default, if none)
                 mainWindow.setUpGUI(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
-            elif cmdReturn[3] == "HSL": # set up the GUI in HSL mode with specified parameters (or default, if none)
+            elif cmdReturn[3] == "HSI": # set up the GUI in HSI mode with specified parameters (or default, if none)
                 mainWindow.setUpGUI(colorMode=cmdReturn[3], hue=cmdReturn[4], sat=cmdReturn[5], brightness=cmdReturn[6])
             elif cmdReturn[3] == "ANM": # set up the GUI in ANM mode with specified parameters (or default, if none)
                 mainWindow.setUpGUI(colorMode=cmdReturn[3], scene=cmdReturn[4], brightness=cmdReturn[5])
@@ -1314,8 +1314,8 @@ if __name__ == '__main__':
         if len(cmdReturn) > 1:
             if cmdReturn[3] == "CCT": # calculate CCT bytestring
                 calculateByteString(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
-            elif cmdReturn[3] == "HSL": # calculate HSL bytestring
-                calculateByteString(colorMode=cmdReturn[3], HSL_H=cmdReturn[4], HSL_S=cmdReturn[5], HSL_L=cmdReturn[6])
+            elif cmdReturn[3] == "HSI": # calculate HSI bytestring
+                calculateByteString(colorMode=cmdReturn[3], HSI_H=cmdReturn[4], HSI_S=cmdReturn[5], HSI_I=cmdReturn[6])
             elif cmdReturn[3] == "ANM": # calculate ANM/SCENE bytestring
                 calculateByteString(colorMode=cmdReturn[3], animation=cmdReturn[4], brightness=cmdReturn[5])
 
