@@ -27,10 +27,17 @@ from datetime import datetime
 try:
     from bleak import BleakScanner, BleakClient
 except ModuleNotFoundError as e:
-    print("===== CAN NOT FIND BLEAK LIBRARY =====")
-    print("You need the bleak Python package installed to use NeewerLite-Python.")
-    print("Bleak is the library that connects the program to Bluetooth devices.")
-    print("Please install the Bleak package first before running NeewerLite-Python.")
+    print(" ===== CAN NOT FIND BLEAK LIBRARY =====")
+    print(" You need the bleak Python package installed to use NeewerLite-Python.")
+    print(" Bleak is the library that connects the program to Bluetooth devices.")
+    print(" Please install the Bleak package first before running NeewerLite-Python.")
+    print()
+    print(" To install Bleak, run either pip or pip3 from the command line:")
+    print("    pip install bleak")
+    print("    pip3 install bleak")
+    print()
+    print(" Or visit this website for more information:")
+    print("    https://pypi.org/project/bleak/")
     sys.exit(1) # you can't use the program itself without Bleak, so kill the program if we don't have it
 
 # IMPORT THE WINDOWS LIBRARY (if you don't do this, it will throw an exception on Windows only)
@@ -40,28 +47,21 @@ try:
 except Exception as e:
     pass # if there is an exception to this module loading, you're not on Windows
 
+importError = 0 # whether or not there's an issue loading PySide2 or the GUI file
+
 # IMPORT PYSIDE2 (the GUI libraries)
 try:
     from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
     from PySide2.QtGui import QLinearGradient, QColor
 except Exception as e:
-    print("===== CAN NOT FIND PYSIDE2 LIBRARY =====")
-    print("You don't have the PySide2 Python library installed.  If you're only running NeewerLite-Python from")
-    print("a command-line (from a Raspberry Pi CLI for instance), or using the HTTP server, you don't need this package.")
-    print("If you want to launch NeewerLite-Python with the GUI, you need to install the PySide2 package.")
-    print()
+    importError = 1 # log that we can't find PySide2
 
 # IMPORT THE GUI ITSELF
 try:
     from ui_NeewerLightUI import Ui_MainWindow
 except Exception as e:
-    print("===== COULD NOT LOAD GUI =====")
-    print("If you don't need to use the GUI, you are fine going without the PySide2 pacakge.")
-    print("but using NeewerLite-Python with the GUI requires the PySide2 library.")
-    print()
-    print("If you have already installed the PySide2 library but are still getting this error message,")
-    print("Make sure you have the ui_NeewerLightUI.py script in the same directory as NeewerLite-Python.py")
-    print()
+    if importError != 1: # if we don't already have a PySide2 issue
+        importError = 2 # log that we can't find the GUI file - which, if the program is downloaded correctly, shouldn't be an issue
 
 # IMPORT THE HTTP SERVER
 try:
@@ -87,435 +87,438 @@ startup_findLights = True # whether or not to look for lights when the program s
 startup_connectLights = True # whether or not to auto-connect to lights after finding them
 printDebug = True # show debug messages in the console for all of the program's events
 
-class MainWindow(QMainWindow, Ui_MainWindow):
-    def __init__(self):
-        QMainWindow.__init__(self)
-        self.setupUi(self) # set up the main UI
-        self.connectMe() # connect the function handlers to the widgets
+try: # try to load the GUI
+    class MainWindow(QMainWindow, Ui_MainWindow):
+        def __init__(self):
+            QMainWindow.__init__(self)
+            self.setupUi(self) # set up the main UI
+            self.connectMe() # connect the function handlers to the widgets
+                    
+            if startup_findLights == True: # if we're set up to find lights on startup, then indicate that
+                self.statusBar.showMessage("Please wait - searching for Neewer lights...")
+            else:
+                self.statusBar.showMessage("Welcome to NeewerLite-Python!  Hit the Scan button above to scan for lights.")
+
+            self.show
+        
+        def connectMe(self):
+            self.scanCommandButton.clicked.connect(self.startSelfSearch)
+            self.tryConnectButton.clicked.connect(self.startConnect)
                 
-        if startup_findLights == True: # if we're set up to find lights on startup, then indicate that
-            self.statusBar.showMessage("Please wait - searching for Neewer lights...")
-        else:
-            self.statusBar.showMessage("Welcome to NeewerLite-Python!  Hit the Scan button above to scan for lights.")
-
-        self.show
+            self.ColorModeTabWidget.currentChanged.connect(self.tabChanged)
+            self.lightTable.itemSelectionChanged.connect(self.selectionChanged)
     
-    def connectMe(self):
-        self.scanCommandButton.clicked.connect(self.startSelfSearch)
-        self.tryConnectButton.clicked.connect(self.startConnect)
-              
-        self.ColorModeTabWidget.currentChanged.connect(self.tabChanged)
-        self.lightTable.itemSelectionChanged.connect(self.selectionChanged)
-  
-        self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
-        self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
+            self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
+            self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
 
-        self.Slider_HSI_1_H.valueChanged.connect(self.computeValueHSI)
-        self.Slider_HSI_2_S.valueChanged.connect(self.computeValueHSI)
-        self.Slider_HSI_3_L.valueChanged.connect(self.computeValueHSI)
+            self.Slider_HSI_1_H.valueChanged.connect(self.computeValueHSI)
+            self.Slider_HSI_2_S.valueChanged.connect(self.computeValueHSI)
+            self.Slider_HSI_3_L.valueChanged.connect(self.computeValueHSI)
 
-        self.Slider_ANM_Brightness.valueChanged.connect(lambda: self.computeValueANM(0))
-        self.Button_1_police_A.clicked.connect(lambda: self.computeValueANM(1))
-        self.Button_1_police_B.clicked.connect(lambda: self.computeValueANM(2))
-        self.Button_1_police_C.clicked.connect(lambda: self.computeValueANM(3))
-        self.Button_2_party_A.clicked.connect(lambda: self.computeValueANM(4))
-        self.Button_2_party_B.clicked.connect(lambda: self.computeValueANM(5))
-        self.Button_2_party_C.clicked.connect(lambda: self.computeValueANM(6))
-        self.Button_3_lightning_A.clicked.connect(lambda: self.computeValueANM(7))
-        self.Button_3_lightning_B.clicked.connect(lambda: self.computeValueANM(8))
-        self.Button_3_lightning_C.clicked.connect(lambda: self.computeValueANM(9))
+            self.Slider_ANM_Brightness.valueChanged.connect(lambda: self.computeValueANM(0))
+            self.Button_1_police_A.clicked.connect(lambda: self.computeValueANM(1))
+            self.Button_1_police_B.clicked.connect(lambda: self.computeValueANM(2))
+            self.Button_1_police_C.clicked.connect(lambda: self.computeValueANM(3))
+            self.Button_2_party_A.clicked.connect(lambda: self.computeValueANM(4))
+            self.Button_2_party_B.clicked.connect(lambda: self.computeValueANM(5))
+            self.Button_2_party_C.clicked.connect(lambda: self.computeValueANM(6))
+            self.Button_3_lightning_A.clicked.connect(lambda: self.computeValueANM(7))
+            self.Button_3_lightning_B.clicked.connect(lambda: self.computeValueANM(8))
+            self.Button_3_lightning_C.clicked.connect(lambda: self.computeValueANM(9))
 
-        self.turnOnButton.clicked.connect(self.turnLightOn)
-        self.turnOffButton.clicked.connect(self.turnLightOff)
+            self.turnOnButton.clicked.connect(self.turnLightOn)
+            self.turnOffButton.clicked.connect(self.turnLightOff)
 
-        self.savePrefsButton.clicked.connect(self.savePrefs)
+            self.savePrefsButton.clicked.connect(self.savePrefs)
 
-    def checkLightTab(self, selectedLight = -1):
-        if self.ColorModeTabWidget.currentIndex() == 0: # if we're on the CCT tab, do the check
-            if selectedLight == -1: # if we don't have a light selected
-                self.setupCCTBounds(56) # restore the bounds to their default of 56(00)K
-            else:
-                if availableLights[selectedLight][4] == True: # if we're supposed to be extending the range
-                    if self.Slider_CCT_Hue.maximum() == 56: # if we're set to extend the range, but we're still set to 56(00)K, then change the range
-                        self.setupCCTBounds(85)
+        def checkLightTab(self, selectedLight = -1):
+            if self.ColorModeTabWidget.currentIndex() == 0: # if we're on the CCT tab, do the check
+                if selectedLight == -1: # if we don't have a light selected
+                    self.setupCCTBounds(56) # restore the bounds to their default of 56(00)K
                 else:
-                    if self.Slider_CCT_Hue.maximum() == 85: # if we're set to NOT extend the range, but we're still set to 85(00)K, then reduce the range
-                        self.setupCCTBounds(56)
-        elif self.ColorModeTabWidget.currentIndex() == 3: # if we're on the Preferences tab instead
-            if selectedLight != -1: # if there is a specific selected light
-                self.setupPrefsTab(selectedLight) # update the Prefs tab with the information for that selected light
-
-    def setupCCTBounds(self, gradientBounds):
-        self.Slider_CCT_Hue.setMaximum(gradientBounds) # set the max value of the color temperature slider to the new max bounds
-
-        gradient = QLinearGradient(0, 0, 532, 31)
-
-        # SET GRADIENT OF CCT SLIDER IN CHUNKS OF 5 VALUES BASED ON BOUNDARY
-        if gradientBounds == 56: # the color temperature boundary is 5600K
-            gradient.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
-            gradient.setColorAt(0.25, QColor(255, 204, 153, 255)) # 3800K
-            gradient.setColorAt(0.50, QColor(255, 217, 182, 255)) # 4400K
-            gradient.setColorAt(0.75, QColor(255, 228, 206, 255)) # 5000K
-            gradient.setColorAt(1.0, QColor(255, 238, 227, 255)) # 5600K
-        else: # the color temperature boundary is 8500K
-            gradient.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
-            gradient.setColorAt(0.25, QColor(255, 219, 186, 255)) # 4500K
-            gradient.setColorAt(0.50, QColor(255, 240, 233, 255)) # 5800K
-            gradient.setColorAt(0.75, QColor(243, 242, 255, 255)) # 7100K
-            gradient.setColorAt(1.0, QColor(220, 229, 255, 255)) # 8500K
-  
-        self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(gradient) # change the gradient to fit the new boundary
-
-    def setupPrefsTab(self, selectedLight):
-        self.customNameTF.setText(availableLights[selectedLight][2]) # set the "custom name" field to the custom name of this light
-     
-        # IF THE OPTION TO ALLOW WIDER COLOR TEMPERATURES IS ENABLED, THEN ENABLE THAT CHECKBOX
-        if availableLights[selectedLight][4] == True:
-            self.widerRangeCheck.setChecked(True)
-        else:
-            self.widerRangeCheck.setChecked(False)
-
-        # IF THE OPTION TO SEND ONLY CCT MODE IS ENABLED, THEN ENABLE THAT CHECKBOX
-        if availableLights[selectedLight][5] == True:
-            self.onlyCCTModeCheck.setChecked(True)
-        else:
-            self.onlyCCTModeCheck.setChecked(False)
-
-    # CHECK TO SEE WHETHER OR NOT TO ENABLE/DISABLE THE "Connect" BUTTON OR CHANGE THE PREFS TAB
-    def selectionChanged(self):
-        selectedRows = self.selectedLights() # get the list of currently selected lights
-
-        if len(selectedRows) > 0: # if we have a selection
-            self.tryConnectButton.setEnabled(True) # if we have light(s) selected in the table, then enable the "Connect" button
-
-            if len(selectedRows) == 1: # we have exactly one light selected
-                self.ColorModeTabWidget.setTabEnabled(3, True) # enable the "Preferences" tab for this light
-
-                if availableLights[selectedRows[0]][5] == True: # if this light is CCT only, then disable the HSI and ANM tabs
-                    self.ColorModeTabWidget.setTabEnabled(1, False) # disable the HSI mode tab
-                    self.ColorModeTabWidget.setTabEnabled(2, False) # disable the ANM/SCENE tab
-                else: # we can use HSI and ANM/SCENE modes, so enable those tabs
-                    self.ColorModeTabWidget.setTabEnabled(1, True) # enable the HSI mode tab
-                    self.ColorModeTabWidget.setTabEnabled(2, True) # enable the ANM/SCENE tab
-
-                currentlySelectedRow = selectedRows[0] # get the row index of the 1 selected item                
-                self.checkLightTab(currentlySelectedRow) # if we're on CCT, check to see if this light can use extended values + on Prefs, update Prefs
-
-                # RECALL LAST SENT SETTING FOR THIS PARTICULAR LIGHT, IF A SETTING EXISTS
-                if availableLights[currentlySelectedRow][3] != []: # if the last set parameters aren't empty
-                    if availableLights[currentlySelectedRow][6] != False: # if the light is listed as being turned ON
-                        sendValue = availableLights[currentlySelectedRow][3] # make the current "sendValue" the last set parameter so it doesn't re-send it on re-load
-
-                        if sendValue[1] == 135: # the last parameter was a CCT mode change
-                            self.setUpGUI(colorMode="CCT",
-                                      brightness=sendValue[3],
-                                      temp=sendValue[4])
-                        elif sendValue[1] == 134: # the last parameter was a HSI mode change
-                            self.setUpGUI(colorMode="HSI",
-                                      hue=sendValue[3] + (256 * sendValue[4]),
-                                      sat=sendValue[5],
-                                      brightness=sendValue[6])
-                        elif sendValue[1] == 136: # the last parameter was a ANM/SCENE mode change
-                            self.setUpGUI(colorMode="ANM",
-                                      brightness=sendValue[3],
-                                      scene=sendValue[4])
+                    if availableLights[selectedLight][4] == True: # if we're supposed to be extending the range
+                        if self.Slider_CCT_Hue.maximum() == 56: # if we're set to extend the range, but we're still set to 56(00)K, then change the range
+                            self.setupCCTBounds(85)
                     else:
-                        self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if the light is off and there ARE prior parameters 
-                else:
-                    self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if there are no prior parameters
+                        if self.Slider_CCT_Hue.maximum() == 85: # if we're set to NOT extend the range, but we're still set to 85(00)K, then reduce the range
+                            self.setupCCTBounds(56)
+            elif self.ColorModeTabWidget.currentIndex() == 3: # if we're on the Preferences tab instead
+                if selectedLight != -1: # if there is a specific selected light
+                    self.setupPrefsTab(selectedLight) # update the Prefs tab with the information for that selected light
+
+        def setupCCTBounds(self, gradientBounds):
+            self.Slider_CCT_Hue.setMaximum(gradientBounds) # set the max value of the color temperature slider to the new max bounds
+
+            gradient = QLinearGradient(0, 0, 532, 31)
+
+            # SET GRADIENT OF CCT SLIDER IN CHUNKS OF 5 VALUES BASED ON BOUNDARY
+            if gradientBounds == 56: # the color temperature boundary is 5600K
+                gradient.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
+                gradient.setColorAt(0.25, QColor(255, 204, 153, 255)) # 3800K
+                gradient.setColorAt(0.50, QColor(255, 217, 182, 255)) # 4400K
+                gradient.setColorAt(0.75, QColor(255, 228, 206, 255)) # 5000K
+                gradient.setColorAt(1.0, QColor(255, 238, 227, 255)) # 5600K
+            else: # the color temperature boundary is 8500K
+                gradient.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
+                gradient.setColorAt(0.25, QColor(255, 219, 186, 255)) # 4500K
+                gradient.setColorAt(0.50, QColor(255, 240, 233, 255)) # 5800K
+                gradient.setColorAt(0.75, QColor(243, 242, 255, 255)) # 7100K
+                gradient.setColorAt(1.0, QColor(220, 229, 255, 255)) # 8500K
+    
+            self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(gradient) # change the gradient to fit the new boundary
+
+        def setupPrefsTab(self, selectedLight):
+            self.customNameTF.setText(availableLights[selectedLight][2]) # set the "custom name" field to the custom name of this light
+        
+            # IF THE OPTION TO ALLOW WIDER COLOR TEMPERATURES IS ENABLED, THEN ENABLE THAT CHECKBOX
+            if availableLights[selectedLight][4] == True:
+                self.widerRangeCheck.setChecked(True)
             else:
+                self.widerRangeCheck.setChecked(False)
+
+            # IF THE OPTION TO SEND ONLY CCT MODE IS ENABLED, THEN ENABLE THAT CHECKBOX
+            if availableLights[selectedLight][5] == True:
+                self.onlyCCTModeCheck.setChecked(True)
+            else:
+                self.onlyCCTModeCheck.setChecked(False)
+
+        # CHECK TO SEE WHETHER OR NOT TO ENABLE/DISABLE THE "Connect" BUTTON OR CHANGE THE PREFS TAB
+        def selectionChanged(self):
+            selectedRows = self.selectedLights() # get the list of currently selected lights
+
+            if len(selectedRows) > 0: # if we have a selection
+                self.tryConnectButton.setEnabled(True) # if we have light(s) selected in the table, then enable the "Connect" button
+
+                if len(selectedRows) == 1: # we have exactly one light selected
+                    self.ColorModeTabWidget.setTabEnabled(3, True) # enable the "Preferences" tab for this light
+
+                    if availableLights[selectedRows[0]][5] == True: # if this light is CCT only, then disable the HSI and ANM tabs
+                        self.ColorModeTabWidget.setTabEnabled(1, False) # disable the HSI mode tab
+                        self.ColorModeTabWidget.setTabEnabled(2, False) # disable the ANM/SCENE tab
+                    else: # we can use HSI and ANM/SCENE modes, so enable those tabs
+                        self.ColorModeTabWidget.setTabEnabled(1, True) # enable the HSI mode tab
+                        self.ColorModeTabWidget.setTabEnabled(2, True) # enable the ANM/SCENE tab
+
+                    currentlySelectedRow = selectedRows[0] # get the row index of the 1 selected item                
+                    self.checkLightTab(currentlySelectedRow) # if we're on CCT, check to see if this light can use extended values + on Prefs, update Prefs
+
+                    # RECALL LAST SENT SETTING FOR THIS PARTICULAR LIGHT, IF A SETTING EXISTS
+                    if availableLights[currentlySelectedRow][3] != []: # if the last set parameters aren't empty
+                        if availableLights[currentlySelectedRow][6] != False: # if the light is listed as being turned ON
+                            sendValue = availableLights[currentlySelectedRow][3] # make the current "sendValue" the last set parameter so it doesn't re-send it on re-load
+
+                            if sendValue[1] == 135: # the last parameter was a CCT mode change
+                                self.setUpGUI(colorMode="CCT",
+                                        brightness=sendValue[3],
+                                        temp=sendValue[4])
+                            elif sendValue[1] == 134: # the last parameter was a HSI mode change
+                                self.setUpGUI(colorMode="HSI",
+                                        hue=sendValue[3] + (256 * sendValue[4]),
+                                        sat=sendValue[5],
+                                        brightness=sendValue[6])
+                            elif sendValue[1] == 136: # the last parameter was a ANM/SCENE mode change
+                                self.setUpGUI(colorMode="ANM",
+                                        brightness=sendValue[3],
+                                        scene=sendValue[4])
+                        else:
+                            self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if the light is off and there ARE prior parameters 
+                    else:
+                        self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if there are no prior parameters
+                else:
+                    self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSI" mode tab
+                    self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
+                    self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have multiple lights selected
+            else: # the selection has been cleared or there are no lights to select
+                self.tryConnectButton.setEnabled(False) # if we have no lights selected, disable the Connect button
+
                 self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSI" mode tab
                 self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
-                self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have multiple lights selected
-        else: # the selection has been cleared or there are no lights to select
-            self.tryConnectButton.setEnabled(False) # if we have no lights selected, disable the Connect button
-
-            self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSI" mode tab
-            self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
-            self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have no lights selected
-            
-            self.checkLightTab() # check to see if we're on the CCT tab - if we are, then restore order
-
-    def savePrefs(self):
-        selectedRows = self.selectedLights() # get the list of currently selected lights
-
-        if len(selectedRows) == 1: # if we have 1 selected light - which should never be false, as we can't use Prefs with more than 1
-            availableLights[selectedRows[0]][2] = self.customNameTF.text() # set this light's custom name to the text box
-            availableLights[selectedRows[0]][4] = self.widerRangeCheck.isChecked() # if the "wider range" box is checked, then allow wider ranges
-            availableLights[selectedRows[0]][5] = self.onlyCCTModeCheck.isChecked() # if the option to send BRI and HUE separately is checked, then turn that on
-
-            # IF A CUSTOM NAME IS SET UP FOR THIS LIGHT, THEN CHANGE THE TABLE TO REFLECT THAT
-            if availableLights[selectedRows[0]][2] != "":
-                self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")", 
-                                  "", "", ""], selectedRows[0])
-        
-            # CREATE THE light_prefs FOLDER IF IT DOESN'T EXIST
-            try:
-                os.mkdir(os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs")
-            except FileExistsError:
-                pass # the folder already exists, so we don't need to create it
-
-            # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
-            exportFileName = availableLights[selectedRows[0]][0].address.split(":") # take the colons out of the MAC address
-            exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
-
-            # BUILD THE PREFERENCES STRING
-            exportString = availableLights[selectedRows[0]][2] + "|" # the custom name
-            exportString = exportString + str(availableLights[selectedRows[0]][4]) + "|" # whether or not to allow this light to have wider range
-            exportString = exportString + str(availableLights[selectedRows[0]][5]) # whether or not to allow only CCT mode for this light
-
-            # WRITE THE PREFERENCES FILE
-            with open(exportFileName, "w") as prefsFileToWrite:
-                prefsFileToWrite.write(exportString)
-
-            printDebugString("Exported preferences for this light to " + exportFileName)
-
-    # ADD A LIGHT TO THE TABLE VIEW
-    def setTheTable(self, infoArray, rowToChange = -1):
-        if rowToChange == -1:
-            currentRow = self.lightTable.rowCount()       
-            self.lightTable.insertRow(currentRow) # if rowToChange is not specified, then we'll make a new row at the end
-        else:
-            currentRow = rowToChange # change data for the specified row
-
-        if infoArray[0] != "": # the name of the light
-            self.lightTable.setItem(currentRow, 0, QTableWidgetItem(infoArray[0]))
-        if infoArray[1] != "": # the MAC address of the light
-            self.lightTable.setItem(currentRow, 1, QTableWidgetItem(infoArray[1]))
-        if infoArray[2] != "": # the Linked status of the light
-            self.lightTable.setItem(currentRow, 2, QTableWidgetItem(infoArray[2]))
-        if infoArray[3] != "": # the current status message of the light
-            self.lightTable.setItem(currentRow, 3, QTableWidgetItem(infoArray[3]))
-
-        self.lightTable.resizeRowsToContents()
-             
-    # CLEAR ALL LIGHTS FROM THE TABLE VIEW
-    def clearTheTable(self):
-        if self.lightTable.rowCount() != 0:
-            self.lightTable.clearContents()
-            self.lightTable.setRowCount(0)
-
-    # TELL THE BACKGROUND THREAD TO START LOOKING FOR LIGHTS
-    def startSelfSearch(self):
-        global threadAction
-        threadAction = "discover"
-        
-        self.statusBar.showMessage("Please wait - searching for Neewer lights...")
-
-    # TELL THE BACKGROUND THREAD TO START CONNECTING TO LIGHTS
-    def startConnect(self):
-        global threadAction
-        threadAction = "connect"
-
-    # TELL THE BACKGROUND THREAD TO START SENDING TO THE LIGHTS
-    def startSend(self):
-        global threadAction
-
-        if threadAction == "":
-            threadAction = "send"
-    
-    # IF YOU CLICK ON ONE OF THE TABS, THIS WILL SWITCH THE VIEW/SEND A NEW SIGNAL FROM THAT SPECIFIC TAB
-    def tabChanged(self, i):
-        currentSelection = self.selectedLights() # get the list of currently selected lights
-        
-        if i == 0: # we clicked on the CCT tab
-            if len(currentSelection) > 0: # if we have something selected
-                if len(currentSelection) == 1: # if we have just one light selected
-                    # CHECK THE CURRENT SELECTED LIGHT TO SEE IF IT CAN USE EXTENDED COLOR TEMPERATURES
-                    self.checkLightTab(currentSelection[0]) # set up the current light's CCT bounds
-
-                    if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update CCT value
-                        self.computeValueCCT() # calculate the current CCT value
-                else: # if we have more than one light selected
-                    self.checkLightTab() # reset the bounds to the normal values (5600K)
-        elif i == 1: # we clicked on the HSI tab
-            if len(currentSelection) == 1: # if we have only one thing selected
-                if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update HSI value
-        	        self.computeValueHSI() # calculate the current HSI value
-        elif i == 2: # we clicked on the ANM tab
-            pass # skip this, we don't want the animation automatically triggering when we go to this page - but keep it for readability
-        elif i == 3: # we clicked on the PREFS tab
-            if len(currentSelection) == 1: # this tab function ^^ should *ONLY* call if we have just one light selected, but just in *case*
-                self.setupPrefsTab(currentSelection[0])
-                         
-    # COMPUTE A BYTESTRING FOR THE CCT SECTION
-    def computeValueCCT(self, hueOrBrightness = -1):
-        global CCTSlider
-        # CCTSlider = -1 # force this value to -1 to send both hue and brightness at the same time on SNL-660
-        CCTSlider = hueOrBrightness # set the global CCT "current slider" to the slider you just... slid        
-
-        self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
-        
-        calculateByteString(colorMode="CCT",\
-                            temp=str(int(self.Slider_CCT_Hue.value())),\
-                            brightness=str(int(self.Slider_CCT_Bright.value())))
-        
-        self.statusBar.showMessage("Current value (CCT Mode): " + updateStatus())        
-        self.startSend()
-
-    # COMPUTE A BYTESTRING FOR THE HSI SECTION
-    def computeValueHSI(self):
-        calculateByteString(colorMode="HSI",\
-                            HSI_H=str(int(self.Slider_HSI_1_H.value())),\
-                            HSI_S=str(int(self.Slider_HSI_2_S.value())),\
-                            HSI_I=str(int(self.Slider_HSI_3_L.value())))
-
-        self.statusBar.showMessage("Current value (HSI Mode): " + updateStatus())
-        self.startSend()
- 
-    # COMPUTE A BYTESTRING FOR THE ANIM SECTION
-    def computeValueANM(self, buttonPressed):
-        global lastAnimButtonPressed
-
-        if buttonPressed == 0:
-            buttonPressed = lastAnimButtonPressed
-        else:
-            # CHANGE THE OLD BUTTON COLOR BACK TO THE DEFAULT COLOR
-            if lastAnimButtonPressed == 1:
-                self.Button_1_police_A.setStyleSheet("background-color : None")
-            elif lastAnimButtonPressed == 2:
-                self.Button_1_police_B.setStyleSheet("background-color : None")
-            elif lastAnimButtonPressed == 3:
-                self.Button_1_police_C.setStyleSheet("background-color : None")
-            elif lastAnimButtonPressed == 4:
-                self.Button_2_party_A.setStyleSheet("background-color : None")
-            elif lastAnimButtonPressed == 5:
-                self.Button_2_party_B.setStyleSheet("background-color : None")
-            elif lastAnimButtonPressed == 6:    
-                self.Button_2_party_C.setStyleSheet("background-color : None")
-            elif lastAnimButtonPressed == 7:
-                self.Button_3_lightning_A.setStyleSheet("background-color : None")
-            elif lastAnimButtonPressed == 8:
-                self.Button_3_lightning_B.setStyleSheet("background-color : None")
-            elif lastAnimButtonPressed == 9:
-                self.Button_3_lightning_C.setStyleSheet("background-color : None")
+                self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have no lights selected
                 
-            # CHANGE THE NEW BUTTON COLOR TO SHOW WHICH ANIMATION WE'RE CURRENTLY ON
-            if buttonPressed == 1:
-                self.Button_1_police_A.setStyleSheet("background-color : aquamarine")
-            elif buttonPressed == 2:
-                self.Button_1_police_B.setStyleSheet("background-color : aquamarine")
-            elif buttonPressed == 3:
-                self.Button_1_police_C.setStyleSheet("background-color : aquamarine")
-            elif buttonPressed == 4:
-                self.Button_2_party_A.setStyleSheet("background-color : aquamarine")
-            elif buttonPressed == 5:
-                self.Button_2_party_B.setStyleSheet("background-color : aquamarine")
-            elif buttonPressed == 6:    
-                self.Button_2_party_C.setStyleSheet("background-color : aquamarine")
-            elif buttonPressed == 7:
-                self.Button_3_lightning_A.setStyleSheet("background-color : aquamarine")
-            elif buttonPressed == 8:
-                self.Button_3_lightning_B.setStyleSheet("background-color : aquamarine")
-            elif buttonPressed == 9:
-                self.Button_3_lightning_C.setStyleSheet("background-color : aquamarine")
+                self.checkLightTab() # check to see if we're on the CCT tab - if we are, then restore order
+
+        def savePrefs(self):
+            selectedRows = self.selectedLights() # get the list of currently selected lights
+
+            if len(selectedRows) == 1: # if we have 1 selected light - which should never be false, as we can't use Prefs with more than 1
+                availableLights[selectedRows[0]][2] = self.customNameTF.text() # set this light's custom name to the text box
+                availableLights[selectedRows[0]][4] = self.widerRangeCheck.isChecked() # if the "wider range" box is checked, then allow wider ranges
+                availableLights[selectedRows[0]][5] = self.onlyCCTModeCheck.isChecked() # if the option to send BRI and HUE separately is checked, then turn that on
+
+                # IF A CUSTOM NAME IS SET UP FOR THIS LIGHT, THEN CHANGE THE TABLE TO REFLECT THAT
+                if availableLights[selectedRows[0]][2] != "":
+                    self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")", 
+                                    "", "", ""], selectedRows[0])
             
-            lastAnimButtonPressed = buttonPressed
+                # CREATE THE light_prefs FOLDER IF IT DOESN'T EXIST
+                try:
+                    os.mkdir(os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs")
+                except FileExistsError:
+                    pass # the folder already exists, so we don't need to create it
 
-        calculateByteString(colorMode="ANM",\
-                            brightness=str(int(self.Slider_ANM_Brightness.value())),\
-                            animation=str(buttonPressed))
+                # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
+                exportFileName = availableLights[selectedRows[0]][0].address.split(":") # take the colons out of the MAC address
+                exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
 
-        self.statusBar.showMessage("Current value (ANM Mode): " + updateStatus())
-        self.startSend()
+                # BUILD THE PREFERENCES STRING
+                exportString = availableLights[selectedRows[0]][2] + "|" # the custom name
+                exportString = exportString + str(availableLights[selectedRows[0]][4]) + "|" # whether or not to allow this light to have wider range
+                exportString = exportString + str(availableLights[selectedRows[0]][5]) # whether or not to allow only CCT mode for this light
 
-    def turnLightOn(self):
-        global sendValue
-        sendValue = [120, 129, 1, 1, 251]
-        self.statusBar.showMessage("Turning light on")
-        self.startSend()
-                  
-    def turnLightOff(self):
-        global sendValue
-        sendValue = [120, 129, 1, 2, 252]
-        self.statusBar.showMessage("Turning light off")
-        self.startSend()
+                # WRITE THE PREFERENCES FILE
+                with open(exportFileName, "w") as prefsFileToWrite:
+                    prefsFileToWrite.write(exportString)
 
-    # ==============================================================
-    # FUNCTIONS TO RETURN / MODIFY VALUES RUNNING IN THE GUI
-    # ==============================================================
+                printDebugString("Exported preferences for this light to " + exportFileName)
 
-    # RETURN THE ROW INDEXES THAT ARE CURRENTLY HIGHLIGHTED IN THE TABLE VIEW
-    def selectedLights(self):
-        selectionList = []
+        # ADD A LIGHT TO THE TABLE VIEW
+        def setTheTable(self, infoArray, rowToChange = -1):
+            if rowToChange == -1:
+                currentRow = self.lightTable.rowCount()       
+                self.lightTable.insertRow(currentRow) # if rowToChange is not specified, then we'll make a new row at the end
+            else:
+                currentRow = rowToChange # change data for the specified row
 
-        if threadAction != "quit":
-            currentSelection = self.lightTable.selectionModel().selectedRows()
+            if infoArray[0] != "": # the name of the light
+                self.lightTable.setItem(currentRow, 0, QTableWidgetItem(infoArray[0]))
+            if infoArray[1] != "": # the MAC address of the light
+                self.lightTable.setItem(currentRow, 1, QTableWidgetItem(infoArray[1]))
+            if infoArray[2] != "": # the Linked status of the light
+                self.lightTable.setItem(currentRow, 2, QTableWidgetItem(infoArray[2]))
+            if infoArray[3] != "": # the current status message of the light
+                self.lightTable.setItem(currentRow, 3, QTableWidgetItem(infoArray[3]))
 
-            for a in range(len(currentSelection)):
-                selectionList.append(currentSelection[a].row()) # add the row index of the nth selected light to the selectionList array
+            self.lightTable.resizeRowsToContents()
+                
+        # CLEAR ALL LIGHTS FROM THE TABLE VIEW
+        def clearTheTable(self):
+            if self.lightTable.rowCount() != 0:
+                self.lightTable.clearContents()
+                self.lightTable.setRowCount(0)
 
-        return selectionList # return the row IDs that are currently selected, or an empty array ([]) otherwise
-     
-    # UPDATE THE TABLE WITH THE CURRENT INFORMATION FROM availableLights
-    def updateLights(self):
-        self.clearTheTable()
+        # TELL THE BACKGROUND THREAD TO START LOOKING FOR LIGHTS
+        def startSelfSearch(self):
+            global threadAction
+            threadAction = "discover"
+            
+            self.statusBar.showMessage("Please wait - searching for Neewer lights...")
 
-        if len(availableLights) != 0: # if we found lights on the last scan
-            if self.scanCommandButton.text() == "Scan":
-                self.scanCommandButton.setText("Re-scan") # change the "Scan" button to "Re-scan"
+        # TELL THE BACKGROUND THREAD TO START CONNECTING TO LIGHTS
+        def startConnect(self):
+            global threadAction
+            threadAction = "connect"
 
-            if len(availableLights) == 1: # we found 1 light
-                self.statusBar.showMessage("We located 1 Neewer light on the last search")
-            elif len(availableLights) > 1: # we found more than 1 light
-                self.statusBar.showMessage("We located " + str(len(availableLights)) + " Neewer lights on the last search")            
-        else: # if we didn't find any (additional) lights on the last scan
-            self.statusBar.showMessage("We didn't locate any Neewer lights on the last search")        
+        # TELL THE BACKGROUND THREAD TO START SENDING TO THE LIGHTS
+        def startSend(self):
+            global threadAction
 
-        for a in range(len(availableLights)):
-            if availableLights[a][1] == "": # the light is not currently linked, so put "waiting to connect" as status
-                if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
-                    self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")", availableLights[a][0].address, "No", "Waiting to connect..."])
-                else: # the light does not have a custom name, so just use the model # of the light
-                    self.setTheTable([availableLights[a][0].name, availableLights[a][0].address, "No", "Waiting to connect..."])
-            else: # we have previously tried to connect, so we have a Bleak object - so put "waiting to send" as status
-                if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
-                    self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")", availableLights[a][0].address, "Yes", "Waiting to send..."])
-                else: # the light does not have a custom name, so just use the model # of the light
-                    self.setTheTable([availableLights[a][0].name, availableLights[a][0].address, "Yes", "Waiting to send..."])
-
-    # THE FINAL FUNCTION TO UNLINK ALL LIGHTS WHEN QUITTING THE PROGRAM
-    def closeEvent(self, event):
-        global threadAction
-
-        self.statusBar.showMessage("Quitting program - unlinking from lights...")
-        QApplication.processEvents() # force the status bar to update
+            if threadAction == "":
+                threadAction = "send"
         
-        threadAction = "quit" # stop the background thread
-        loop = asyncio.get_event_loop()
-
-        # TRY TO DISCONNECT EACH LIGHT FROM BLUETOOTH BEFORE QUITTING THE PROGRAM COMPLETELY
-        for a in range (0, len(availableLights)):
-            printDebugString("Unlinking from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
-            self.statusBar.showMessage("Unlinking from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)...")
-            QApplication.processEvents() # force update to show statusbar progress
+        # IF YOU CLICK ON ONE OF THE TABS, THIS WILL SWITCH THE VIEW/SEND A NEW SIGNAL FROM THAT SPECIFIC TAB
+        def tabChanged(self, i):
+            currentSelection = self.selectedLights() # get the list of currently selected lights
             
-            loop.run_until_complete(disconnectFromLight(a)) # disconnect from each light, one at a time
+            if i == 0: # we clicked on the CCT tab
+                if len(currentSelection) > 0: # if we have something selected
+                    if len(currentSelection) == 1: # if we have just one light selected
+                        # CHECK THE CURRENT SELECTED LIGHT TO SEE IF IT CAN USE EXTENDED COLOR TEMPERATURES
+                        self.checkLightTab(currentSelection[0]) # set up the current light's CCT bounds
 
-        printDebugString("Closing the program NOW")
+                        if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update CCT value
+                            self.computeValueCCT() # calculate the current CCT value
+                    else: # if we have more than one light selected
+                        self.checkLightTab() # reset the bounds to the normal values (5600K)
+            elif i == 1: # we clicked on the HSI tab
+                if len(currentSelection) == 1: # if we have only one thing selected
+                    if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update HSI value
+                        self.computeValueHSI() # calculate the current HSI value
+            elif i == 2: # we clicked on the ANM tab
+                pass # skip this, we don't want the animation automatically triggering when we go to this page - but keep it for readability
+            elif i == 3: # we clicked on the PREFS tab
+                if len(currentSelection) == 1: # this tab function ^^ should *ONLY* call if we have just one light selected, but just in *case*
+                    self.setupPrefsTab(currentSelection[0])
+                            
+        # COMPUTE A BYTESTRING FOR THE CCT SECTION
+        def computeValueCCT(self, hueOrBrightness = -1):
+            global CCTSlider
+            # CCTSlider = -1 # force this value to -1 to send both hue and brightness at the same time on SNL-660
+            CCTSlider = hueOrBrightness # set the global CCT "current slider" to the slider you just... slid        
+
+            self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
+            
+            calculateByteString(colorMode="CCT",\
+                                temp=str(int(self.Slider_CCT_Hue.value())),\
+                                brightness=str(int(self.Slider_CCT_Bright.value())))
+            
+            self.statusBar.showMessage("Current value (CCT Mode): " + updateStatus())        
+            self.startSend()
+
+        # COMPUTE A BYTESTRING FOR THE HSI SECTION
+        def computeValueHSI(self):
+            calculateByteString(colorMode="HSI",\
+                                HSI_H=str(int(self.Slider_HSI_1_H.value())),\
+                                HSI_S=str(int(self.Slider_HSI_2_S.value())),\
+                                HSI_I=str(int(self.Slider_HSI_3_L.value())))
+
+            self.statusBar.showMessage("Current value (HSI Mode): " + updateStatus())
+            self.startSend()
     
-    # SET UP THE GUI BASED ON COMMAND LINE ARGUMENTS
-    def setUpGUI(self, **modeArgs):
-        if modeArgs["colorMode"] == "CCT":
-            self.ColorModeTabWidget.setCurrentIndex(0)
+        # COMPUTE A BYTESTRING FOR THE ANIM SECTION
+        def computeValueANM(self, buttonPressed):
+            global lastAnimButtonPressed
 
-            self.Slider_CCT_Hue.setValue(modeArgs["temp"])
-            self.Slider_CCT_Bright.setValue(modeArgs["brightness"])
+            if buttonPressed == 0:
+                buttonPressed = lastAnimButtonPressed
+            else:
+                # CHANGE THE OLD BUTTON COLOR BACK TO THE DEFAULT COLOR
+                if lastAnimButtonPressed == 1:
+                    self.Button_1_police_A.setStyleSheet("background-color : None")
+                elif lastAnimButtonPressed == 2:
+                    self.Button_1_police_B.setStyleSheet("background-color : None")
+                elif lastAnimButtonPressed == 3:
+                    self.Button_1_police_C.setStyleSheet("background-color : None")
+                elif lastAnimButtonPressed == 4:
+                    self.Button_2_party_A.setStyleSheet("background-color : None")
+                elif lastAnimButtonPressed == 5:
+                    self.Button_2_party_B.setStyleSheet("background-color : None")
+                elif lastAnimButtonPressed == 6:    
+                    self.Button_2_party_C.setStyleSheet("background-color : None")
+                elif lastAnimButtonPressed == 7:
+                    self.Button_3_lightning_A.setStyleSheet("background-color : None")
+                elif lastAnimButtonPressed == 8:
+                    self.Button_3_lightning_B.setStyleSheet("background-color : None")
+                elif lastAnimButtonPressed == 9:
+                    self.Button_3_lightning_C.setStyleSheet("background-color : None")
+                    
+                # CHANGE THE NEW BUTTON COLOR TO SHOW WHICH ANIMATION WE'RE CURRENTLY ON
+                if buttonPressed == 1:
+                    self.Button_1_police_A.setStyleSheet("background-color : aquamarine")
+                elif buttonPressed == 2:
+                    self.Button_1_police_B.setStyleSheet("background-color : aquamarine")
+                elif buttonPressed == 3:
+                    self.Button_1_police_C.setStyleSheet("background-color : aquamarine")
+                elif buttonPressed == 4:
+                    self.Button_2_party_A.setStyleSheet("background-color : aquamarine")
+                elif buttonPressed == 5:
+                    self.Button_2_party_B.setStyleSheet("background-color : aquamarine")
+                elif buttonPressed == 6:    
+                    self.Button_2_party_C.setStyleSheet("background-color : aquamarine")
+                elif buttonPressed == 7:
+                    self.Button_3_lightning_A.setStyleSheet("background-color : aquamarine")
+                elif buttonPressed == 8:
+                    self.Button_3_lightning_B.setStyleSheet("background-color : aquamarine")
+                elif buttonPressed == 9:
+                    self.Button_3_lightning_C.setStyleSheet("background-color : aquamarine")
+                
+                lastAnimButtonPressed = buttonPressed
 
-            self.computeValueCCT()
-        elif modeArgs["colorMode"] == "HSI":
-            self.ColorModeTabWidget.setCurrentIndex(1)
+            calculateByteString(colorMode="ANM",\
+                                brightness=str(int(self.Slider_ANM_Brightness.value())),\
+                                animation=str(buttonPressed))
 
-            self.Slider_HSI_1_H.setValue(modeArgs["hue"])
-            self.Slider_HSI_2_S.setValue(modeArgs["sat"])
-            self.Slider_HSI_3_L.setValue(modeArgs["brightness"])
+            self.statusBar.showMessage("Current value (ANM Mode): " + updateStatus())
+            self.startSend()
+
+        def turnLightOn(self):
+            global sendValue
+            sendValue = [120, 129, 1, 1, 251]
+            self.statusBar.showMessage("Turning light on")
+            self.startSend()
+                    
+        def turnLightOff(self):
+            global sendValue
+            sendValue = [120, 129, 1, 2, 252]
+            self.statusBar.showMessage("Turning light off")
+            self.startSend()
+
+        # ==============================================================
+        # FUNCTIONS TO RETURN / MODIFY VALUES RUNNING IN THE GUI
+        # ==============================================================
+
+        # RETURN THE ROW INDEXES THAT ARE CURRENTLY HIGHLIGHTED IN THE TABLE VIEW
+        def selectedLights(self):
+            selectionList = []
+
+            if threadAction != "quit":
+                currentSelection = self.lightTable.selectionModel().selectedRows()
+
+                for a in range(len(currentSelection)):
+                    selectionList.append(currentSelection[a].row()) # add the row index of the nth selected light to the selectionList array
+
+            return selectionList # return the row IDs that are currently selected, or an empty array ([]) otherwise
+        
+        # UPDATE THE TABLE WITH THE CURRENT INFORMATION FROM availableLights
+        def updateLights(self):
+            self.clearTheTable()
+
+            if len(availableLights) != 0: # if we found lights on the last scan
+                if self.scanCommandButton.text() == "Scan":
+                    self.scanCommandButton.setText("Re-scan") # change the "Scan" button to "Re-scan"
+
+                if len(availableLights) == 1: # we found 1 light
+                    self.statusBar.showMessage("We located 1 Neewer light on the last search")
+                elif len(availableLights) > 1: # we found more than 1 light
+                    self.statusBar.showMessage("We located " + str(len(availableLights)) + " Neewer lights on the last search")            
+            else: # if we didn't find any (additional) lights on the last scan
+                self.statusBar.showMessage("We didn't locate any Neewer lights on the last search")        
+
+            for a in range(len(availableLights)):
+                if availableLights[a][1] == "": # the light is not currently linked, so put "waiting to connect" as status
+                    if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
+                        self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")", availableLights[a][0].address, "No", "Waiting to connect..."])
+                    else: # the light does not have a custom name, so just use the model # of the light
+                        self.setTheTable([availableLights[a][0].name, availableLights[a][0].address, "No", "Waiting to connect..."])
+                else: # we have previously tried to connect, so we have a Bleak object - so put "waiting to send" as status
+                    if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
+                        self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")", availableLights[a][0].address, "Yes", "Waiting to send..."])
+                    else: # the light does not have a custom name, so just use the model # of the light
+                        self.setTheTable([availableLights[a][0].name, availableLights[a][0].address, "Yes", "Waiting to send..."])
+
+        # THE FINAL FUNCTION TO UNLINK ALL LIGHTS WHEN QUITTING THE PROGRAM
+        def closeEvent(self, event):
+            global threadAction
+
+            self.statusBar.showMessage("Quitting program - unlinking from lights...")
+            QApplication.processEvents() # force the status bar to update
             
-            self.computeValueHSI()
-        elif modeArgs["colorMode"] == "ANM":
-            self.ColorModeTabWidget.setCurrentIndex(2)
+            threadAction = "quit" # stop the background thread
+            loop = asyncio.get_event_loop()
 
-            self.Slider_ANM_Brightness.setValue(modeArgs["brightness"])
-            self.computeValueANM(modeArgs["scene"])
+            # TRY TO DISCONNECT EACH LIGHT FROM BLUETOOTH BEFORE QUITTING THE PROGRAM COMPLETELY
+            for a in range (0, len(availableLights)):
+                printDebugString("Unlinking from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
+                self.statusBar.showMessage("Unlinking from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)...")
+                QApplication.processEvents() # force update to show statusbar progress
+                
+                loop.run_until_complete(disconnectFromLight(a)) # disconnect from each light, one at a time
+
+            printDebugString("Closing the program NOW")
+        
+        # SET UP THE GUI BASED ON COMMAND LINE ARGUMENTS
+        def setUpGUI(self, **modeArgs):
+            if modeArgs["colorMode"] == "CCT":
+                self.ColorModeTabWidget.setCurrentIndex(0)
+
+                self.Slider_CCT_Hue.setValue(modeArgs["temp"])
+                self.Slider_CCT_Bright.setValue(modeArgs["brightness"])
+
+                self.computeValueCCT()
+            elif modeArgs["colorMode"] == "HSI":
+                self.ColorModeTabWidget.setCurrentIndex(1)
+
+                self.Slider_HSI_1_H.setValue(modeArgs["hue"])
+                self.Slider_HSI_2_S.setValue(modeArgs["sat"])
+                self.Slider_HSI_3_L.setValue(modeArgs["brightness"])
+                
+                self.computeValueHSI()
+            elif modeArgs["colorMode"] == "ANM":
+                self.ColorModeTabWidget.setCurrentIndex(2)
+
+                self.Slider_ANM_Brightness.setValue(modeArgs["brightness"])
+                self.computeValueANM(modeArgs["scene"])
+except NameError:
+    pass # could not load the GUI, but we have already logged an error message
 
 def testValid(theParam, theValue, defaultValue, startBounds, endBounds):
     if theParam == "temp":
@@ -1290,26 +1293,54 @@ if __name__ == '__main__':
                 printDebugString("-------------------------------------------------------------------------------------")
                           
     if cmdReturn[0] == True: # launch the GUI with the command-line arguments
-        app = QApplication(sys.argv)
-        mainWindow = MainWindow()
+        if importError == 0:
+            try: # try to load the GUI
+                app = QApplication(sys.argv)
+                mainWindow = MainWindow()
 
-        # SET UP GUI BASED ON COMMAND LINE ARGUMENTS
-        if len(cmdReturn) > 1:
-            if cmdReturn[3] == "CCT": # set up the GUI in CCT mode with specified parameters (or default, if none)
-                mainWindow.setUpGUI(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
-            elif cmdReturn[3] == "HSI": # set up the GUI in HSI mode with specified parameters (or default, if none)
-                mainWindow.setUpGUI(colorMode=cmdReturn[3], hue=cmdReturn[4], sat=cmdReturn[5], brightness=cmdReturn[6])
-            elif cmdReturn[3] == "ANM": # set up the GUI in ANM mode with specified parameters (or default, if none)
-                mainWindow.setUpGUI(colorMode=cmdReturn[3], scene=cmdReturn[4], brightness=cmdReturn[5])
-                       
-        mainWindow.show()
-        
-        # START THE BACKGROUND THREAD
-        workerThread = threading.Thread(target=workerThread, args=(loop,), name="workerThread")
-        workerThread.start()
-       
-        ret = app.exec_()    
-        sys.exit( ret )
+                # SET UP GUI BASED ON COMMAND LINE ARGUMENTS
+                if len(cmdReturn) > 1:
+                    if cmdReturn[3] == "CCT": # set up the GUI in CCT mode with specified parameters (or default, if none)
+                        mainWindow.setUpGUI(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
+                    elif cmdReturn[3] == "HSI": # set up the GUI in HSI mode with specified parameters (or default, if none)
+                        mainWindow.setUpGUI(colorMode=cmdReturn[3], hue=cmdReturn[4], sat=cmdReturn[5], brightness=cmdReturn[6])
+                    elif cmdReturn[3] == "ANM": # set up the GUI in ANM mode with specified parameters (or default, if none)
+                        mainWindow.setUpGUI(colorMode=cmdReturn[3], scene=cmdReturn[4], brightness=cmdReturn[5])
+                            
+                mainWindow.show()
+                
+                # START THE BACKGROUND THREAD
+                workerThread = threading.Thread(target=workerThread, args=(loop,), name="workerThread")
+                workerThread.start()
+            
+                ret = app.exec_()    
+                sys.exit( ret )
+            except NameError:
+                pass # same as above - we could not load the GUI, but we have already sorted error messages
+        else:
+            if importError == 1: # we can't load PySide2
+                print(" ===== CAN NOT FIND PYSIDE2 LIBRARY =====")
+                print(" You don't have the PySide2 Python library installed.  If you're only running NeewerLite-Python from")
+                print(" a command-line (from a Raspberry Pi CLI for instance), or using the HTTP server, you don't need this package.")
+                print(" If you want to launch NeewerLite-Python with the GUI, you need to install the PySide2 package.")
+                print()
+                print(" To install PySide2, run either pip or pip3 from the command line:")
+                print("    pip install PySide2")
+                print("    pip3 install PySide2")
+                print()
+                print(" Or visit this website for more information:")
+                print("    https://pypi.org/project/PySide2/")              
+            elif importError == 2: # we have PySide2, but can't load the GUI file itself for some reason
+                print(" ===== COULD NOT LOAD/FIND GUI FILE =====")
+                print(" If you don't need to use the GUI, you are fine going without the PySide2 pacakge.")
+                print(" but using NeewerLite-Python with the GUI requires the PySide2 library.")
+                print()
+                print(" If you have already installed the PySide2 library but are still getting this error message,")
+                print(" Make sure you have the ui_NeewerLightUI.py script in the same directory as NeewerLite-Python.py")
+                print(" If you don't know where that file is, redownload the NeewerLite-Python package from Github here:")
+                print("    https://github.com/taburineagle/NeewerLite-Python")
+
+                sys.exit(1) # quit out, we can't run the program without PySide2 or the GUI (for the GUI version, at least)
     else: # don't launch the GUI, send command to a light/lights and quit out
         if len(cmdReturn) > 1:
             if cmdReturn[3] == "CCT": # calculate CCT bytestring
