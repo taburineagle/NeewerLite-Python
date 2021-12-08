@@ -654,11 +654,24 @@ async def findDevices():
             currentScan.append(d) # and if it finds the phrase, add it to this session's available lights
 
     for a in range(len(currentScan)): # scan the newly found NEEWER devices
-        if currentScan[a].address not in availableLights: # if this specific device is NOT in the globally available list of devices
+        newLight = True # initially mark this light as a "new light"
+        
+        # check the "new light" against the global list
+        for b in range(len(availableLights)):
+            if currentScan[a].address == availableLights[b][0].address: # if the new light's MAC address matches one already in the global list
+                printDebugString("Light found! [" + currentScan[a].name + "] MAC Address: " + currentScan[a].address + " but it's already in the list.  It may have disconnected, so relinking might be necessary.")
+                newLight = False # then don't add another instance of it
+
+                # if we found the light *again*, it's most likely the light disconnected, so we need to link it again
+                availableLights[b][1] = "" # clear the Bleak connection (as it's changed) to force the light to need re-linking
+
+                break # stop checking if we've found a negative result
+
+        if newLight == True: # if this light was not found in the global list, then we need to add it
             printDebugString("Found new light! [" + currentScan[a].name + "] MAC Address: " + currentScan[a].address)
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
             availableLights.append([currentScan[a], "", customPrefs[0], [], customPrefs[1], customPrefs[2], True]) # add it to the global list
-            
+
     return "" # once the device scan is over, set the threadAction to nothing
 
 def getCustomLightPrefs(MACAddress, lightName = ""):
