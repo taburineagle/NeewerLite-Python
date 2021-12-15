@@ -3,6 +3,6 @@
 
 Read the manual here: https://github.com/taburineagle/NeewerLite-Python/wiki
 
- **Tested Neewer Lights so far:** SL-80, SNL-660, RGB660 PRO
+ **Tested Neewer Lights so far:** SL-80, SNL-660, RGB660 PRO, 480 RGB
  
  ![NeewerLite-Python-0 4c-t3](https://user-images.githubusercontent.com/18430526/145098749-5953c0fe-0530-40eb-b23f-d667e934cafc.gif)
