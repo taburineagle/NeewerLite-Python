@@ -714,26 +714,31 @@ async def connectToLight(selectedLight, updateGUI=True):
     isConnected = False # whether or not the light is connected
     returnValue = "" # the value to return to the thread (in GUI mode, a string) or True/False (in CLI mode, a boolean value)
 
-    printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
-
     # FILL THE [1] ELEMENT OF THE availableLights ARRAY WITH THE BLEAK CONNECTION
     if availableLights[selectedLight][1] == "":
         availableLights[selectedLight][1] = BleakClient(availableLights[selectedLight][0])
         await asyncio.sleep(0.25) # wait just a short time before trying to connect
 
-    try:
-        if not availableLights[selectedLight][1].is_connected: # if the current device isn't linked to Bluetooth
-            isConnected = await availableLights[selectedLight][1].connect() # try connecting it (and return the connection status)
-        else:
-            isConnected = True # the light is already connected, so mark it as being connected
-    except Exception as e:
-        printDebugString("Error linking to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
-        print(e)
+    # TRY TO CONNECT TO THE LIGHT SEVERAL TIMES BEFORE GIVING UP THE LINK
+    currentAttempt = 1
+    
+    while isConnected == False and currentAttempt <= maxNumOfAttempts:
+        printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
 
-        if updateGUI == True:
-            mainWindow.setTheTable(["", "", "No", "There was an error connecting to the light"], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
-        else:
-            returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
+        try:
+            if not availableLights[selectedLight][1].is_connected: # if the current device isn't linked to Bluetooth
+                isConnected = await availableLights[selectedLight][1].connect() # try connecting it (and return the connection status)
+            else:
+                isConnected = True # the light is already connected, so mark it as being connected
+        except Exception as e:
+            printDebugString("Error linking to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
+
+            if updateGUI == True:
+                mainWindow.setTheTable(["", "", "No", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
+            else:
+                returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
+
+            currentAttempt = currentAttempt + 1
 
     if isConnected == True:
         printDebugString("Successfully linked to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
@@ -743,6 +748,9 @@ async def connectToLight(selectedLight, updateGUI=True):
         else:
             returnValue = True  # if we're in CLI mode, and there is no error connecting to the light, return True
     else:
+        if updateGUI == True:
+            mainWindow.setTheTable(["", "", "No", "There was an error connecting to the light"], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
+            
         returnValue = False # the light is not connected
 
     return returnValue # once the connection is over, then return either True or False (for CLI) or nothing (for GUI)
