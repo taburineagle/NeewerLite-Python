@@ -1160,12 +1160,12 @@ class NLPythonServer(BaseHTTPRequestHandler):
             else: # if the URL contains "/NeewerLite-Python/" then it's a valid URL
                 writeHTMLSections(self, "header")
 
-                paramsList = self.path.replace(acceptableURL, "").split("|") # split the included parameters into a list
+                paramsList = self.path.replace(acceptableURL, "").split("&") # split the included parameters into a list
                 paramsList = processCommands(paramsList) # process the commands returned from the HTTP parameters
                 print(paramsList)          
 
             if len(paramsList) == 0: # if we have no valid parameters, then say that in the error report                
-                writeHTMLSections(self, "errorHelp", "You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a | character.")
+                writeHTMLSections(self, "errorHelp", "You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a & character.")
             else:
                 self.wfile.write(bytes("<h1>Request Successful!</h1>", "utf-8"))
                 self.wfile.write(bytes("Last Request: <em>" + self.path + "</em><br>", "utf-8"))
@@ -1270,11 +1270,11 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/brightness=80</em><br>", "utf-8"))
         self.wfile.write(bytes("<br><br>More examples -<br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>CCT</em> mode, with a color temperature of <em>5200</em> and brightness of <em>40</em><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=CCT|temp=5200|bri=40</em><br><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66&mode=CCT&temp=5200&bri=40</em><br><br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>HSI</em> mode, with a hue of <em>70</em>, saturation of <em>50</em> and brightness of <em>10</em><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66|mode=HSI|hue=70|sat=50|bri=10</em><br><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66&mode=HSI&hue=70&sat=50&bri=10</em><br><br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Set the first light available to <em>SCENE</em> mode, using the <em>first</em> animation and brightness of <em>55</em><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=1|mode=SCENE|scene=1|bri=55</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=1&mode=SCENE&scene=1&bri=55</em><br>", "utf-8"))
     elif theSection == "footer":
         footerLinks = "Shortcut links: "
         footerLinks = footerLinks + "<A HREF=""discover"">Scan for New Lights</A> | "
