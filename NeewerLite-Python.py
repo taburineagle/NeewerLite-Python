@@ -65,7 +65,7 @@ except Exception as e:
 
 # IMPORT THE HTTP SERVER
 try:
-    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 except Exception as e:
     pass # if there are any HTTP errors, don't do anything yet
 
@@ -1053,36 +1053,47 @@ def processCommands(listToProcess=[]):
                 testValid("temp", args.temp, 56, 32, 85),
                 testValid("bri", args.bri, 100, 0, 100)]
                
-def processHTMLCommands(_loop, paramsList):
-    if len(paramsList) != 0:
-        if paramsList[0] == "discover": # we asked to discover new lights
-            loop.run_until_complete(findDevices()) # find the lights available to control
+def processHTMLCommands(paramsList):
+    global threadAction
+
+    if threadAction == "": # if we're not already processing info in another thread
+        threadAction = "HTTP"
+
+        if len(paramsList) != 0:
+            loop = asyncio.new_event_loop()
+
+            if paramsList[0] == "discover": # we asked to discover new lights
+                loop.run_until_complete(findDevices()) # find the lights available to control
+                    
+                # try to connect to each light
+                for a in range(len(availableLights)):
+                    loop.run_until_complete(connectToLight(a, False))
+            elif paramsList[0] == "link": # we asked to connect to a specific light
+                selectedLights = returnLightIndexesFromMacAddress(paramsList[1])
+
+                if len(selectedLights) > 0:
+                    for a in range(len(selectedLights)):
+                        loop.run_until_complete(connectToLight(selectedLights[a], False))
+            else: # we want to write a value to a specific light
+                if paramsList[3] == "CCT": # calculate CCT bytestring
+                    calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
+                elif paramsList[3] == "HSI": # calculate HSI bytestring
+                    calculateByteString(colorMode=paramsList[3], HSI_H=paramsList[4], HSI_S=paramsList[5], HSI_I=paramsList[6])
+                elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
+                    calculateByteString(colorMode=paramsList[3], animation=paramsList[4], brightness=paramsList[5])
+                elif paramsList[3] == "ON": # turn the light(s) on
+                    setPowerBytestring("ON")
+                elif paramsList[3] == "OFF": # turn the light(s) off
+                    setPowerBytestring("OFF")
                 
-            # try to connect to each light
-            for a in range(len(availableLights)):
-                loop.run_until_complete(connectToLight(a, False))
-        elif paramsList[0] == "link": # we asked to connect to a specific light
-            selectedLights = returnLightIndexesFromMacAddress(paramsList[1])
+                selectedLights = returnLightIndexesFromMacAddress(paramsList[2])
 
-            if len(selectedLights) > 0:
-                for a in range(len(selectedLights)):
-                    loop.run_until_complete(connectToLight(selectedLights[a], False))
-        else: # we want to write a value to a specific light
-            if paramsList[3] == "CCT": # calculate CCT bytestring
-                calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
-            elif paramsList[3] == "HSI": # calculate HSI bytestring
-                calculateByteString(colorMode=paramsList[3], HSI_H=paramsList[4], HSI_S=paramsList[5], HSI_I=paramsList[6])
-            elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
-                calculateByteString(colorMode=paramsList[3], animation=paramsList[4], brightness=paramsList[5])
-            elif paramsList[3] == "ON": # turn the light(s) on
-                setPowerBytestring("ON")
-            elif paramsList[3] == "OFF": # turn the light(s) off
-                setPowerBytestring("OFF")
-            
-            selectedLights = returnLightIndexesFromMacAddress(paramsList[2])
+                if len(selectedLights) > 0:
+                    loop.run_until_complete(writeToLight(selectedLights, False))
 
-            if len(selectedLights) > 0:
-                loop.run_until_complete(writeToLight(selectedLights, False))
+            threadAction = "" # clear the thread variable
+    else:
+        printDebugString("The HTTP Server requested an action, but we're already working on one.  Please wait...")
 
 def returnLightIndexesFromMacAddress(addresses):
     addressesToCheck = addresses.split(";")
@@ -1160,10 +1171,9 @@ class NLPythonServer(BaseHTTPRequestHandler):
             else: # if the URL contains "/NeewerLite-Python/" then it's a valid URL
                 writeHTMLSections(self, "header")
 
-                paramsList = self.path.replace(acceptableURL, "") # delete the /NeewerLite-Python/ part of the URL
-                paramsList = paramsList.replace("|", "&").split("&") # convert pipe characters to &s, and split the included parameters into a list
+                # BREAK THE URL INTO USABLE PARAMTERS
+                paramsList = self.path.replace(acceptableURL, "").split("&") # split the included params into a list
                 paramsList = processCommands(paramsList) # process the commands returned from the HTTP parameters
-                print(paramsList)          
 
             if len(paramsList) == 0: # if we have no valid parameters, then say that in the error report                
                 writeHTMLSections(self, "errorHelp", "You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a & character.")
@@ -1194,8 +1204,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                             self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<br>", "utf-8"))
 
                     # PROCESS THE HTML COMMANDS IN ANOTHER THREAD
-                    loop = asyncio.get_event_loop()
-                    htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(loop, paramsList,), name="htmlProcessThread")
+                    htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(paramsList,), name="htmlProcessThread")
                     htmlProcessThread.start()
                 else: # build the list of lights to display in the browser
                     totalLights = len(availableLights)
@@ -1295,7 +1304,7 @@ if __name__ == '__main__':
 
         # START HTTP SERVER HERE AND SIT IN THIS LOOP UNTIL THE END
         if cmdReturn[0] == "HTTP":
-            webServer = HTTPServer(("", 8080), NLPythonServer)
+            webServer = ThreadingHTTPServer(("", 8080), NLPythonServer)
 
             try:
                 printDebugString("Starting the HTTP Server on Port 8080...")
