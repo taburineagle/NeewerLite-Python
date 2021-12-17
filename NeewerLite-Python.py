@@ -1160,7 +1160,8 @@ class NLPythonServer(BaseHTTPRequestHandler):
             else: # if the URL contains "/NeewerLite-Python/" then it's a valid URL
                 writeHTMLSections(self, "header")
 
-                paramsList = self.path.replace(acceptableURL, "").split("&") # split the included parameters into a list
+                paramsList = self.path.replace(acceptableURL, "") # delete the /NeewerLite-Python/ part of the URL
+                paramsList = paramsList.replace("|", "&").split("&") # convert pipe characters to &s, and split the included parameters into a list
                 paramsList = processCommands(paramsList) # process the commands returned from the HTTP parameters
                 print(paramsList)          
 
