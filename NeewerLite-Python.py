@@ -16,6 +16,7 @@
 import os
 import sys
 import argparse
+import platform # used to determine which OS we're using for MAC address/GUID listing in CLI --list mode + winrt
 
 import asyncio
 import threading
@@ -41,11 +42,12 @@ except ModuleNotFoundError as e:
     sys.exit(1) # you can't use the program itself without Bleak, so kill the program if we don't have it
 
 # IMPORT THE WINDOWS LIBRARY (if you don't do this, it will throw an exception on Windows only)
-try:
-    from winrt import _winrt
-    _winrt.uninit_apartment()
-except Exception as e:
-    pass # if there is an exception to this module loading, you're not on Windows
+if platform.system() == "Windows": # try to load winrt if we're on Windows
+    try:
+        from winrt import _winrt
+        _winrt.uninit_apartment()
+    except Exception as e:
+        pass # if there is an exception to this module loading, you're not on Windows
 
 importError = 0 # whether or not there's an issue loading PySide2 or the GUI file
 
@@ -942,7 +944,7 @@ def processCommands(listToProcess=[]):
     # TO CLEAN UP THE ARGUMENT LIST AND ENSURE THE PARSER CAN STILL RUN WHEN INVALID ARGUMENTS ARE PRESENT
     if inStartupMode == True:
         acceptable_arguments = ["--http", "--cli", "--silent", "--light", "--mode", "--temp", "--hue", 
-        "--sat", "--bri", "--intensity", "--scene", "--animation", "--help", "--off", "--on"]
+        "--sat", "--bri", "--intensity", "--scene", "--animation", "--help", "--off", "--on", "--list"]
     else: # if we're doing HTTP processing, we don't need the http, cli, silent and help flags, so toss 'em
         acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity", 
         "--scene", "--animation", "--list", "--discover", "--link", "--off", "--on"]
@@ -983,13 +985,13 @@ def processCommands(listToProcess=[]):
     # PARSE THE ARGUMENT LIST FOR CUSTOM PARAMETERS
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--list", action="store_true", help="Scan for nearby Neewer lights and list them on the CLI") # list the currently available lights
+    parser.add_argument("--http", action="store_true", help="Use an HTTP server to send commands to Neewer lights using a web browser")
     parser.add_argument("--silent", action="store_false", help="Don't show any debug information in the console")
     parser.add_argument("--cli", action="store_false", help="Don't show the GUI at all, just send command to one light and quit")    
-    parser.add_argument("--http", action="store_true", help="Use an HTTP server to send commands to Neewer lights using a web browser")
-
+       
     # HTML SERVER SPECIFIC PARAMETERS
     if inStartupMode == False:
-        parser.add_argument("--list", action="store_true") # list the currently available lights to the HTTP server
         parser.add_argument("--discover", action="store_true") # tell the HTTP server to search for newly added lights
         parser.add_argument("--link", default=-1) # link a specific light to NeewerPython-Lite
     
@@ -1007,7 +1009,8 @@ def processCommands(listToProcess=[]):
     
     if args.silent == True:
         if inStartupMode == True:
-            printDebugString("Starting program with command-line arguments")
+            if args.list != True: # if we're not looking for lights using --list, then print line
+                printDebugString("Starting program with command-line arguments")
         else:
             printDebugString("Processing HTTP arguments")
             args.cli = False # we're running the CLI, so don't initialize the GUI
@@ -1026,6 +1029,10 @@ def processCommands(listToProcess=[]):
 
         if args.link != -1:
             return["link", args.link] # return the value defined by the parameter
+    else:
+        # If we request "LIST" from the CLI, then return a CLI list of lights available
+        if args.list == True:
+            return["LIST", False]
         
     # CHECK TO SEE IF THE LIGHT SHOULD BE TURNED OFF
     if args.on == True: # we want to turn the light on
@@ -1291,8 +1298,19 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = footerLinks + "<A HREF=""list"">List Currently Available Lights</A>"
                         
         self.wfile.write(bytes("<HR>" + footerLinks + "<br>", "utf-8"))
-        self.wfile.write(bytes("NeewerLite-Python 0.4c by Zach Glenwright<br>", "utf-8"))
+        self.wfile.write(bytes("NeewerLite-Python 0.5a by Zach Glenwright<br>", "utf-8"))
         self.wfile.write(bytes("</body></html>", "utf-8"))
+
+def formatStringForConsole(theString, maxLength):
+    if theString == "-": # return a header divider if the string is "="
+        return "-" * maxLength
+    else:
+        if len(theString) == maxLength: # if the string is the max length, then just return the string
+            return theString
+        if len(theString) < maxLength: # if the string fits in the max length, then add spaces to pad it out
+            return theString + " " * (maxLength - len(theString))
+        else: # truncate the string, it's too long
+            return theString[0:maxLength - 4] + " ..."
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop() # get the current asyncio loop
@@ -1318,7 +1336,51 @@ if __name__ == '__main__':
                 printDebugString("Stopping the HTTP Server...")
                 webServer.server_close()
 
-            sys.exit(0)            
+            sys.exit(0)
+
+        if cmdReturn[0] == "LIST":
+            print("NeewerLite-Python 0.5a by Zach Glenwright")
+            print("Searching for nearby Neewer lights...")
+            loop.run_until_complete(findDevices())
+            
+            if len(availableLights) > 0:
+                print()
+                
+                if len(availableLights) == 1: # we only found one
+                    print("We found 1 Neewer light on the last search.")
+                else: # we found more than one
+                    print("We found " + str(len(availableLights)) + " Neewer lights on the last search.")
+
+                print()
+
+                if platform.system() == "Darwin": # if we're on MacOS, then we display the GUID instead of the MAC address
+                    addressCharsAllowed = 36 # GUID addresses are 36 characters long
+                    addressString = "GUID (MacOS)"
+                else:
+                    addressCharsAllowed = 17 # MAC addresses are 17 characters long
+                    addressString = "MAC Address"
+                
+                nameCharsAllowed = 79 - addressCharsAllowed # the remaining space is to display the light name
+
+                # PRINT THE HEADERS
+                print(formatStringForConsole("Custom Name (Light Type)", nameCharsAllowed) + \
+                      " " + \
+                      formatStringForConsole(addressString, addressCharsAllowed))
+                
+                # PRINT THE SEPARATORS
+                print(formatStringForConsole("-", nameCharsAllowed) + " " + formatStringForConsole("-", addressCharsAllowed))
+
+                # PRINT THE LIGHTS
+                for a in range(len(availableLights)):
+                    lightName = availableLights[a][2] + "(" + availableLights[a][0].name + ")"
+
+                    print(formatStringForConsole(lightName, nameCharsAllowed) + \
+                          " " + \
+                          formatStringForConsole(availableLights[a][0].address, addressCharsAllowed))
+            else:
+                print("We did not find any Neewer lights on the last search.")
+                
+            sys.exit(0) # show the list, then quit out to the command line
 
         printDebugString(" > Launch GUI: " + str(cmdReturn[0]))
         printDebugString(" > Show Debug Strings on Console: " + str(cmdReturn[1]))

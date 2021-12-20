@@ -304,7 +304,7 @@ class Ui_MainWindow(object):
     # setupUi
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NeewerLite-Python 0.04c by Zach Glenwright", None))
+        MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"NeewerLite-Python 0.5a by Zach Glenwright", None))
         self.tryConnectButton.setText(QCoreApplication.translate("MainWindow", u"Connect", None))
         self.TFL_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"Color Temperature", None))
         self.TFV_CCT_Hue.setText(QCoreApplication.translate("MainWindow", u"5600K", None))
