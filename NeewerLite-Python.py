@@ -2,7 +2,7 @@
 ## NeewerLite-Python
 ## by Zach Glenwright
 #############################################################
-##   > https://github.com/taburineagle/Neewer-PythonLite <
+##   > https://github.com/taburineagle/NeewerLite-Python/ <
 #############################################################
 ## A cross-platform Python script using the bleak and
 ## PySide2 libraries to control Neewer brand lights via
@@ -1137,10 +1137,10 @@ class NLPythonServer(BaseHTTPRequestHandler):
             return
         else:
             # CHECK THE LENGTH OF THE URL REQUEST AND SEE IF IT'S TOO LONG
-            if len(self.path) > 150:
+            if len(self.path) > 159: # INCREASED LENGTH DUE TO ADDITION OF doAction IN THE URL
                 # THE LAST REQUEST WAS WAY TOO LONG, SO QUICKLY RENDER AN ERROR PAGE AND RETURN FROM THE HTTP RENDERER
                 writeHTMLSections(self, "header")
-                writeHTMLSections(self, "errorHelp", "The last request you provided was too long!  The NeewerLite-Python HTTP server can only accept URL commands less than 132 characters long after /NeewerLite-Python/.")
+                writeHTMLSections(self, "errorHelp", "The last request you provided was too long!  The NeewerLite-Python HTTP server can only accept URL commands less than 132 characters long after /NeewerLite-Python/doAction?.")
                 writeHTMLSections(self, "footer")
 
                 return
@@ -1167,7 +1167,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                 self.send_error(403, "The IP of the device you're making the request from (" + clientIP + ") has to be in the list of accepted IP addresses in order to use the NeewerLite-Python HTTP Server, any outside addresses will generate this Forbidden error.  To use this device with NeewerLite-Python, add its IP address (or range of IP addresses) to the list of acceptable IPs")
                 return
 
-            acceptableURL = "/NeewerLite-Python/"
+            acceptableURL = "/NeewerLite-Python/doAction?"
 
             if not acceptableURL in self.path: # if we ask for something that's not the main directory, then redirect to the main error page
                 self.send_response(302)
@@ -1175,7 +1175,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                 self.end_headers()
 
                 return
-            else: # if the URL contains "/NeewerLite-Python/" then it's a valid URL
+            else: # if the URL contains "/NeewerLite-Python/doAction?" then it's a valid URL
                 writeHTMLSections(self, "header")
 
                 # BREAK THE URL INTO USABLE PARAMTERS
@@ -1217,7 +1217,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                     totalLights = len(availableLights)
                   
                     if totalLights == 0: # there are no lights available to you at the moment!
-                        self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <a href=""discover"">click here</a>.<br>", "utf-8"))
+                        self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <a href=""doAction?discover"">click here</a>.<br>", "utf-8"))
                     else:
                         self.wfile.write(bytes("List of available Neewer lights:<HR>", "utf-8"))
                         self.wfile.write(bytes("<TABLE WIDTH=""98%"" BORDER=""1"">", "utf-8"))
@@ -1266,39 +1266,39 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         self.wfile.write(bytes(errorMsg + "<br><br>", "utf-8"))
         self.wfile.write(bytes("Valid parameters to use -<br>", "utf-8"))
         self.wfile.write(bytes("<strong>list</strong> - list the current lights NeewerPython-Lite has available to it<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/list</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?list</em><br>", "utf-8"))
         self.wfile.write(bytes("<strong>discover</strong> - tell NeewerLite-Python to scan for new lights<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/discover</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?discover</em><br>", "utf-8"))
         self.wfile.write(bytes("<strong>link=</strong> - (value: <em>index of light to link to</em>) manually link to a specific light - you can specify multiple lights with semicolons (so link=1;2 would try to link to both lights 1 and 2)<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/link=1</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?link=1</em><br>", "utf-8"))
         self.wfile.write(bytes("<strong>light=</strong> - the MAC address (or current index of the light) you want to send a command to - you can specify multiple lights with semicolons (so light=1;2 would send a command to both lights 1 and 2)<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66</em><br>", "utf-8"))
         self.wfile.write(bytes("<strong>mode=</strong> - the mode (value: <em>HSI, CCT, and either ANM or SCENE</em>) - the color mode to switch the light to<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/mode=CCT</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?mode=CCT</em><br>", "utf-8"))
         self.wfile.write(bytes("(CCT mode only) <strong>temp=</strong> or <strong>temperature=</strong> - (value: <em>3200 to 8500</em>) the color temperature in CCT mode to set the light to<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/temp=5200</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?temp=5200</em><br>", "utf-8"))
         self.wfile.write(bytes("(HSI mode only) <strong>hue=</strong> - (value: <em>0 to 360</em>) the hue value in HSI mode to set the light to<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/hue=240</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?hue=240</em><br>", "utf-8"))
         self.wfile.write(bytes("(HSI mode only) <strong>sat=</strong> or <strong>saturation=</strong> - (value: <em>0 to 100</em>) the color saturation value in HSI mode to set the light to<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/sat=65</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?sat=65</em><br>", "utf-8"))
         self.wfile.write(bytes("(ANM/SCENE mode only) <strong>scene=</strong> - (value: <em>1 to 9</em>) which animation (scene) to switch the light to<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/scene=3</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?scene=3</em><br>", "utf-8"))
         self.wfile.write(bytes("(CCT/HSI/ANM modes) <strong>bri=</strong>, <strong>brightness=</strong> or <strong>intensity=</strong> - (value: <em>0 to 100</em>) how bright you want the light<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/brightness=80</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?brightness=80</em><br>", "utf-8"))
         self.wfile.write(bytes("<br><br>More examples -<br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>CCT</em> mode, with a color temperature of <em>5200</em> and brightness of <em>40</em><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66&mode=CCT&temp=5200&bri=40</em><br><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66&mode=CCT&temp=5200&bri=40</em><br><br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>HSI</em> mode, with a hue of <em>70</em>, saturation of <em>50</em> and brightness of <em>10</em><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=11:22:33:44:55:66&mode=HSI&hue=70&sat=50&bri=10</em><br><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66&mode=HSI&hue=70&sat=50&bri=10</em><br><br>", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Set the first light available to <em>SCENE</em> mode, using the <em>first</em> animation and brightness of <em>55</em><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/light=1&mode=SCENE&scene=1&bri=55</em><br>", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/doAction?light=1&mode=SCENE&scene=1&bri=55</em><br>", "utf-8"))
     elif theSection == "footer":
         footerLinks = "Shortcut links: "
-        footerLinks = footerLinks + "<A HREF=""discover"">Scan for New Lights</A> | "
-        footerLinks = footerLinks + "<A HREF=""list"">List Currently Available Lights</A>"
+        footerLinks = footerLinks + "<A HREF=""doAction?discover"">Scan for New Lights</A> | "
+        footerLinks = footerLinks + "<A HREF=""doAction?list"">List Currently Available Lights</A>"
                         
         self.wfile.write(bytes("<HR>" + footerLinks + "<br>", "utf-8"))
-        self.wfile.write(bytes("NeewerLite-Python 0.5a by Zach Glenwright<br>", "utf-8"))
+        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.5b</A> by Zach Glenwright<br>", "utf-8"))
         self.wfile.write(bytes("</body></html>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -1339,7 +1339,7 @@ if __name__ == '__main__':
             sys.exit(0)
 
         if cmdReturn[0] == "LIST":
-            print("NeewerLite-Python 0.5a by Zach Glenwright")
+            print("NeewerLite-Python 0.5b by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             loop.run_until_complete(findDevices())
             
@@ -1457,7 +1457,7 @@ if __name__ == '__main__':
                 print(" If you have already installed the PySide2 library but are still getting this error message,")
                 print(" Make sure you have the ui_NeewerLightUI.py script in the same directory as NeewerLite-Python.py")
                 print(" If you don't know where that file is, redownload the NeewerLite-Python package from Github here:")
-                print("    https://github.com/taburineagle/NeewerLite-Python")
+                print("    https://github.com/taburineagle/NeewerLite-Python/")
 
                 sys.exit(1) # quit out, we can't run the program without PySide2 or the GUI (for the GUI version, at least)
     else: # don't launch the GUI, send command to a light/lights and quit out
