@@ -808,10 +808,9 @@ async def connectToLight(selectedLight, updateGUI=True):
     else:
         if isConnected == True:
             printDebugString("Successfully linked to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
-                    
-            await getLightChannelandPower(selectedLight)
-
+                  
             if updateGUI == True:
+                await getLightChannelandPower(selectedLight)
                 mainWindow.setTheTable(["", "", "LINKED\n" + availableLights[selectedLight][7][0] + " / ᴄʜ. " + str(availableLights[selectedLight][7][1]), "Waiting to send..."], selectedLight) # if it's successful, show that in the table
             else:
                 returnValue = True  # if we're in CLI mode, and there is no error connecting to the light, return True
