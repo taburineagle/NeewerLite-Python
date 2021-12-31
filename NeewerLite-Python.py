@@ -16,7 +16,7 @@
 import os
 import sys
 import argparse
-import platform # used to determine which OS we're using for MAC address/GUID listing in CLI --list mode + winrt
+import platform # used to determine which OS we're using for MAC address/GUID listing
 
 import asyncio
 import threading
@@ -53,8 +53,10 @@ importError = 0 # whether or not there's an issue loading PySide2 or the GUI fil
 
 # IMPORT PYSIDE2 (the GUI libraries)
 try:
-    from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
+    from PySide2.QtCore import Qt
     from PySide2.QtGui import QLinearGradient, QColor
+    from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
+    
 except Exception as e:
     importError = 1 # log that we can't find PySide2
 
@@ -76,11 +78,13 @@ sendValue = [] # an array to hold the values to be sent to the light
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
 
 availableLights = [] # the list of Neewer lights currently available to control - format:
-                     #  0                  1                 2            3            4                 5                           6
-                     # [Bleak Scan Object, Bleak Connection, Custom Name, Last Params, Extend CCT Range, Send BRI/HUE independently, Light On/Off]
+                     #  0                  1                 2            3            4                 5                           6             7
+                     # [Bleak Scan Object, Bleak Connection, Custom Name, Last Params, Extend CCT Range, Send BRI/HUE independently, Light On/Off, Power/CH Data Returned]
 
 threadAction = "" # the current action to take from the thread
+
 setLightUUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99" # the UUID to send information to the light
+notifyLightUUID = "69400003-B5A3-F393-E0A9-E50E24DCCA99" # the UUID for notify callbacks from the light
 
 maxNumOfAttempts = 6 # the maximum attempts CLI mode will attempt before quitting out
 
@@ -88,6 +92,8 @@ maxNumOfAttempts = 6 # the maximum attempts CLI mode will attempt before quittin
 startup_findLights = True # whether or not to look for lights when the program starts
 startup_connectLights = True # whether or not to auto-connect to lights after finding them
 printDebug = True # show debug messages in the console for all of the program's events
+
+receivedData = "" # the data received from the Notify characteristic
 
 try: # try to load the GUI
     class MainWindow(QMainWindow, Ui_MainWindow):
@@ -100,6 +106,9 @@ try: # try to load the GUI
                 self.statusBar.showMessage("Please wait - searching for Neewer lights...")
             else:
                 self.statusBar.showMessage("Welcome to NeewerLite-Python!  Hit the Scan button above to scan for lights.")
+
+            if platform.system() == "Darwin": # if we're on MacOS, then change the column text for the 2nd column in the light table
+                self.lightTable.horizontalHeaderItem(1).setText("Light UUID")
 
             self.show
         
@@ -194,6 +203,14 @@ try: # try to load the GUI
                 if len(selectedRows) == 1: # we have exactly one light selected
                     self.ColorModeTabWidget.setTabEnabled(3, True) # enable the "Preferences" tab for this light
 
+                    # SWITCH THE TURN ON/OFF BUTTONS ON, AND CHANGE TEXT TO SINGLE BUTTON TEXT
+                    self.turnOffButton.setText("Turn Light Off")
+                    self.turnOffButton.setEnabled(True)
+                    self.turnOnButton.setText("Turn Light On")
+                    self.turnOnButton.setEnabled(True)
+
+                    self.ColorModeTabWidget.setTabEnabled(0, True)
+
                     if availableLights[selectedRows[0]][5] == True: # if this light is CCT only, then disable the HSI and ANM tabs
                         self.ColorModeTabWidget.setTabEnabled(1, False) # disable the HSI mode tab
                         self.ColorModeTabWidget.setTabEnabled(2, False) # disable the ANM/SCENE tab
@@ -226,17 +243,37 @@ try: # try to load the GUI
                             self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if the light is off and there ARE prior parameters 
                     else:
                         self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if there are no prior parameters
-                else:
+                else: # we have multiple lights selected
+                    # SWITCH THE TURN ON/OFF BUTTONS ON, AND CHANGE TEXT TO MULTIPLE LIGHTS TEXT
+                    self.turnOffButton.setText("Turn Light(s) Off")
+                    self.turnOffButton.setEnabled(True)
+                    self.turnOnButton.setText("Turn Light(s) On")
+                    self.turnOnButton.setEnabled(True)
+
+                    self.ColorModeTabWidget.setTabEnabled(0, True)
                     self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSI" mode tab
                     self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
                     self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have multiple lights selected
             else: # the selection has been cleared or there are no lights to select
+                currentTab = self.ColorModeTabWidget.currentIndex() # get the currently selected tab (so when we disable the tabs, we stick on the current one)
                 self.tryConnectButton.setEnabled(False) # if we have no lights selected, disable the Connect button
 
-                self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSI" mode tab
-                self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
+                # SWITCH THE TURN ON/OFF BUTTONS OFF, AND CHANGE TEXT TO GENERIC TEXT
+                self.turnOffButton.setText("Turn Light(s) Off")
+                self.turnOffButton.setEnabled(False)
+                self.turnOnButton.setText("Turn Light(s) On")
+                self.turnOnButton.setEnabled(False)
+
+                self.ColorModeTabWidget.setTabEnabled(0, False)
+                self.ColorModeTabWidget.setTabEnabled(1, False) # enable the "HSI" mode tab
+                self.ColorModeTabWidget.setTabEnabled(2, False) # enable the "ANM/SCENE" mode tab
                 self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have no lights selected
-                
+
+                if currentTab != 3:
+                    self.ColorModeTabWidget.setCurrentIndex(currentTab) # disable the tabs, but don't switch the current one shown
+                else:
+                    self.ColorModeTabWidget.setCurrentIndex(0) # if we're on Prefs, then switch to the CCT tab
+
                 self.checkLightTab() # check to see if we're on the CCT tab - if we are, then restore order
 
         def savePrefs(self):
@@ -249,7 +286,7 @@ try: # try to load the GUI
 
                 # IF A CUSTOM NAME IS SET UP FOR THIS LIGHT, THEN CHANGE THE TABLE TO REFLECT THAT
                 if availableLights[selectedRows[0]][2] != "":
-                    self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")", 
+                    self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")" "\n  [ʀssɪ: " + str(availableLights[selectedRows[0]][0].rssi) + " dBm]", 
                                     "", "", ""], selectedRows[0])
             
                 # CREATE THE light_prefs FOLDER IF IT DOESN'T EXIST
@@ -287,10 +324,14 @@ try: # try to load the GUI
                 self.lightTable.setItem(currentRow, 1, QTableWidgetItem(infoArray[1]))
             if infoArray[2] != "": # the Linked status of the light
                 self.lightTable.setItem(currentRow, 2, QTableWidgetItem(infoArray[2]))
+                self.lightTable.item(currentRow, 2).setTextAlignment(Qt.AlignCenter) # align the light status info to be center-justified
             if infoArray[3] != "": # the current status message of the light
                 self.lightTable.setItem(currentRow, 3, QTableWidgetItem(infoArray[3]))
 
             self.lightTable.resizeRowsToContents()
+
+        def returnTableInfo(self, row, column):
+            return self.lightTable.item(row, column).text()
                 
         # CLEAR ALL LIGHTS FROM THE TABLE VIEW
         def clearTheTable(self):
@@ -466,29 +507,35 @@ try: # try to load the GUI
             for a in range(len(availableLights)):
                 if availableLights[a][1] == "": # the light is not currently linked, so put "waiting to connect" as status
                     if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
-                        self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")", availableLights[a][0].address, "No", "Waiting to connect..."])
+                        self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "Waiting", "Waiting to connect..."])
                     else: # the light does not have a custom name, so just use the model # of the light
-                        self.setTheTable([availableLights[a][0].name, availableLights[a][0].address, "No", "Waiting to connect..."])
+                        self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "Waiting", "Waiting to connect..."])
                 else: # we have previously tried to connect, so we have a Bleak object - so put "waiting to send" as status
                     if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
-                        self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")", availableLights[a][0].address, "Yes", "Waiting to send..."])
+                        self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED", "Waiting to send..."])
                     else: # the light does not have a custom name, so just use the model # of the light
-                        self.setTheTable([availableLights[a][0].name, availableLights[a][0].address, "Yes", "Waiting to send..."])
+                        self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED", "Waiting to send..."])
 
         # THE FINAL FUNCTION TO UNLINK ALL LIGHTS WHEN QUITTING THE PROGRAM
         def closeEvent(self, event):
             global threadAction
 
+            # WAIT UNTIL THE BACKGROUND THREAD SETS THE threadAction FLAG TO finished SO WE CAN UNLINK THE LIGHTS
+            while threadAction != "finished": # wait until the background thread has a chance to terminate
+                printDebugString("Waiting for the background thread to terminate...")
+                threadAction = "quit" # make sure to tell the thread to quit again (if it missed it the first time)
+                time.sleep(2)
+
+            loop = asyncio.get_event_loop()
+
+            # THE THREAD HAS TERMINATED, NOW CONTINUE...
             self.statusBar.showMessage("Quitting program - unlinking from lights...")
             QApplication.processEvents() # force the status bar to update
-            
-            threadAction = "quit" # stop the background thread
-            loop = asyncio.get_event_loop()
 
             # TRY TO DISCONNECT EACH LIGHT FROM BLUETOOTH BEFORE QUITTING THE PROGRAM COMPLETELY
             for a in range (0, len(availableLights)):
-                printDebugString("Unlinking from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
-                self.statusBar.showMessage("Unlinking from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)...")
+                printDebugString("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
+                self.statusBar.showMessage("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)...")
                 QApplication.processEvents() # force update to show statusbar progress
                 
                 loop.run_until_complete(disconnectFromLight(a)) # disconnect from each light, one at a time
@@ -519,6 +566,13 @@ try: # try to load the GUI
                 self.computeValueANM(modeArgs["scene"])
 except NameError:
     pass # could not load the GUI, but we have already logged an error message
+
+def returnMACname():
+    # RETURN THE CORRECT NAME FOR THE IDENTIFIER OF THE LIGHT (FOR DEBUG STRINGS)
+    if platform.system() == "Darwin":
+        return "UUID:"
+    else:
+        return "MAC Address:"
 
 def testValid(theParam, theValue, defaultValue, startBounds, endBounds):
     if theParam == "temp":
@@ -667,20 +721,24 @@ async def findDevices():
         # check the "new light" against the global list
         for b in range(len(availableLights)):
             if currentScan[a].address == availableLights[b][0].address: # if the new light's MAC address matches one already in the global list
-                printDebugString("Light found! [" + currentScan[a].name + "] MAC Address: " + currentScan[a].address + " but it's already in the list.  It may have disconnected, so relinking might be necessary.")
+                printDebugString("Light found! [" + currentScan[a].name + "] " + returnMACname() + " " + currentScan[a].address + " but it's already in the list.  It may have disconnected, so relinking might be necessary.")
                 newLight = False # then don't add another instance of it
 
                 # if we found the light *again*, it's most likely the light disconnected, so we need to link it again
+                availableLights[b][0].rssi = currentScan[a].rssi # update the RSSI information
                 availableLights[b][1] = "" # clear the Bleak connection (as it's changed) to force the light to need re-linking
 
                 break # stop checking if we've found a negative result
 
         if newLight == True: # if this light was not found in the global list, then we need to add it
-            printDebugString("Found new light! [" + currentScan[a].name + "] MAC Address: " + currentScan[a].address)
+            printDebugString("Found new light! [" + currentScan[a].name + "] " + returnMACname() + " " + currentScan[a].address)
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
-            availableLights.append([currentScan[a], "", customPrefs[0], [], customPrefs[1], customPrefs[2], True]) # add it to the global list
+            availableLights.append([currentScan[a], "", customPrefs[0], [], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
 
-    return "" # once the device scan is over, set the threadAction to nothing
+    if threadAction != "quit":
+        return "" # once the device scan is over, set the threadAction to nothing
+    else: # if we're requesting that we quit, then just quit
+        return "quit"
 
 def getCustomLightPrefs(MACAddress, lightName = ""):
     customPrefsPath = MACAddress.split(":")
@@ -725,59 +783,124 @@ async def connectToLight(selectedLight, updateGUI=True):
     currentAttempt = 1
     
     while isConnected == False and currentAttempt <= maxNumOfAttempts:
-        printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
+        if threadAction != "quit":
+            printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
 
-        try:
-            if not availableLights[selectedLight][1].is_connected: # if the current device isn't linked to Bluetooth
-                isConnected = await availableLights[selectedLight][1].connect() # try connecting it (and return the connection status)
-            else:
-                isConnected = True # the light is already connected, so mark it as being connected
-        except Exception as e:
-            printDebugString("Error linking to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
+            try:
+                if not availableLights[selectedLight][1].is_connected: # if the current device isn't linked to Bluetooth
+                    isConnected = await availableLights[selectedLight][1].connect() # try connecting it (and return the connection status)
+                else:
+                    isConnected = True # the light is already connected, so mark it as being connected
+            except Exception as e:
+                printDebugString("Error linking to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
+
+                if updateGUI == True:
+                    mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
+                else:
+                    returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
+
+                currentAttempt = currentAttempt + 1
+        else:
+            return "quit"
+
+    if threadAction == "quit":
+        return "quit"
+    else:
+        if isConnected == True:
+            printDebugString("Successfully linked to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
+                    
+            await getLightChannelandPower(selectedLight)
 
             if updateGUI == True:
-                mainWindow.setTheTable(["", "", "No", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
+                mainWindow.setTheTable(["", "", "LINKED\n" + availableLights[selectedLight][7][0] + " / ᴄʜ. " + str(availableLights[selectedLight][7][1]), "Waiting to send..."], selectedLight) # if it's successful, show that in the table
             else:
-                returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
-
-            currentAttempt = currentAttempt + 1
-
-    if isConnected == True:
-        printDebugString("Successfully linked to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
-        
-        if updateGUI == True:
-            mainWindow.setTheTable(["", "", "Yes", "Waiting to send..."], selectedLight) # if it's successful, show that in the table
+                returnValue = True  # if we're in CLI mode, and there is no error connecting to the light, return True
         else:
-            returnValue = True  # if we're in CLI mode, and there is no error connecting to the light, return True
-    else:
-        if updateGUI == True:
-            mainWindow.setTheTable(["", "", "No", "There was an error connecting to the light"], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
+            if updateGUI == True:
+                mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light"], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
+                    
+            returnValue = False # the light is not connected
             
-        returnValue = False # the light is not connected
-
     return returnValue # once the connection is over, then return either True or False (for CLI) or nothing (for GUI)
+    
+async def readNotifyCharacteristic(selectedLight, diagCommand):
+    # clear the global variable before asking the light for info
+    global receivedData
+    receivedData = ""
+
+    try:
+        await availableLights[selectedLight][1].start_notify(notifyLightUUID, notifyCallback) # start reading notifications from the light
+    except Exception as e:
+        return "" # if there is an error starting the characteristic scan, just quit out of this routine
+
+    for a in range(maxNumOfAttempts): # attempt maxNumOfAttempts times to read the characteristics
+        try:
+            await availableLights[selectedLight][1].write_gatt_char(setLightUUID, bytearray(diagCommand))
+        except Exception as e:
+            return "" # if there is an error checking the characteristic, just quit out of this routine
+
+        if receivedData != "":
+            break # we found data, so we can stop checking
+        else:
+            await asyncio.sleep(0.25) # wait a little bit of time before checking again
+    try:
+        await availableLights[selectedLight][1].stop_notify(notifyLightUUID) # stop reading notifications from the light
+    except Exception as e:
+        pass # we will return whatever data remains from the scan, so if we can't stop the scan (light disconnected), just return what we have
+
+    return receivedData
+
+async def getLightChannelandPower(selectedLight):
+    global availableLights
+    returnInfo = ["---", "---"] # the information to return to the light
+
+    powerInfo = await readNotifyCharacteristic(selectedLight, [120, 133, 0, 253])
+    
+    if powerInfo != "" and powerInfo[3] == 1:
+        returnInfo[0] = "ON"
+
+        # IF THE LIGHT IS ON, THEN ATTEMPT TO READ THE CURRENT CHANNEL
+        chanInfo = await readNotifyCharacteristic(selectedLight, [120, 132, 0, 252])
+        
+        if chanInfo != "": # if we got a result from the query
+            try:
+                returnInfo[1] = chanInfo[3] # set the current channel to the returned result
+            except IndexError:
+                pass # if we have an index error (the above value doesn't exist), then just return -1    
+    elif powerInfo != "" and powerInfo[3] == 2:
+        returnInfo[0] = "STBY"
+
+    availableLights[selectedLight][7][0] = returnInfo[0]
+    
+    if availableLights[selectedLight][1] != "---" and returnInfo[1] != "---":
+        availableLights[selectedLight][7][1] = returnInfo[1]
+  
+def notifyCallback(sender, data):
+    global receivedData
+    receivedData = data
 
 # DISCONNECT FROM A LIGHT
 async def disconnectFromLight(selectedLight, updateGUI=True):
     returnValue = "" # same as above, string for GUI mode and boolean for CLI mode, default to blank string
 
-    try:
-        if availableLights[selectedLight][1].is_connected: # if the current light is connected
-            await availableLights[selectedLight][1].disconnect() # disconnect the selected light
-    except Exception as e:
-        returnValue = False # if we're in CLI mode, then return False if there is an error disconnecting
+    if availableLights[selectedLight][1] != "": # if there is a Bleak object attached to the light, try to disconnect
+        try:
+            if availableLights[selectedLight][1].is_connected: # if the current light is connected
+                await availableLights[selectedLight][1].disconnect() # disconnect the selected light
+        except Exception as e:
+            returnValue = False # if we're in CLI mode, then return False if there is an error disconnecting
 
-        printDebugString("Error unlinking from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
-        print(e)
-    
-    try:
-        if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
-            if updateGUI == False:
-                returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
-            
-            printDebugString("Successfully unlinked from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] MAC Address: " + availableLights[selectedLight][0].address)
-    except AttributeError:
-        printDebugString("Light " + str(selectedLight + 1) + " has no Bleak object attached to it, so not attempting to disconnect from it")
+            printDebugString("Error unlinking from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
+            print(e)
+        
+        try:
+            if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
+                if updateGUI == False:
+                    returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
+                
+                printDebugString("Successfully unlinked from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
+        except AttributeError:
+            printDebugString("Light " + str(selectedLight + 1) + " has no Bleak object attached to it, so not attempting to disconnect from it")
     
     return returnValue
 
@@ -839,10 +962,15 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                                     else: # we ARE turning the light on or off
                                         if currentSendValue[3] == 1: # we turned the light on
                                             availableLights[int(selectedLights[a])][6] = True # toggle the "light on" parameter of this light to ON
-                                            mainWindow.setTheTable(["", "", "", "Light turned on"], int(selectedLights[a]))
+                                            
+                                            changeStatus = mainWindow.returnTableInfo(selectedLights[a], 2).replace("STBY", "ON")
+                                            mainWindow.setTheTable(["", "", changeStatus, "Light turned on"], int(selectedLights[a]))
+
                                         else: # we turned the light off
                                             availableLights[int(selectedLights[a])][6] = False # toggle the "light on" parameter of this light to OFF
-                                            mainWindow.setTheTable(["", "", "", "Light turned off - a long period of inactivity might unlink the light from the program"], int(selectedLights[a]))
+
+                                            changeStatus = mainWindow.returnTableInfo(selectedLights[a], 2).replace("ON", "STBY")
+                                            mainWindow.setTheTable(["", "", changeStatus, "Light turned off\nA long period of inactivity may require a re-link to the light"], int(selectedLights[a]))
                             else:
                                 returnValue = True # we successfully wrote to the light
 
@@ -898,20 +1026,40 @@ def workerThread(_loop):
     if startup_findLights == True: # if we're set to find lights at startup, then automatically set the thread to discovery mode
         threadAction = "discover"
 
+    delayTicks = 1 # count a few ticks before checking light information
+
     while True:
-        printDebugString("Background Thread Running")
-        time.sleep(0.25)
+        if delayTicks < 12:
+            delayTicks += 1
+        elif delayTicks == 12:
+            delayTicks = 1
+            printDebugString("Background Thread Running")
+           
+            # CHECK EACH LIGHT AGAINST THE TABLE TO SEE IF THERE ARE CONNECTION ISSUES
+            for a in range(len(availableLights)):
+                if threadAction == "": # if we're not sending, then update the light info... (check this before scanning each light)
+                    if availableLights[a][1] != "": # if there is a Bleak object, then check to see if it's connected
+                        if not availableLights[a][1].is_connected: # the light is disconnected, but we're reporting it isn't
+                            mainWindow.setTheTable(["", "", "NOT\nLINKED", "Light disconnected!"], a) # show the new status in the table
+                            availableLights[a][1] = "" # clear the Bleak object
+                        else:
+                            _loop.run_until_complete(getLightChannelandPower(a))
+                            mainWindow.setTheTable(["", "", "LINKED\n" + availableLights[a][7][0] + " / ᴄʜ. " + str(availableLights[a][7][1]), ""], a)
         
         if threadAction == "quit":
             printDebugString("Stopping the background thread")
+            threadAction = "finished"
             break # stop the background thread before quitting the program            
         elif threadAction == "discover":
             threadAction = _loop.run_until_complete(findDevices()) # add new lights to the main array
-            mainWindow.updateLights() # tell the GUI to update its list of available lights
 
-            if startup_connectLights == True: # if we're set to automatically link to the lights on startup, then do it here
-                for a in range(len(availableLights)):                    
-                    threadAction = _loop.run_until_complete(connectToLight(a)) # connect to each light in turn                    
+            if threadAction != "quit":
+                mainWindow.updateLights() # tell the GUI to update its list of available lights
+
+                if startup_connectLights == True: # if we're set to automatically link to the lights on startup, then do it here
+                    for a in range(len(availableLights)):
+                        if threadAction != "quit": # if we're not supposed to quit, then try to connect to the light(s)
+                            threadAction = _loop.run_until_complete(connectToLight(a)) # connect to each light in turn
         elif threadAction == "connect":
             selectedLights = mainWindow.selectedLights() # get the list of currently selected lights
 
@@ -919,6 +1067,8 @@ def workerThread(_loop):
                 threadAction = _loop.run_until_complete(connectToLight(selectedLights[a]))                
         elif threadAction == "send":
             threadAction = _loop.run_until_complete(writeToLight()) # write a value to the light(s) - the selectedLights() section is in the write loop itself for responsiveness
+
+        time.sleep(0.25)
 
 def processCommands(listToProcess=[]):
     inStartupMode = False # if we're in startup mode (so report that to the log), start as False initially to be set to True below
@@ -1298,7 +1448,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = footerLinks + "<A HREF=""doAction?list"">List Currently Available Lights</A>"
                         
         self.wfile.write(bytes("<HR>" + footerLinks + "<br>", "utf-8"))
-        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.5b</A> by Zach Glenwright<br>", "utf-8"))
+        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.6</A> by Zach Glenwright<br>", "utf-8"))
         self.wfile.write(bytes("</body></html>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -1339,7 +1489,7 @@ if __name__ == '__main__':
             sys.exit(0)
 
         if cmdReturn[0] == "LIST":
-            print("NeewerLite-Python 0.5b by Zach Glenwright")
+            print("NeewerLite-Python 0.6 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             loop.run_until_complete(findDevices())
             
