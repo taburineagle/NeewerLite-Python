@@ -861,7 +861,7 @@ async def findDevices():
                 break # stop checking if we've found a negative result
 
         if newLight == True: # if this light was not found in the global list, then we need to add it
-            printDebugString("Found new light! [" + currentScan[a].name + "] " + returnMACname() + " " + currentScan[a].address)
+            printDebugString("Found new light! [" + currentScan[a].name + "] " + returnMACname() + " " + currentScan[a].address + " RSSI: " + str(currentScan[a].rssi) + " dBm")
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
             availableLights.append([currentScan[a], "", customPrefs[0], [], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
 
@@ -1501,12 +1501,13 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         self.wfile.write(bytes("List of available Neewer lights:<HR>", "utf-8"))
                         self.wfile.write(bytes("<TABLE WIDTH=""98%"" BORDER=""1"">", "utf-8"))
                         self.wfile.write(bytes("<TR>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">ID #", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:2%;text-align:left"">ID #", "utf-8"))
                         self.wfile.write(bytes("<TH STYLE=""width:20%;text-align:left"">Custom Name</TH>", "utf-8"))
                         self.wfile.write(bytes("<TH STYLE=""width:20%;text-align:left"">Light Type</TH>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:20%;text-align:left"">MAC Address</TH>", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:15%;text-align:left"">MAC Address/GUID</TH>", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">RSSI</TH>", "utf-8"))
                         self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">Linked</TH>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:30%;text-align:left"">Last Sent Value</TH>", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:33%;text-align:left"">Last Sent Value</TH>", "utf-8"))
                         self.wfile.write(bytes("</TR>", "utf-8"))
 
                         for a in range(totalLights):
@@ -1515,6 +1516,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                             self.wfile.write(bytes("<TD>" + availableLights[a][2] + "</TD>", "utf-8")) # light custom name
                             self.wfile.write(bytes("<TD>" + availableLights[a][0].name + "</TD>", "utf-8")) # light type
                             self.wfile.write(bytes("<TD>" + availableLights[a][0].address + "</TD>", "utf-8")) # light MAC address
+                            self.wfile.write(bytes("<TD>" + str(availableLights[a][0].rssi) + " dbM</TD>", "utf-8")) # light RSSI (signal quality)
 
                             try:
                                 if availableLights[a][1].is_connected:
@@ -1653,9 +1655,10 @@ if __name__ == '__main__':
                 for a in range(len(availableLights)):
                     lightName = availableLights[a][2] + "(" + availableLights[a][0].name + ")"
 
-                    print(formatStringForConsole(lightName, nameCharsAllowed) + \
-                          " " + \
+                    print(formatStringForConsole(lightName, nameCharsAllowed) + " " + \
                           formatStringForConsole(availableLights[a][0].address, addressCharsAllowed))
+
+                    print(formatStringForConsole(" > RSSI: " + str(availableLights[a][0].rssi) + "dBm", nameCharsAllowed))
             else:
                 print("We did not find any Neewer lights on the last search.")
                 
