@@ -287,10 +287,10 @@ class Ui_MainWindow(object):
         self.savePrefsButton.setText("Save Preferences")
         
         # === >> ADD THE TABS TO THE TAB WIDGET << ===
-        self.ColorModeTabWidget.addTab(self.CCT, "&CCT Mode")
-        self.ColorModeTabWidget.addTab(self.HSI, "&HSI Mode")
-        self.ColorModeTabWidget.addTab(self.ANM, "&Scene Mode")
-        self.ColorModeTabWidget.addTab(self.lightPrefs, "Light &Preferences")
+        self.ColorModeTabWidget.addTab(self.CCT, "CCT Mode")
+        self.ColorModeTabWidget.addTab(self.HSI, "HSI Mode")
+        self.ColorModeTabWidget.addTab(self.ANM, "Scene Mode")
+        self.ColorModeTabWidget.addTab(self.lightPrefs, "Light Preferences")
 
         self.ColorModeTabWidget.setCurrentIndex(0) # make the CCT tab the main tab shown on launch
         

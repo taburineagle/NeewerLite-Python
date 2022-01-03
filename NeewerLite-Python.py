@@ -54,8 +54,8 @@ importError = 0 # whether or not there's an issue loading PySide2 or the GUI fil
 # IMPORT PYSIDE2 (the GUI libraries)
 try:
     from PySide2.QtCore import Qt
-    from PySide2.QtGui import QLinearGradient, QColor
-    from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem
+    from PySide2.QtGui import QLinearGradient, QColor, QKeySequence
+    from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QShortcut
     
 except Exception as e:
     importError = 1 # log that we can't find PySide2
@@ -137,10 +137,140 @@ try: # try to load the GUI
             self.Button_3_lightning_B.clicked.connect(lambda: self.computeValueANM(8))
             self.Button_3_lightning_C.clicked.connect(lambda: self.computeValueANM(9))
 
+            self.turnOffButton.clicked.connect(self.turnLightOff)            
             self.turnOnButton.clicked.connect(self.turnLightOn)
-            self.turnOffButton.clicked.connect(self.turnLightOff)
 
             self.savePrefsButton.clicked.connect(self.savePrefs)
+
+            # SHORTCUT KEYS
+            self.SC_turnOffButton = QShortcut(QKeySequence("Ctrl+PgDown"), self)
+            self.SC_turnOffButton.activated.connect(self.turnLightOff)
+            self.SC_turnOnButton = QShortcut(QKeySequence("Ctrl+PgUp"), self)
+            self.SC_turnOnButton.activated.connect(self.turnLightOn)            
+            self.SC_scanCommandButton = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
+            self.SC_scanCommandButton.activated.connect(self.startSelfSearch)
+            self.SC_tryConnectButton = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
+            self.SC_tryConnectButton.activated.connect(self.startConnect)            
+            self.SC_Tab_CCT = QShortcut(QKeySequence("Alt+1"), self)
+            self.SC_Tab_CCT.activated.connect(lambda: self.switchToTab(0))
+            self.SC_Tab_HSI = QShortcut(QKeySequence("Alt+2"), self)
+            self.SC_Tab_HSI.activated.connect(lambda: self.switchToTab(1))
+            self.SC_Tab_SCENE = QShortcut(QKeySequence("Alt+3"), self)
+            self.SC_Tab_SCENE.activated.connect(lambda: self.switchToTab(2))
+            self.SC_Tab_PREFS = QShortcut(QKeySequence("Alt+4"), self)
+            self.SC_Tab_PREFS.activated.connect(lambda: self.switchToTab(3))
+
+            # DECREASE/INCREASE BRIGHTNESS REGARDLESS OF WHICH TAB WE'RE ON
+            self.SC_Dec_Bri_Small = QShortcut(QKeySequence("/"), self)
+            self.SC_Dec_Bri_Small.activated.connect(lambda: self.changeSliderValue(0, -1))
+            self.SC_Inc_Bri_Small = QShortcut(QKeySequence("*"), self)
+            self.SC_Inc_Bri_Small.activated.connect(lambda: self.changeSliderValue(0, 1))
+            self.SC_Dec_Bri_Large = QShortcut(QKeySequence("Ctrl+/"), self)
+            self.SC_Dec_Bri_Large.activated.connect(lambda: self.changeSliderValue(0, -5))
+            self.SC_Inc_Bri_Large = QShortcut(QKeySequence("Ctrl+*"), self)
+            self.SC_Inc_Bri_Large.activated.connect(lambda: self.changeSliderValue(0, 5))
+
+            # ADJUST THE SLIDERS ON THE CURRENT TAB (OR IF WE'RE ON SCENE MODE, CHANGE THE SCENE)
+            self.SC_Num1 = QShortcut(QKeySequence("1"), self)
+            self.SC_Num1.activated.connect(lambda: self.numberShortcuts(1))
+            self.SC_Num2 = QShortcut(QKeySequence("2"), self)
+            self.SC_Num2.activated.connect(lambda: self.numberShortcuts(2))
+            self.SC_Num3 = QShortcut(QKeySequence("3"), self)
+            self.SC_Num3.activated.connect(lambda: self.numberShortcuts(3))
+            self.SC_Num4 = QShortcut(QKeySequence("4"), self)
+            self.SC_Num4.activated.connect(lambda: self.numberShortcuts(4))
+            self.SC_Num5 = QShortcut(QKeySequence("5"), self)
+            self.SC_Num5.activated.connect(lambda: self.numberShortcuts(5))
+            self.SC_Num6 = QShortcut(QKeySequence("6"), self)
+            self.SC_Num6.activated.connect(lambda: self.numberShortcuts(6))
+            self.SC_Num7 = QShortcut(QKeySequence("7"), self)
+            self.SC_Num7.activated.connect(lambda: self.numberShortcuts(7))
+            self.SC_Num8 = QShortcut(QKeySequence("8"), self)
+            self.SC_Num8.activated.connect(lambda: self.numberShortcuts(8))
+            self.SC_Num9 = QShortcut(QKeySequence("9"), self)
+            self.SC_Num9.activated.connect(lambda: self.numberShortcuts(9))
+
+            # THE CTRL+NUM SHORTCUTS ARE ONLY FOR SLIDERS, SO WE DON'T NEED A CUSTOM FUNCTION
+            self.SC_Dec_1_Large = QShortcut(QKeySequence("Ctrl+7"), self)
+            self.SC_Dec_1_Large.activated.connect(lambda: self.changeSliderValue(1, -5))
+            self.SC_Inc_1_Large = QShortcut(QKeySequence("Ctrl+9"), self)
+            self.SC_Inc_1_Large.activated.connect(lambda: self.changeSliderValue(1, 5))
+            self.SC_Dec_2_Large = QShortcut(QKeySequence("Ctrl+4"), self)
+            self.SC_Dec_2_Large.activated.connect(lambda: self.changeSliderValue(2, -5))
+            self.SC_Inc_2_Large = QShortcut(QKeySequence("Ctrl+6"), self)
+            self.SC_Inc_2_Large.activated.connect(lambda: self.changeSliderValue(2, 5))
+            self.SC_Dec_3_Large = QShortcut(QKeySequence("Ctrl+1"), self)
+            self.SC_Dec_3_Large.activated.connect(lambda: self.changeSliderValue(3, -5))
+            self.SC_Inc_3_Large = QShortcut(QKeySequence("Ctrl+3"), self)
+            self.SC_Inc_3_Large.activated.connect(lambda: self.changeSliderValue(3, 5))
+
+        def switchToTab(self, theTab):
+            if self.ColorModeTabWidget.isTabEnabled(theTab) == True:
+                self.ColorModeTabWidget.setCurrentIndex(theTab) # if the tab we're requesting is available, then switch to it
+
+        def numberShortcuts(self, theNumber):
+            # THE KEYS:
+            # 7 AND 9 ADJUST THE FIRST SLIDER ON A TAB
+            # 4 AND 6 ADJUST THE SECOND SLIDER ON A TAB
+            # 1 AND 3 ADJUST THE THIRD SLIDER ON A TAB
+            # UNLESS WE'RE IN SCENE MODE, THEN THEY JUST SWITCH THE SCENE
+            if theNumber == 1:
+                if self.ColorModeTabWidget.currentIndex() == 2: # if we're on the SCENE tab, then the number keys correspond to an animation
+                    self.computeValueANM(1)
+                else: # if we're not, adjust the slider
+                    self.changeSliderValue(3, -1) # decrement slider 3
+            elif theNumber == 2:
+                if self.ColorModeTabWidget.currentIndex() == 2:
+                    self.computeValueANM(2)
+            elif theNumber == 3:
+                if self.ColorModeTabWidget.currentIndex() == 2:
+                    self.computeValueANM(3)
+                else:
+                    self.changeSliderValue(3, 1) # increment slider 3
+            elif theNumber == 4:
+                if self.ColorModeTabWidget.currentIndex() == 2:
+                    self.computeValueANM(4)
+                else:
+                    self.changeSliderValue(2, -1) # decrement slider 2
+            elif theNumber == 5:
+                if self.ColorModeTabWidget.currentIndex() == 2:
+                    self.computeValueANM(5)
+            elif theNumber == 6:
+                if self.ColorModeTabWidget.currentIndex() == 2:
+                    self.computeValueANM(6)
+                else:
+                    self.changeSliderValue(2, 1) # increment slider 2
+            elif theNumber == 7:
+                if self.ColorModeTabWidget.currentIndex() == 2:
+                    self.computeValueANM(7)
+                else:
+                    self.changeSliderValue(1, -1) # decrement slider 1
+            elif theNumber == 8:
+                if self.ColorModeTabWidget.currentIndex() == 2:
+                    self.computeValueANM(8)
+            elif theNumber == 9:
+                if self.ColorModeTabWidget.currentIndex() == 2:
+                    self.computeValueANM(9)
+                else:
+                    self.changeSliderValue(1, 1) # increment slider 1
+
+        def changeSliderValue(self, sliderToChange, changeAmt):
+            # CCT mode only has 2 sliders, so don't do anything if you ask for the "3rd" set
+            if self.ColorModeTabWidget.currentIndex() == 0:
+                if sliderToChange == 1:
+                    self.Slider_CCT_Hue.setValue(self.Slider_CCT_Hue.value() + changeAmt)
+                elif sliderToChange == 2 or sliderToChange == 0:
+                    self.Slider_CCT_Bright.setValue(self.Slider_CCT_Bright.value() + changeAmt)
+            elif self.ColorModeTabWidget.currentIndex() == 1:
+                if sliderToChange == 1:
+                    self.Slider_HSI_1_H.setValue(self.Slider_HSI_1_H.value() + changeAmt)
+                elif sliderToChange == 2:
+                    self.Slider_HSI_2_S.setValue(self.Slider_HSI_2_S.value() + changeAmt)
+                elif sliderToChange == 3 or sliderToChange == 0:
+                    self.Slider_HSI_3_L.setValue(self.Slider_HSI_3_L.value() + changeAmt)
+            elif self.ColorModeTabWidget.currentIndex() == 2:
+                if sliderToChange == 0:
+                    self.Slider_ANM_Brightness.setValue(self.Slider_ANM_Brightness.value() + changeAmt)
 
         def checkLightTab(self, selectedLight = -1):
             if self.ColorModeTabWidget.currentIndex() == 0: # if we're on the CCT tab, do the check
