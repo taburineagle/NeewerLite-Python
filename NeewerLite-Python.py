@@ -1339,15 +1339,12 @@ def processCommands(listToProcess=[]):
                 testValid("temp", args.temp, 56, 32, 85),
                 testValid("bri", args.bri, 100, 0, 100)]
                
-def processHTMLCommands(paramsList):
+def processHTMLCommands(paramsList, loop):
     global threadAction
 
     if threadAction == "": # if we're not already processing info in another thread
         threadAction = "HTTP"
-
         if len(paramsList) != 0:
-            loop = asyncio.new_event_loop()
-
             if paramsList[0] == "discover": # we asked to discover new lights
                 loop.run_until_complete(findDevices()) # find the lights available to control
                     
@@ -1406,6 +1403,8 @@ def returnLightIndexesFromMacAddress(addresses):
     return foundIndexes
 
 class NLPythonServer(BaseHTTPRequestHandler):
+    loop = asyncio.get_event_loop()
+
     def do_GET(self):
         if self.path == "/favicon.ico": # if favicon.ico is specified, then send a 404 error and stop processing
             try:
@@ -1490,7 +1489,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                             self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<br>", "utf-8"))
 
                     # PROCESS THE HTML COMMANDS IN ANOTHER THREAD
-                    htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(paramsList,), name="htmlProcessThread")
+                    htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(paramsList, loop), name="htmlProcessThread")
                     htmlProcessThread.start()
                 else: # build the list of lights to display in the browser
                     totalLights = len(availableLights)
@@ -1617,6 +1616,12 @@ if __name__ == '__main__':
                 printDebugString("Stopping the HTTP Server...")
                 webServer.server_close()
 
+                # DISCONNECT FROM EACH LIGHT BEFORE FINISHING THE PROGRAM
+                for a in range (0, len(availableLights)):
+                    printDebugString("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
+                    loop.run_until_complete(disconnectFromLight(a)) # disconnect from each light, one at a time
+
+            printDebugString("Closing the program NOW")
             sys.exit(0)
 
         if cmdReturn[0] == "LIST":
