@@ -1405,6 +1405,15 @@ def returnLightIndexesFromMacAddress(addresses):
 class NLPythonServer(BaseHTTPRequestHandler):
     loop = asyncio.get_event_loop()
 
+    def _send_cors_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self._send_cors_headers()
+        self.end_headers()
+
     def do_GET(self):
         if self.path == "/favicon.ico": # if favicon.ico is specified, then send a 404 error and stop processing
             try:
@@ -1535,6 +1544,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
 def writeHTMLSections(self, theSection, errorMsg = ""):
     if theSection == "header":
         self.send_response(200)
+        self._send_cors_headers()
         self.send_header("Content-type", "text/html")
         self.end_headers()
 
