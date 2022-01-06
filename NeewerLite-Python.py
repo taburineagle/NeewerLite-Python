@@ -86,14 +86,16 @@ threadAction = "" # the current action to take from the thread
 setLightUUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99" # the UUID to send information to the light
 notifyLightUUID = "69400003-B5A3-F393-E0A9-E50E24DCCA99" # the UUID for notify callbacks from the light
 
-maxNumOfAttempts = 6 # the maximum attempts CLI mode will attempt before quitting out
-
-# FOR TESTING PURPOSES / FIRST-LAUNCH PREFERENCES
-startup_findLights = True # whether or not to look for lights when the program starts
-startup_connectLights = True # whether or not to auto-connect to lights after finding them
-printDebug = True # show debug messages in the console for all of the program's events
-
 receivedData = "" # the data received from the Notify characteristic
+
+# SET FROM THE PREFERENCES FILE ON LAUNCH
+findLightsOnStartup = True # whether or not to look for lights when the program starts
+autoConnectToLights = True # whether or not to auto-connect to lights after finding them
+printDebug = True # show debug messages in the console for all of the program's events
+maxNumOfAttempts = 6 # the maximum attempts the program will attempt an action before erroring out
+rememberLightOnExit = False # whether or not to save the currently set light settings (mode/hue/brightness/etc.) when quitting out
+acceptable_HTTP_IPs = [] # the acceptable IPs for the HTTP server, set on launch by prefs file
+customKeys = [] # custom keymappings for keyboard shortcuts, set on launch by the prefs file
 
 try: # try to load the GUI
     class MainWindow(QMainWindow, Ui_MainWindow):
@@ -102,7 +104,7 @@ try: # try to load the GUI
             self.setupUi(self) # set up the main UI
             self.connectMe() # connect the function handlers to the widgets
                     
-            if startup_findLights == True: # if we're set up to find lights on startup, then indicate that
+            if findLightsOnStartup == True: # if we're set up to find lights on startup, then indicate that
                 self.statusBar.showMessage("Please wait - searching for Neewer lights...")
             else:
                 self.statusBar.showMessage("Welcome to NeewerLite-Python!  Hit the Scan button above to scan for lights.")
@@ -140,68 +142,68 @@ try: # try to load the GUI
             self.turnOffButton.clicked.connect(self.turnLightOff)            
             self.turnOnButton.clicked.connect(self.turnLightOn)
 
-            self.savePrefsButton.clicked.connect(self.savePrefs)
+            self.saveLightPrefsButton.clicked.connect(self.checkLightPrefs)
 
             # SHORTCUT KEYS
-            self.SC_turnOffButton = QShortcut(QKeySequence("Ctrl+PgDown"), self)
+            self.SC_turnOffButton = QShortcut(QKeySequence(customKeys[0]), self)
             self.SC_turnOffButton.activated.connect(self.turnLightOff)
-            self.SC_turnOnButton = QShortcut(QKeySequence("Ctrl+PgUp"), self)
+            self.SC_turnOnButton = QShortcut(QKeySequence(customKeys[1]), self)
             self.SC_turnOnButton.activated.connect(self.turnLightOn)            
-            self.SC_scanCommandButton = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
+            self.SC_scanCommandButton = QShortcut(QKeySequence(customKeys[2]), self)
             self.SC_scanCommandButton.activated.connect(self.startSelfSearch)
-            self.SC_tryConnectButton = QShortcut(QKeySequence("Ctrl+Shift+C"), self)
+            self.SC_tryConnectButton = QShortcut(QKeySequence(customKeys[3]), self)
             self.SC_tryConnectButton.activated.connect(self.startConnect)            
-            self.SC_Tab_CCT = QShortcut(QKeySequence("Alt+1"), self)
+            self.SC_Tab_CCT = QShortcut(QKeySequence(customKeys[4]), self)
             self.SC_Tab_CCT.activated.connect(lambda: self.switchToTab(0))
-            self.SC_Tab_HSI = QShortcut(QKeySequence("Alt+2"), self)
+            self.SC_Tab_HSI = QShortcut(QKeySequence(customKeys[5]), self)
             self.SC_Tab_HSI.activated.connect(lambda: self.switchToTab(1))
-            self.SC_Tab_SCENE = QShortcut(QKeySequence("Alt+3"), self)
+            self.SC_Tab_SCENE = QShortcut(QKeySequence(customKeys[6]), self)
             self.SC_Tab_SCENE.activated.connect(lambda: self.switchToTab(2))
-            self.SC_Tab_PREFS = QShortcut(QKeySequence("Alt+4"), self)
+            self.SC_Tab_PREFS = QShortcut(QKeySequence(customKeys[7]), self)
             self.SC_Tab_PREFS.activated.connect(lambda: self.switchToTab(3))
 
             # DECREASE/INCREASE BRIGHTNESS REGARDLESS OF WHICH TAB WE'RE ON
-            self.SC_Dec_Bri_Small = QShortcut(QKeySequence("/"), self)
+            self.SC_Dec_Bri_Small = QShortcut(QKeySequence(customKeys[8]), self)
             self.SC_Dec_Bri_Small.activated.connect(lambda: self.changeSliderValue(0, -1))
-            self.SC_Inc_Bri_Small = QShortcut(QKeySequence("*"), self)
+            self.SC_Inc_Bri_Small = QShortcut(QKeySequence(customKeys[9]), self)
             self.SC_Inc_Bri_Small.activated.connect(lambda: self.changeSliderValue(0, 1))
-            self.SC_Dec_Bri_Large = QShortcut(QKeySequence("Ctrl+/"), self)
+            self.SC_Dec_Bri_Large = QShortcut(QKeySequence(customKeys[10]), self)
             self.SC_Dec_Bri_Large.activated.connect(lambda: self.changeSliderValue(0, -5))
-            self.SC_Inc_Bri_Large = QShortcut(QKeySequence("Ctrl+*"), self)
+            self.SC_Inc_Bri_Large = QShortcut(QKeySequence(customKeys[11]), self)
             self.SC_Inc_Bri_Large.activated.connect(lambda: self.changeSliderValue(0, 5))
 
             # ADJUST THE SLIDERS ON THE CURRENT TAB (OR IF WE'RE ON SCENE MODE, CHANGE THE SCENE)
-            self.SC_Num1 = QShortcut(QKeySequence("1"), self)
+            self.SC_Num1 = QShortcut(QKeySequence(customKeys[12]), self)
             self.SC_Num1.activated.connect(lambda: self.numberShortcuts(1))
-            self.SC_Num2 = QShortcut(QKeySequence("2"), self)
+            self.SC_Num2 = QShortcut(QKeySequence(customKeys[13]), self)
             self.SC_Num2.activated.connect(lambda: self.numberShortcuts(2))
-            self.SC_Num3 = QShortcut(QKeySequence("3"), self)
+            self.SC_Num3 = QShortcut(QKeySequence(customKeys[14]), self)
             self.SC_Num3.activated.connect(lambda: self.numberShortcuts(3))
-            self.SC_Num4 = QShortcut(QKeySequence("4"), self)
+            self.SC_Num4 = QShortcut(QKeySequence(customKeys[15]), self)
             self.SC_Num4.activated.connect(lambda: self.numberShortcuts(4))
-            self.SC_Num5 = QShortcut(QKeySequence("5"), self)
+            self.SC_Num5 = QShortcut(QKeySequence(customKeys[16]), self)
             self.SC_Num5.activated.connect(lambda: self.numberShortcuts(5))
-            self.SC_Num6 = QShortcut(QKeySequence("6"), self)
+            self.SC_Num6 = QShortcut(QKeySequence(customKeys[17]), self)
             self.SC_Num6.activated.connect(lambda: self.numberShortcuts(6))
-            self.SC_Num7 = QShortcut(QKeySequence("7"), self)
+            self.SC_Num7 = QShortcut(QKeySequence(customKeys[18]), self)
             self.SC_Num7.activated.connect(lambda: self.numberShortcuts(7))
-            self.SC_Num8 = QShortcut(QKeySequence("8"), self)
+            self.SC_Num8 = QShortcut(QKeySequence(customKeys[19]), self)
             self.SC_Num8.activated.connect(lambda: self.numberShortcuts(8))
-            self.SC_Num9 = QShortcut(QKeySequence("9"), self)
+            self.SC_Num9 = QShortcut(QKeySequence(customKeys[20]), self)
             self.SC_Num9.activated.connect(lambda: self.numberShortcuts(9))
 
             # THE CTRL+NUM SHORTCUTS ARE ONLY FOR SLIDERS, SO WE DON'T NEED A CUSTOM FUNCTION
-            self.SC_Dec_1_Large = QShortcut(QKeySequence("Ctrl+7"), self)
+            self.SC_Dec_1_Large = QShortcut(QKeySequence(customKeys[21]), self)
             self.SC_Dec_1_Large.activated.connect(lambda: self.changeSliderValue(1, -5))
-            self.SC_Inc_1_Large = QShortcut(QKeySequence("Ctrl+9"), self)
+            self.SC_Inc_1_Large = QShortcut(QKeySequence(customKeys[22]), self)
             self.SC_Inc_1_Large.activated.connect(lambda: self.changeSliderValue(1, 5))
-            self.SC_Dec_2_Large = QShortcut(QKeySequence("Ctrl+4"), self)
+            self.SC_Dec_2_Large = QShortcut(QKeySequence(customKeys[23]), self)
             self.SC_Dec_2_Large.activated.connect(lambda: self.changeSliderValue(2, -5))
-            self.SC_Inc_2_Large = QShortcut(QKeySequence("Ctrl+6"), self)
+            self.SC_Inc_2_Large = QShortcut(QKeySequence(customKeys[24]), self)
             self.SC_Inc_2_Large.activated.connect(lambda: self.changeSliderValue(2, 5))
-            self.SC_Dec_3_Large = QShortcut(QKeySequence("Ctrl+1"), self)
+            self.SC_Dec_3_Large = QShortcut(QKeySequence(customKeys[25]), self)
             self.SC_Dec_3_Large.activated.connect(lambda: self.changeSliderValue(3, -5))
-            self.SC_Inc_3_Large = QShortcut(QKeySequence("Ctrl+3"), self)
+            self.SC_Inc_3_Large = QShortcut(QKeySequence(customKeys[26]), self)
             self.SC_Inc_3_Large.activated.connect(lambda: self.changeSliderValue(3, 5))
 
         def switchToTab(self, theTab):
@@ -406,7 +408,7 @@ try: # try to load the GUI
 
                 self.checkLightTab() # check to see if we're on the CCT tab - if we are, then restore order
 
-        def savePrefs(self):
+        def checkLightPrefs(self): # check the new settings and save the custom file
             selectedRows = self.selectedLights() # get the list of currently selected lights
 
             if len(selectedRows) == 1: # if we have 1 selected light - which should never be false, as we can't use Prefs with more than 1
@@ -419,26 +421,37 @@ try: # try to load the GUI
                     self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")" "\n  [ʀssɪ: " + str(availableLights[selectedRows[0]][0].rssi) + " dBm]", 
                                     "", "", ""], selectedRows[0])
             
-                # CREATE THE light_prefs FOLDER IF IT DOESN'T EXIST
-                try:
-                    os.mkdir(os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs")
-                except FileExistsError:
-                    pass # the folder already exists, so we don't need to create it
+                self.saveLightPrefs(selectedRows[0]) # save the light settings to a special file                
+        
+        def saveLightPrefs(self, lightID): # save a sidecar file with the preferences for a specific light
+            #CREATE THE light_prefs FOLDER IF IT DOESN'T EXIST
+            try:
+                os.mkdir(os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs")
+            except FileExistsError:
+                pass # the folder already exists, so we don't need to create it
 
-                # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
-                exportFileName = availableLights[selectedRows[0]][0].address.split(":") # take the colons out of the MAC address
-                exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
+            # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
+            exportFileName = availableLights[lightID][0].address.split(":") # take the colons out of the MAC address
+            exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
 
-                # BUILD THE PREFERENCES STRING
-                exportString = availableLights[selectedRows[0]][2] + "|" # the custom name
-                exportString = exportString + str(availableLights[selectedRows[0]][4]) + "|" # whether or not to allow this light to have wider range
-                exportString = exportString + str(availableLights[selectedRows[0]][5]) # whether or not to allow only CCT mode for this light
+            customName = availableLights[lightID][2] # the custom name for this light
+            widerRange = str(availableLights[lightID][4]) # whether or not the light can use extended CCT ranges
+            onlyCCTMode = str(availableLights[lightID][5]) # whether or not the light can only use CCT mode
 
-                # WRITE THE PREFERENCES FILE
-                with open(exportFileName, "w") as prefsFileToWrite:
-                    prefsFileToWrite.write(exportString)
+            exportString = customName + "|" + widerRange + "|" + onlyCCTMode # the exported string, minus the light last set parameters
 
-                printDebugString("Exported preferences for this light to " + exportFileName)
+            if rememberLightOnExit == True: # if we're supposed to remember the last settings, then add that to the Prefs file
+                if len(availableLights[lightID][3]) > 0: # if we actually have a value stored for this light
+                    lastSettingsString = ",".join(map(str, availableLights[lightID][3])) # combine all the elements of the last set params
+                    exportString += "|" + lastSettingsString # add it to the exported string
+                else: # if we don't have a value stored for this light (nothing has changed yet)
+                    exportString += "|" + "120,135,2,100,56,157" # then just give the default (CCT, 5600K, 100%) params
+
+            # WRITE THE PREFERENCES FILE
+            with open(exportFileName, "w") as prefsFileToWrite:
+                prefsFileToWrite.write(exportString)
+
+            printDebugString("Exported preferences for this light to " + exportFileName)
 
         # ADD A LIGHT TO THE TABLE VIEW
         def setTheTable(self, infoArray, rowToChange = -1):
@@ -662,8 +675,18 @@ try: # try to load the GUI
             self.statusBar.showMessage("Quitting program - unlinking from lights...")
             QApplication.processEvents() # force the status bar to update
 
+            # Keep in mind, this is broken into 2 separate "for" loops, so we save all the light params FIRST, then try to unlink from them
+            if rememberLightOnExit == True:
+                printDebugString("You asked NeewerLite-Python to save the last used light parameters on exit, so we will do that now...")
+
+                for a in range(len(availableLights)):
+                    printDebugString("Saving last used parameters for light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + ")")
+                    self.saveLightPrefs(a)
+
+            printDebugString("We will now attempt to unlink from the lights...")
+
             # TRY TO DISCONNECT EACH LIGHT FROM BLUETOOTH BEFORE QUITTING THE PROGRAM COMPLETELY
-            for a in range (0, len(availableLights)):
+            for a in range (len(availableLights)):
                 printDebugString("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
                 self.statusBar.showMessage("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)...")
                 QApplication.processEvents() # force update to show statusbar progress
@@ -863,7 +886,11 @@ async def findDevices():
         if newLight == True: # if this light was not found in the global list, then we need to add it
             printDebugString("Found new light! [" + currentScan[a].name + "] " + returnMACname() + " " + currentScan[a].address + " RSSI: " + str(currentScan[a].rssi) + " dBm")
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
-            availableLights.append([currentScan[a], "", customPrefs[0], [], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
+            
+            if len(customPrefs) == 3: # we need to rename the light and set up CCT and color temp range
+                availableLights.append([currentScan[a], "", customPrefs[0], [], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
+            elif len(customPrefs) == 4: # same as above, but we have previously stored parameters, so add them in as well
+                availableLights.append([currentScan[a], "", customPrefs[0], customPrefs[3], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
 
     if threadAction != "quit":
         return "" # once the device scan is over, set the threadAction to nothing
@@ -888,6 +915,12 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
                 customPrefs[b] = True
             else:
                 customPrefs[b] = False
+                
+        if len(customPrefs) == 4: # if we have a 4th element (the last used parameters), then load them here
+            customPrefs[3] = customPrefs[3].replace(" ", "").split(",") # split the last params into a list
+
+            for a in range(len(customPrefs[3])): # convert the string values to ints
+                customPrefs[3][a] = int(customPrefs[3][a])
     else: # if there is no custom preferences file, still check the name against a list of per-light parameters
         if lightName == "NEEWER-SL80": # we can use extended ranges with the SL80
             customPrefs = ["", True, False]
@@ -895,7 +928,7 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
             customPrefs = ["", False, True]
         else: # return a blank slate
              customPrefs = ["", False, False]
-            
+
     return customPrefs
 
 # CONNECT (LINK) TO A LIGHT
@@ -1152,7 +1185,7 @@ async def connectToOneLight(MACAddress):
 def workerThread(_loop):
     global threadAction
     
-    if startup_findLights == True: # if we're set to find lights at startup, then automatically set the thread to discovery mode
+    if findLightsOnStartup == True: # if we're set to find lights at startup, then automatically set the thread to discovery mode
         threadAction = "discover"
 
     delayTicks = 1 # count a few ticks before checking light information
@@ -1185,7 +1218,7 @@ def workerThread(_loop):
             if threadAction != "quit":
                 mainWindow.updateLights() # tell the GUI to update its list of available lights
 
-                if startup_connectLights == True: # if we're set to automatically link to the lights on startup, then do it here
+                if autoConnectToLights == True: # if we're set to automatically link to the lights on startup, then do it here
                     for a in range(len(availableLights)):
                         if threadAction != "quit": # if we're not supposed to quit, then try to connect to the light(s)
                             threadAction = _loop.run_until_complete(connectToLight(a)) # connect to each light in turn
@@ -1423,21 +1456,13 @@ class NLPythonServer(BaseHTTPRequestHandler):
 
                 return
 
-            # CHECK TO SEE IF THE IP REQUESTING ACCESS IS IN THE LIST OF "acceptableIPs"
-
-            # This is the list of local IPs that the server lets through (outside requests return "Forbidden"
-            # unless you specify that IP address or range - wildcards are just not typed in (192.168 is the same as 192.168.*.*) - in this list)
-            # The list currently contains a wildcard of internal router IPs (192.168.*.*, 10.0.0.*, 127.20.*.*) and the loopback IP (127.0.0.1)
-            # but any outside requests (unless you whitelist it below) will be forbidden from making a request
-
-            acceptableIPs = ["192.168", "10.0.0", "172.20", "127.0.0.1"]
-
+            # CHECK TO SEE IF THE IP REQUESTING ACCESS IS IN THE LIST OF "acceptable_HTTP_IPs"
             clientIP = self.client_address[0] # the IP address of the machine making the request
             acceptedIP = False
 
-            for check in range(len(acceptableIPs)): # check all the "accepted" IP addresses against the current requesting IP
+            for check in range(len(acceptable_HTTP_IPs)): # check all the "accepted" IP addresses against the current requesting IP
                 if acceptedIP != True: # if we haven't found the IP in the accepted list, then keep checking
-                    if acceptableIPs[check] in clientIP:
+                    if acceptable_HTTP_IPs[check] in clientIP:
                         acceptedIP = True # if we're good to go, then we can just move on
 
             # IF THE IP MAKING THE REQUEST IS NOT IN THE LIST OF APPROVED ADDRESSES, THEN RETURN A "FORBIDDEN" ERROR
@@ -1592,7 +1617,125 @@ def formatStringForConsole(theString, maxLength):
         else: # truncate the string, it's too long
             return theString[0:maxLength - 4] + " ..."
 
+def loadPrefsFile(prefsFile = ""):
+    global findLightsOnStartup, autoConnectToLights, printDebug, maxNumOfAttempts, \
+           rememberLightOnExit, acceptable_HTTP_IPs, customKeys
+    
+    if prefsFile != "":
+        printDebugString("Loading global preferences from file...")
+
+        fileToOpen = open(prefsFile)
+        mainPrefs = fileToOpen.read().splitlines()
+        fileToOpen.close()
+
+        acceptable_arguments = ["findLightsOnStartup", "autoConnectToLights", "printDebug", "maxNumOfAttempts", "rememberLightOnExit", "acceptableIPs", \
+            "SC_turnOffButton", "SC_turnOnButton", "SC_scanCommandButton", "SC_tryConnectButton", "SC_Tab_CCT", "SC_Tab_HSI", "SC_Tab_SCENE", "SC_Tab_PREFS", \
+            "SC_Dec_Bri_Small", "SC_Inc_Bri_Small", "SC_Dec_Bri_Large", "SC_Inc_Bri_Large", "SC_Num1", "SC_Num2", "SC_Num3", "SC_Num4", "SC_Num5", "SC_Num6", \
+            "SC_Num7", "SC_Num8", "SC_Num9", "SC_Dec_1_Large", "SC_Inc_1_Large", "SC_Dec_2_Large", "SC_Inc_2_Large", "SC_Dec_3_Large", "SC_Inc_3_Large"]
+
+        # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST ABOVE
+        # THIS SECTION OF CODE IS *SLIGHTLY* DIFFERENT THAN THE CLI KICK OUT CODE
+        # THIS WAY, WE CAN HAVE COMMENTS IN THE PREFS FILE IF DESIRED
+        for a in range(len(mainPrefs) - 1, -1, -1):
+            if not any(x in mainPrefs[a] for x in acceptable_arguments): # if the current argument is invalid
+                mainPrefs.pop(a) # delete the invalid argument from the list
+
+        # NOW THAT ANY STRAGGLERS ARE OUT, ADD DASHES TO WHAT REMAINS TO PROPERLY PARSE IN THE PARSER
+        for a in range(len(mainPrefs)):
+            mainPrefs[a] = "--" + mainPrefs[a]
+    else:
+        mainPrefs = [] # submit an empty list to return the default values for everything
+
+    prefsParser = argparse.ArgumentParser() # parser for preference arguments
+                
+    # SET PROGRAM DEFAULTS
+    prefsParser.add_argument("--findLightsOnStartup", default=1)
+    prefsParser.add_argument("--autoConnectToLights", default=1)
+    prefsParser.add_argument("--printDebug", default=1)
+    prefsParser.add_argument("--maxNumOfAttempts", default=6)
+    prefsParser.add_argument("--rememberLightOnExit", default=0)
+    prefsParser.add_argument("--acceptableIPs", default=["192.168", "10.0.0", "172.20", "127.0.0.1"])
+
+    # SHORTCUT KEY CUSTOMIZATIONS
+    prefsParser.add_argument("--SC_turnOffButton", default="Ctrl+PgDown")
+    prefsParser.add_argument("--SC_turnOnButton", default="Ctrl+PgUp")
+    prefsParser.add_argument("--SC_scanCommandButton", default="Ctrl+Shift+S")
+    prefsParser.add_argument("--SC_tryConnectButton", default="Ctrl+Shift+C")
+    prefsParser.add_argument("--SC_Tab_CCT", default="Alt+1")
+    prefsParser.add_argument("--SC_Tab_HSI", default="Alt+2")
+    prefsParser.add_argument("--SC_Tab_SCENE", default="Alt+3")
+    prefsParser.add_argument("--SC_Tab_PREFS", default="Alt+4")
+    prefsParser.add_argument("--SC_Dec_Bri_Small", default="/")
+    prefsParser.add_argument("--SC_Inc_Bri_Small", default="*")
+    prefsParser.add_argument("--SC_Dec_Bri_Large", default="Ctrl+/")
+    prefsParser.add_argument("--SC_Inc_Bri_Large", default="Ctrl+*")
+    prefsParser.add_argument("--SC_Num1", default="1")
+    prefsParser.add_argument("--SC_Num2", default="2")
+    prefsParser.add_argument("--SC_Num3", default="3")
+    prefsParser.add_argument("--SC_Num4", default="4")
+    prefsParser.add_argument("--SC_Num5", default="5")
+    prefsParser.add_argument("--SC_Num6", default="6")
+    prefsParser.add_argument("--SC_Num7", default="7")
+    prefsParser.add_argument("--SC_Num8", default="8")
+    prefsParser.add_argument("--SC_Num9", default="9")
+    prefsParser.add_argument("--SC_Dec_1_Large", default="Ctrl+7")
+    prefsParser.add_argument("--SC_Inc_1_Large", default="Ctrl+9")
+    prefsParser.add_argument("--SC_Dec_2_Large", default="Ctrl+4")
+    prefsParser.add_argument("--SC_Inc_2_Large", default="Ctrl+6")
+    prefsParser.add_argument("--SC_Dec_3_Large", default="Ctrl+1")
+    prefsParser.add_argument("--SC_Inc_3_Large", default="Ctrl+3")
+        
+    mainPrefs = prefsParser.parse_args(mainPrefs)
+
+    # SET GLOBAL VALUES BASED ON PREFERENCES
+    findLightsOnStartup = bool(int(mainPrefs.findLightsOnStartup)) # whether or not to scan for lights on launch
+    autoConnectToLights = bool(int(mainPrefs.autoConnectToLights)) # whether or not to connect to lights when found
+    printDebug = bool(int(mainPrefs.printDebug)) # whether or not to display debug messages in the console
+    maxNumOfAttempts = int(mainPrefs.maxNumOfAttempts) # maximum number of attempts before failing out
+    rememberLightOnExit = bool(int(mainPrefs.rememberLightOnExit)) # whether or not to remember light mode/settings when quitting out
+
+    if type(mainPrefs.acceptableIPs) is not list: # we have a string in the return, so we need to post-process it
+        acceptable_HTTP_IPs = mainPrefs.acceptableIPs.replace(" ", "").split(";") # split the IP addresses into a list for acceptable IPs
+    else: # the return is already a list (the default list), so return it
+        acceptable_HTTP_IPs = mainPrefs.acceptableIPs
+        
+    # RETURN THE CUSTOM KEYBOARD MAPPINGS
+    customKeys = [mainPrefs.SC_turnOffButton, \
+                  mainPrefs.SC_turnOnButton, \
+                  mainPrefs.SC_scanCommandButton, \
+                  mainPrefs.SC_tryConnectButton, \
+                  mainPrefs.SC_Tab_CCT, \
+                  mainPrefs.SC_Tab_HSI, \
+                  mainPrefs.SC_Tab_SCENE, \
+                  mainPrefs.SC_Tab_PREFS, \
+                  mainPrefs.SC_Dec_Bri_Small, \
+                  mainPrefs.SC_Inc_Bri_Small, \
+                  mainPrefs.SC_Dec_Bri_Large, \
+                  mainPrefs.SC_Inc_Bri_Large, \
+                  mainPrefs.SC_Num1, \
+                  mainPrefs.SC_Num2, \
+                  mainPrefs.SC_Num3, \
+                  mainPrefs.SC_Num4, \
+                  mainPrefs.SC_Num5, \
+                  mainPrefs.SC_Num6, \
+                  mainPrefs.SC_Num7, \
+                  mainPrefs.SC_Num8, \
+                  mainPrefs.SC_Num9, \
+                  mainPrefs.SC_Dec_1_Large, \
+                  mainPrefs.SC_Inc_1_Large, \
+                  mainPrefs.SC_Dec_2_Large, \
+                  mainPrefs.SC_Inc_2_Large, \
+                  mainPrefs.SC_Dec_3_Large, \
+                  mainPrefs.SC_Inc_3_Large]
+
 if __name__ == '__main__':
+    prefsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "NeewerLite-Python.prefs"
+
+    if os.path.exists(prefsFile):
+        loadPrefsFile(prefsFile) # if a preferences file exists, process it and load the preferences
+    else:
+        loadPrefsFile() # if it doesn't, then just load the defaults
+
     loop = asyncio.get_event_loop() # get the current asyncio loop
     cmdReturn = [True] # initially set to show the GUI interface over the CLI interface
 

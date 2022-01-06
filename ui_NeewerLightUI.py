@@ -282,9 +282,9 @@ class Ui_MainWindow(object):
         self.onlyCCTModeCheck.setText("This light can only use CCT mode\n(for SNL-660 and other Neewer LED/Ring lights)")
         self.onlyCCTModeCheck.setFont(mainFont)
         
-        self.savePrefsButton = QPushButton(self.lightPrefs)
-        self.savePrefsButton.setGeometry(QRect(416, 130, 141, 23))
-        self.savePrefsButton.setText("Save Preferences")
+        self.saveLightPrefsButton = QPushButton(self.lightPrefs)
+        self.saveLightPrefsButton.setGeometry(QRect(416, 130, 141, 23))
+        self.saveLightPrefsButton.setText("Save Preferences")
         
         # === >> ADD THE TABS TO THE TAB WIDGET << ===
         self.ColorModeTabWidget.addTab(self.CCT, "CCT Mode")
