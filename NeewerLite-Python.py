@@ -172,46 +172,71 @@ try: # try to load the GUI
             self.SC_Inc_Bri_Large = QShortcut(QKeySequence(customKeys[11]), self)
             self.SC_Inc_Bri_Large.activated.connect(lambda: self.changeSliderValue(0, 5))
 
-            # ADJUST THE SLIDERS ON THE CURRENT TAB (OR IF WE'RE ON SCENE MODE, CHANGE THE SCENE)
-            self.SC_Num1 = QShortcut(QKeySequence(customKeys[12]), self)
-            self.SC_Num1.activated.connect(lambda: self.numberShortcuts(1))
-            self.SC_Num2 = QShortcut(QKeySequence(customKeys[13]), self)
-            self.SC_Num2.activated.connect(lambda: self.numberShortcuts(2))
-            self.SC_Num3 = QShortcut(QKeySequence(customKeys[14]), self)
-            self.SC_Num3.activated.connect(lambda: self.numberShortcuts(3))
-            self.SC_Num4 = QShortcut(QKeySequence(customKeys[15]), self)
-            self.SC_Num4.activated.connect(lambda: self.numberShortcuts(4))
-            self.SC_Num5 = QShortcut(QKeySequence(customKeys[16]), self)
-            self.SC_Num5.activated.connect(lambda: self.numberShortcuts(5))
-            self.SC_Num6 = QShortcut(QKeySequence(customKeys[17]), self)
-            self.SC_Num6.activated.connect(lambda: self.numberShortcuts(6))
-            self.SC_Num7 = QShortcut(QKeySequence(customKeys[18]), self)
-            self.SC_Num7.activated.connect(lambda: self.numberShortcuts(7))
-            self.SC_Num8 = QShortcut(QKeySequence(customKeys[19]), self)
-            self.SC_Num8.activated.connect(lambda: self.numberShortcuts(8))
-            self.SC_Num9 = QShortcut(QKeySequence(customKeys[20]), self)
-            self.SC_Num9.activated.connect(lambda: self.numberShortcuts(9))
+            # IF THERE ARE CUSTOM KEYS SET UP FOR THE SMALL INCREMENTS, SET THEM HERE (AS THE NUMPAD KEYS WILL BE TAKEN AWAY IN THAT INSTANCE):
+            if customKeys[12] != "7":
+                self.SC_Dec_1_Small = QShortcut(QKeySequence(customKeys[12]), self)
+                self.SC_Dec_1_Small.activated.connect(lambda: self.changeSliderValue(1, -1))
+            
+            if customKeys[13] != "9":
+                self.SC_Inc_1_Small = QShortcut(QKeySequence(customKeys[13]), self)
+                self.SC_Inc_1_Small.activated.connect(lambda: self.changeSliderValue(1, 1))
 
-            # THE CTRL+NUM SHORTCUTS ARE ONLY FOR SLIDERS, SO WE DON'T NEED A CUSTOM FUNCTION
-            self.SC_Dec_1_Large = QShortcut(QKeySequence(customKeys[21]), self)
+            if customKeys[14] != "4":
+                self.SC_Dec_2_Small = QShortcut(QKeySequence(customKeys[14]), self)
+                self.SC_Dec_2_Small.activated.connect(lambda: self.changeSliderValue(2, -1))
+
+            if customKeys[15] != "6":
+                self.SC_Inc_2_Small = QShortcut(QKeySequence(customKeys[15]), self)
+                self.SC_Inc_2_Small.activated.connect(lambda: self.changeSliderValue(2, 1))
+
+            if customKeys[16] != "1":
+                self.SC_Dec_3_Small = QShortcut(QKeySequence(customKeys[16]), self)
+                self.SC_Dec_3_Small.activated.connect(lambda: self.changeSliderValue(3, -1))
+
+            if customKeys[17] != "3":
+                self.SC_Inc_3_Small = QShortcut(QKeySequence(customKeys[17]), self)
+                self.SC_Inc_3_Small.activated.connect(lambda: self.changeSliderValue(3, 1))
+
+            # THE LARGE INCREMENTS DON'T NEED A CUSTOM FUNCTION
+            self.SC_Dec_1_Large = QShortcut(QKeySequence(customKeys[18]), self)
             self.SC_Dec_1_Large.activated.connect(lambda: self.changeSliderValue(1, -5))
-            self.SC_Inc_1_Large = QShortcut(QKeySequence(customKeys[22]), self)
+            self.SC_Inc_1_Large = QShortcut(QKeySequence(customKeys[19]), self)
             self.SC_Inc_1_Large.activated.connect(lambda: self.changeSliderValue(1, 5))
-            self.SC_Dec_2_Large = QShortcut(QKeySequence(customKeys[23]), self)
+            self.SC_Dec_2_Large = QShortcut(QKeySequence(customKeys[20]), self)
             self.SC_Dec_2_Large.activated.connect(lambda: self.changeSliderValue(2, -5))
-            self.SC_Inc_2_Large = QShortcut(QKeySequence(customKeys[24]), self)
+            self.SC_Inc_2_Large = QShortcut(QKeySequence(customKeys[21]), self)
             self.SC_Inc_2_Large.activated.connect(lambda: self.changeSliderValue(2, 5))
-            self.SC_Dec_3_Large = QShortcut(QKeySequence(customKeys[25]), self)
+            self.SC_Dec_3_Large = QShortcut(QKeySequence(customKeys[22]), self)
             self.SC_Dec_3_Large.activated.connect(lambda: self.changeSliderValue(3, -5))
-            self.SC_Inc_3_Large = QShortcut(QKeySequence(customKeys[26]), self)
+            self.SC_Inc_3_Large = QShortcut(QKeySequence(customKeys[23]), self)
             self.SC_Inc_3_Large.activated.connect(lambda: self.changeSliderValue(3, 5))
+
+            # IF WE HAVE CUSTOM KEYS SET UP FOR THE SMALL INCREMENTS, THEN WE'LL JUST CHANGE SCENE AND NOTHING ELSE
+            self.SC_Num1 = QShortcut(QKeySequence("1"), self)
+            self.SC_Num1.activated.connect(lambda: self.numberShortcuts(1))
+            self.SC_Num2 = QShortcut(QKeySequence("2"), self)
+            self.SC_Num2.activated.connect(lambda: self.numberShortcuts(2))
+            self.SC_Num3 = QShortcut(QKeySequence("3"), self)
+            self.SC_Num3.activated.connect(lambda: self.numberShortcuts(3))
+            self.SC_Num4 = QShortcut(QKeySequence("4"), self)
+            self.SC_Num4.activated.connect(lambda: self.numberShortcuts(4))
+            self.SC_Num5 = QShortcut(QKeySequence("5"), self)
+            self.SC_Num5.activated.connect(lambda: self.numberShortcuts(5))
+            self.SC_Num6 = QShortcut(QKeySequence("6"), self)
+            self.SC_Num6.activated.connect(lambda: self.numberShortcuts(6))
+            self.SC_Num7 = QShortcut(QKeySequence("7"), self)
+            self.SC_Num7.activated.connect(lambda: self.numberShortcuts(7))
+            self.SC_Num8 = QShortcut(QKeySequence("8"), self)
+            self.SC_Num8.activated.connect(lambda: self.numberShortcuts(8))
+            self.SC_Num9 = QShortcut(QKeySequence("9"), self)
+            self.SC_Num9.activated.connect(lambda: self.numberShortcuts(9))
 
         def switchToTab(self, theTab):
             if self.ColorModeTabWidget.isTabEnabled(theTab) == True:
                 self.ColorModeTabWidget.setCurrentIndex(theTab) # if the tab we're requesting is available, then switch to it
 
         def numberShortcuts(self, theNumber):
-            # THE KEYS:
+            # THE KEYS (IF THERE AREN'T CUSTOM ONES SET UP):
             # 7 AND 9 ADJUST THE FIRST SLIDER ON A TAB
             # 4 AND 6 ADJUST THE SECOND SLIDER ON A TAB
             # 1 AND 3 ADJUST THE THIRD SLIDER ON A TAB
@@ -220,7 +245,8 @@ try: # try to load the GUI
                 if self.ColorModeTabWidget.currentIndex() == 2: # if we're on the SCENE tab, then the number keys correspond to an animation
                     self.computeValueANM(1)
                 else: # if we're not, adjust the slider
-                    self.changeSliderValue(3, -1) # decrement slider 3
+                    if customKeys[16] == "1":
+                        self.changeSliderValue(3, -1) # decrement slider 3
             elif theNumber == 2:
                 if self.ColorModeTabWidget.currentIndex() == 2:
                     self.computeValueANM(2)
@@ -228,12 +254,14 @@ try: # try to load the GUI
                 if self.ColorModeTabWidget.currentIndex() == 2:
                     self.computeValueANM(3)
                 else:
-                    self.changeSliderValue(3, 1) # increment slider 3
+                    if customKeys[17] == "3":
+                        self.changeSliderValue(3, 1) # increment slider 3
             elif theNumber == 4:
                 if self.ColorModeTabWidget.currentIndex() == 2:
                     self.computeValueANM(4)
                 else:
-                    self.changeSliderValue(2, -1) # decrement slider 2
+                    if customKeys[14] == "4":
+                        self.changeSliderValue(2, -1) # decrement slider 2
             elif theNumber == 5:
                 if self.ColorModeTabWidget.currentIndex() == 2:
                     self.computeValueANM(5)
@@ -241,12 +269,14 @@ try: # try to load the GUI
                 if self.ColorModeTabWidget.currentIndex() == 2:
                     self.computeValueANM(6)
                 else:
-                    self.changeSliderValue(2, 1) # increment slider 2
+                    if customKeys[15] == "6":
+                        self.changeSliderValue(2, 1) # increment slider 2
             elif theNumber == 7:
                 if self.ColorModeTabWidget.currentIndex() == 2:
                     self.computeValueANM(7)
                 else:
-                    self.changeSliderValue(1, -1) # decrement slider 1
+                    if customKeys[12] == "7":
+                        self.changeSliderValue(1, -1) # decrement slider 1
             elif theNumber == 8:
                 if self.ColorModeTabWidget.currentIndex() == 2:
                     self.computeValueANM(8)
@@ -254,7 +284,8 @@ try: # try to load the GUI
                 if self.ColorModeTabWidget.currentIndex() == 2:
                     self.computeValueANM(9)
                 else:
-                    self.changeSliderValue(1, 1) # increment slider 1
+                    if customKeys[13] == "9":
+                        self.changeSliderValue(1, 1) # increment slider 1
 
         def changeSliderValue(self, sliderToChange, changeAmt):
             # CCT mode only has 2 sliders, so don't do anything if you ask for the "3rd" set
@@ -451,7 +482,10 @@ try: # try to load the GUI
             with open(exportFileName, "w") as prefsFileToWrite:
                 prefsFileToWrite.write(exportString)
 
-            printDebugString("Exported preferences for this light to " + exportFileName)
+            if customName != "":
+                printDebugString("Exported preferences for " + customName + " [" + availableLights[lightID][0].name + "] to " + exportFileName)
+            else:
+                printDebugString("Exported preferences for [" + availableLights[lightID][0].name + "] to " + exportFileName)
 
         # ADD A LIGHT TO THE TABLE VIEW
         def setTheTable(self, infoArray, rowToChange = -1):
@@ -1640,8 +1674,9 @@ def loadPrefsFile(prefsFile = ""):
 
         acceptable_arguments = ["findLightsOnStartup", "autoConnectToLights", "printDebug", "maxNumOfAttempts", "rememberLightOnExit", "acceptableIPs", \
             "SC_turnOffButton", "SC_turnOnButton", "SC_scanCommandButton", "SC_tryConnectButton", "SC_Tab_CCT", "SC_Tab_HSI", "SC_Tab_SCENE", "SC_Tab_PREFS", \
-            "SC_Dec_Bri_Small", "SC_Inc_Bri_Small", "SC_Dec_Bri_Large", "SC_Inc_Bri_Large", "SC_Num1", "SC_Num2", "SC_Num3", "SC_Num4", "SC_Num5", "SC_Num6", \
-            "SC_Num7", "SC_Num8", "SC_Num9", "SC_Dec_1_Large", "SC_Inc_1_Large", "SC_Dec_2_Large", "SC_Inc_2_Large", "SC_Dec_3_Large", "SC_Inc_3_Large"]
+            "SC_Dec_Bri_Small", "SC_Inc_Bri_Small", "SC_Dec_Bri_Large", "SC_Inc_Bri_Large", \
+            "SC_Dec_1_Small", "SC_Inc_1_Small", "SC_Dec_2_Small", "SC_Inc_2_Small", "SC_Dec_3_Small", "SC_Inc_3_Small", \
+            "SC_Dec_1_Large", "SC_Inc_1_Large", "SC_Dec_2_Large", "SC_Inc_2_Large", "SC_Dec_3_Large", "SC_Inc_3_Large"]
 
         # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST ABOVE
         # THIS SECTION OF CODE IS *SLIGHTLY* DIFFERENT THAN THE CLI KICK OUT CODE
@@ -1667,34 +1702,31 @@ def loadPrefsFile(prefsFile = ""):
     prefsParser.add_argument("--acceptableIPs", default=["192.168", "10.0.0", "172.20", "127.0.0.1"])
 
     # SHORTCUT KEY CUSTOMIZATIONS
-    prefsParser.add_argument("--SC_turnOffButton", default="Ctrl+PgDown")
-    prefsParser.add_argument("--SC_turnOnButton", default="Ctrl+PgUp")
-    prefsParser.add_argument("--SC_scanCommandButton", default="Ctrl+Shift+S")
-    prefsParser.add_argument("--SC_tryConnectButton", default="Ctrl+Shift+C")
-    prefsParser.add_argument("--SC_Tab_CCT", default="Alt+1")
-    prefsParser.add_argument("--SC_Tab_HSI", default="Alt+2")
-    prefsParser.add_argument("--SC_Tab_SCENE", default="Alt+3")
-    prefsParser.add_argument("--SC_Tab_PREFS", default="Alt+4")
-    prefsParser.add_argument("--SC_Dec_Bri_Small", default="/")
-    prefsParser.add_argument("--SC_Inc_Bri_Small", default="*")
-    prefsParser.add_argument("--SC_Dec_Bri_Large", default="Ctrl+/")
-    prefsParser.add_argument("--SC_Inc_Bri_Large", default="Ctrl+*")
-    prefsParser.add_argument("--SC_Num1", default="1")
-    prefsParser.add_argument("--SC_Num2", default="2")
-    prefsParser.add_argument("--SC_Num3", default="3")
-    prefsParser.add_argument("--SC_Num4", default="4")
-    prefsParser.add_argument("--SC_Num5", default="5")
-    prefsParser.add_argument("--SC_Num6", default="6")
-    prefsParser.add_argument("--SC_Num7", default="7")
-    prefsParser.add_argument("--SC_Num8", default="8")
-    prefsParser.add_argument("--SC_Num9", default="9")
-    prefsParser.add_argument("--SC_Dec_1_Large", default="Ctrl+7")
-    prefsParser.add_argument("--SC_Inc_1_Large", default="Ctrl+9")
-    prefsParser.add_argument("--SC_Dec_2_Large", default="Ctrl+4")
-    prefsParser.add_argument("--SC_Inc_2_Large", default="Ctrl+6")
-    prefsParser.add_argument("--SC_Dec_3_Large", default="Ctrl+1")
-    prefsParser.add_argument("--SC_Inc_3_Large", default="Ctrl+3")
-        
+    prefsParser.add_argument("--SC_turnOffButton", default="Ctrl+PgDown") # 0
+    prefsParser.add_argument("--SC_turnOnButton", default="Ctrl+PgUp") # 1
+    prefsParser.add_argument("--SC_scanCommandButton", default="Ctrl+Shift+S") # 2
+    prefsParser.add_argument("--SC_tryConnectButton", default="Ctrl+Shift+C") # 3
+    prefsParser.add_argument("--SC_Tab_CCT", default="Alt+1") # 4
+    prefsParser.add_argument("--SC_Tab_HSI", default="Alt+2") # 5
+    prefsParser.add_argument("--SC_Tab_SCENE", default="Alt+3") # 6
+    prefsParser.add_argument("--SC_Tab_PREFS", default="Alt+4") # 7
+    prefsParser.add_argument("--SC_Dec_Bri_Small", default="/") # 8
+    prefsParser.add_argument("--SC_Inc_Bri_Small", default="*") # 9
+    prefsParser.add_argument("--SC_Dec_Bri_Large", default="Ctrl+/") # 10
+    prefsParser.add_argument("--SC_Inc_Bri_Large", default="Ctrl+*") # 11
+    prefsParser.add_argument("--SC_Dec_1_Small", default="7") # 12
+    prefsParser.add_argument("--SC_Inc_1_Small", default="9") # 13
+    prefsParser.add_argument("--SC_Dec_2_Small", default="4") # 14
+    prefsParser.add_argument("--SC_Inc_2_Small", default="6") # 15
+    prefsParser.add_argument("--SC_Dec_3_Small", default="1") # 16
+    prefsParser.add_argument("--SC_Inc_3_Small", default="3") # 17
+    prefsParser.add_argument("--SC_Dec_1_Large", default="Ctrl+7") # 18
+    prefsParser.add_argument("--SC_Inc_1_Large", default="Ctrl+9") # 19
+    prefsParser.add_argument("--SC_Dec_2_Large", default="Ctrl+4") # 20
+    prefsParser.add_argument("--SC_Inc_2_Large", default="Ctrl+6") # 21
+    prefsParser.add_argument("--SC_Dec_3_Large", default="Ctrl+1") # 22
+    prefsParser.add_argument("--SC_Inc_3_Large", default="Ctrl+3") # 23
+    
     mainPrefs = prefsParser.parse_args(mainPrefs)
 
     # SET GLOBAL VALUES BASED ON PREFERENCES
@@ -1710,27 +1742,15 @@ def loadPrefsFile(prefsFile = ""):
         acceptable_HTTP_IPs = mainPrefs.acceptableIPs
         
     # RETURN THE CUSTOM KEYBOARD MAPPINGS
-    customKeys = [mainPrefs.SC_turnOffButton, \
-                  mainPrefs.SC_turnOnButton, \
-                  mainPrefs.SC_scanCommandButton, \
-                  mainPrefs.SC_tryConnectButton, \
-                  mainPrefs.SC_Tab_CCT, \
-                  mainPrefs.SC_Tab_HSI, \
-                  mainPrefs.SC_Tab_SCENE, \
-                  mainPrefs.SC_Tab_PREFS, \
-                  mainPrefs.SC_Dec_Bri_Small, \
-                  mainPrefs.SC_Inc_Bri_Small, \
-                  mainPrefs.SC_Dec_Bri_Large, \
-                  mainPrefs.SC_Inc_Bri_Large, \
-                  mainPrefs.SC_Num1, \
-                  mainPrefs.SC_Num2, \
-                  mainPrefs.SC_Num3, \
-                  mainPrefs.SC_Num4, \
-                  mainPrefs.SC_Num5, \
-                  mainPrefs.SC_Num6, \
-                  mainPrefs.SC_Num7, \
-                  mainPrefs.SC_Num8, \
-                  mainPrefs.SC_Num9, \
+    customKeys = [mainPrefs.SC_turnOffButton, mainPrefs.SC_turnOnButton, mainPrefs.SC_scanCommandButton, mainPrefs.SC_tryConnectButton, \
+                  mainPrefs.SC_Tab_CCT, mainPrefs.SC_Tab_HSI, mainPrefs.SC_Tab_SCENE, mainPrefs.SC_Tab_PREFS, \
+                  mainPrefs.SC_Dec_Bri_Small, mainPrefs.SC_Inc_Bri_Small, mainPrefs.SC_Dec_Bri_Large, mainPrefs.SC_Inc_Bri_Large, \
+                  mainPrefs.SC_Dec_1_Small, \
+                  mainPrefs.SC_Inc_1_Small, \
+                  mainPrefs.SC_Dec_2_Small, \
+                  mainPrefs.SC_Inc_2_Small, \
+                  mainPrefs.SC_Dec_3_Small, \
+                  mainPrefs.SC_Inc_3_Small, \
                   mainPrefs.SC_Dec_1_Large, \
                   mainPrefs.SC_Inc_1_Large, \
                   mainPrefs.SC_Dec_2_Large, \
