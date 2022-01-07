@@ -1052,19 +1052,25 @@ async def getLightChannelandPower(selectedLight):
 
     powerInfo = await readNotifyCharacteristic(selectedLight, [120, 133, 0, 253])
     
-    if powerInfo != "" and powerInfo[3] == 1:
-        returnInfo[0] = "ON"
+    try:
+        if powerInfo != "" and powerInfo[3] == 1:
+            returnInfo[0] = "ON"
 
-        # IF THE LIGHT IS ON, THEN ATTEMPT TO READ THE CURRENT CHANNEL
-        chanInfo = await readNotifyCharacteristic(selectedLight, [120, 132, 0, 252])
-        
-        if chanInfo != "": # if we got a result from the query
-            try:
-                returnInfo[1] = chanInfo[3] # set the current channel to the returned result
-            except IndexError:
-                pass # if we have an index error (the above value doesn't exist), then just return -1    
-    elif powerInfo != "" and powerInfo[3] == 2:
-        returnInfo[0] = "STBY"
+            # IF THE LIGHT IS ON, THEN ATTEMPT TO READ THE CURRENT CHANNEL
+            chanInfo = await readNotifyCharacteristic(selectedLight, [120, 132, 0, 252])
+            
+            if chanInfo != "": # if we got a result from the query
+                try:
+                    returnInfo[1] = chanInfo[3] # set the current channel to the returned result
+                except IndexError:
+                    pass # if we have an index error (the above value doesn't exist), then just return -1    
+        elif powerInfo != "" and powerInfo[3] == 2:
+            returnInfo[0] = "STBY"
+    except IndexError:
+        # if we have an IndexError (the information returned isn't blank, but also isn't enough to descipher the status)
+        # then just error out, but print the information that *was* returned for debugging purposes
+        printDebugString("We don't have enough information from light [" + availableLights[selectedLight][0].name + "] to get the status.")
+        print(powerInfo)
 
     availableLights[selectedLight][7][0] = returnInfo[0]
     
