@@ -93,9 +93,10 @@ findLightsOnStartup = True # whether or not to look for lights when the program 
 autoConnectToLights = True # whether or not to auto-connect to lights after finding them
 printDebug = True # show debug messages in the console for all of the program's events
 maxNumOfAttempts = 6 # the maximum attempts the program will attempt an action before erroring out
-rememberLightOnExit = False # whether or not to save the currently set light settings (mode/hue/brightness/etc.) when quitting out
+rememberLightsOnExit = False # whether or not to save the currently set light settings (mode/hue/brightness/etc.) when quitting out
 acceptable_HTTP_IPs = [] # the acceptable IPs for the HTTP server, set on launch by prefs file
 customKeys = [] # custom keymappings for keyboard shortcuts, set on launch by the prefs file
+enableTabsOnLaunch = False # whether or not to enable tabs on startup (even with no lights connected)
 
 globalPrefsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "NeewerLite-Python.prefs" # the global preferences file for saving/loading
 
@@ -105,6 +106,13 @@ try: # try to load the GUI
             QMainWindow.__init__(self)
             self.setupUi(self) # set up the main UI
             self.connectMe() # connect the function handlers to the widgets
+
+            if enableTabsOnLaunch == False: # if we're not supposed to enable tabs on launch, then disable them all
+                self.ColorModeTabWidget.setTabEnabled(0, False) # disable the CCT tab on launch
+                self.ColorModeTabWidget.setTabEnabled(1, False) # disable the HSI tab on launch
+                self.ColorModeTabWidget.setTabEnabled(2, False) # disable the SCENE tab on launch
+                self.ColorModeTabWidget.setTabEnabled(3, False) # disable the LIGHT PREFS tab on launch
+                self.ColorModeTabWidget.setCurrentIndex(0)
 
             if findLightsOnStartup == True: # if we're set up to find lights on startup, then indicate that
                 self.statusBar.showMessage("Please wait - searching for Neewer lights...")
@@ -366,7 +374,7 @@ try: # try to load the GUI
             self.findLightsOnStartup_check.setChecked(findLightsOnStartup)
             self.autoConnectToLights_check.setChecked(autoConnectToLights)
             self.printDebug_check.setChecked(printDebug)
-            self.rememberLightOnExit_check.setChecked(rememberLightOnExit)
+            self.rememberLightsOnExit_check.setChecked(rememberLightsOnExit)
             self.maxNumOfAttempts_field.setText(str(maxNumOfAttempts))
             self.acceptable_HTTP_IPs_field.setText("\n".join(acceptable_HTTP_IPs))
             self.SC_turnOffButton_field.setKeySequence(customKeys[0])
@@ -396,7 +404,7 @@ try: # try to load the GUI
 
         def saveGlobalPrefs(self):
             # change these global values to the new values in Prefs
-            global customKeys, autoConnectToLights, printDebug, rememberLightOnExit, maxNumOfAttempts, acceptable_HTTP_IPs
+            global customKeys, autoConnectToLights, printDebug, rememberLightsOnExit, maxNumOfAttempts, acceptable_HTTP_IPs
 
             finalPrefs = [] # list of final prefs to merge together at the end
 
@@ -415,11 +423,11 @@ try: # try to load the GUI
             else:
                 printDebug = True
             
-            if self.rememberLightOnExit_check.isChecked(): # this option is usually off, so only add on true
-                rememberLightOnExit = True
+            if self.rememberLightsOnExit_check.isChecked(): # this option is usually off, so only add on true
+                rememberLightsOnExit = True
                 finalPrefs.append("rememberLightsOnExit=1")
             else:
-                rememberLightOnExit = False
+                rememberLightsOnExit = False
             
             if self.maxNumOfAttempts_field.text() != "6": # the default for this option is 6 attempts
                 maxNumOfAttempts = int(self.maxNumOfAttempts_field.text())
@@ -433,110 +441,118 @@ try: # try to load the GUI
             if returnedList_HTTP_IPs != acceptable_HTTP_IPs: # if the list of HTTP IPs have changed
                 acceptable_HTTP_IPs = returnedList_HTTP_IPs # change the global HTTP IPs available
                 finalPrefs.append("acceptable_HTTP_IPs=" + ";".join(acceptable_HTTP_IPs)) # add the new ones to the preferences
-            else:
-                print("HTTP addresses are still the same")
             
-            if self.SC_turnOffButton_field.keySequence().toString() != customKeys[0]:
+            if self.SC_turnOffButton_field.keySequence().toString() != "Ctrl+PgDown":
                 customKeys[0] = self.SC_turnOffButton_field.keySequence().toString()
                 finalPrefs.append("SC_turnOffButton=" + self.SC_turnOffButton_field.keySequence().toString())
             
-            if self.SC_turnOnButton_field.keySequence().toString() != customKeys[1]:
+            if self.SC_turnOnButton_field.keySequence().toString() != "Ctrl+PgUp":
                 customKeys[1] = self.SC_turnOnButton_field.keySequence().toString()
                 finalPrefs.append("SC_turnOnButton=" + self.SC_turnOnButton_field.keySequence().toString())
             
-            if self.SC_scanCommandButton_field.keySequence().toString() != customKeys[2]:
+            if self.SC_scanCommandButton_field.keySequence().toString() != "Ctrl+Shift+S":
                 customKeys[2] = self.SC_scanCommandButton_field.keySequence().toString()
                 finalPrefs.append("SC_scanCommandButton=" + self.SC_scanCommandButton_field.keySequence().toString())
             
-            if self.SC_tryConnectButton_field.keySequence().toString() != customKeys[3]:
+            if self.SC_tryConnectButton_field.keySequence().toString() != "Ctrl+Shift+C":
                 customKeys[3] = self.SC_tryConnectButton_field.keySequence().toString()
                 finalPrefs.append("SC_tryConnectButton=" + self.SC_tryConnectButton_field.keySequence().toString())
             
-            if self.SC_Tab_CCT_field.keySequence().toString() != customKeys[4]:
+            if self.SC_Tab_CCT_field.keySequence().toString() != "Alt+1":
                 customKeys[4] = self.SC_Tab_CCT_field.keySequence().toString()
                 finalPrefs.append("SC_Tab_CCT=" + self.SC_Tab_CCT_field.keySequence().toString())
             
-            if self.SC_Tab_HSI_field.keySequence().toString() != customKeys[5]:
+            if self.SC_Tab_HSI_field.keySequence().toString() != "Alt+2":
                 customKeys[5] = self.SC_Tab_HSI_field.keySequence().toString()
                 finalPrefs.append("SC_Tab_HSI=" + self.SC_Tab_HSI_field.keySequence().toString())
             
-            if self.SC_Tab_SCENE_field.keySequence().toString() != customKeys[6]:
+            if self.SC_Tab_SCENE_field.keySequence().toString() != "Alt+3":
                 customKeys[6] = self.SC_Tab_SCENE_field.keySequence().toString()
                 finalPrefs.append("SC_Tab_SCENE=" + self.SC_Tab_SCENE_field.keySequence().toString())
             
-            if self.SC_Tab_PREFS_field.keySequence().toString() != customKeys[7]:
+            if self.SC_Tab_PREFS_field.keySequence().toString() != "Alt+4":
                 customKeys[7] = self.SC_Tab_PREFS_field.keySequence().toString()
                 finalPrefs.append("SC_Tab_PREFS=" + self.SC_Tab_PREFS_field.keySequence().toString())
             
-            if self.SC_Dec_Bri_Small_field.keySequence().toString() != customKeys[8]:
+            if self.SC_Dec_Bri_Small_field.keySequence().toString() != "/":
                 customKeys[8] = self.SC_Dec_Bri_Small_field.keySequence().toString()
                 finalPrefs.append("SC_Dec_Bri_Small=" + self.SC_Dec_Bri_Small_field.keySequence().toString())
             
-            if self.SC_Inc_Bri_Small_field.keySequence().toString() != customKeys[9]:
+            if self.SC_Inc_Bri_Small_field.keySequence().toString() != "*":
                 customKeys[9] = self.SC_Inc_Bri_Small_field.keySequence().toString()
                 finalPrefs.append("SC_Inc_Bri_Small=" + self.SC_Inc_Bri_Small_field.keySequence().toString())
             
-            if self.SC_Dec_Bri_Large_field.keySequence().toString() != customKeys[10]:
+            if self.SC_Dec_Bri_Large_field.keySequence().toString() != "Ctrl+/":
                 customKeys[10] = self.SC_Dec_Bri_Large_field.keySequence().toString()
                 finalPrefs.append("SC_Dec_Bri_Large=" + self.SC_Dec_Bri_Large_field.keySequence().toString())
             
-            if self.SC_Inc_Bri_Large_field.keySequence().toString() != customKeys[11]:
+            if self.SC_Inc_Bri_Large_field.keySequence().toString() != "Ctrl+*":
                 customKeys[11] = self.SC_Inc_Bri_Large_field.keySequence().toString()
                 finalPrefs.append("SC_Inc_Bri_Large=" + self.SC_Inc_Bri_Large_field.keySequence().toString())
             
-            if self.SC_Dec_1_Small_field.keySequence().toString() != customKeys[12]:
+            if self.SC_Dec_1_Small_field.keySequence().toString() != "7":
                 customKeys[12] = self.SC_Dec_1_Small_field.keySequence().toString()
                 finalPrefs.append("SC_Dec_1_Small=" + self.SC_Dec_1_Small_field.keySequence().toString())
             
-            if self.SC_Inc_1_Small_field.keySequence().toString() != customKeys[13]:
+            if self.SC_Inc_1_Small_field.keySequence().toString() != "9":
                 customKeys[13] = self.SC_Inc_1_Small_field.keySequence().toString()
                 finalPrefs.append("SC_Inc_1_Small=" + self.SC_Inc_1_Small_field.keySequence().toString())
             
-            if self.SC_Dec_2_Small_field.keySequence().toString() != customKeys[14]:
+            if self.SC_Dec_2_Small_field.keySequence().toString() != "4":
                 customKeys[14] = self.SC_Dec_2_Small_field.keySequence().toString()
                 finalPrefs.append("SC_Dec_2_Small=" + self.SC_Dec_2_Small_field.keySequence().toString())
             
-            if self.SC_Inc_2_Small_field.keySequence().toString() != customKeys[15]:
+            if self.SC_Inc_2_Small_field.keySequence().toString() != "6":
                 customKeys[15] = self.SC_Inc_2_Small_field.keySequence().toString()
                 finalPrefs.append("SC_Inc_2_Small=" + self.SC_Inc_2_Small_field.keySequence().toString())
             
-            if self.SC_Dec_3_Small_field.keySequence().toString() != customKeys[16]:
+            if self.SC_Dec_3_Small_field.keySequence().toString() != "1":
                 customKeys[16] = self.SC_Dec_3_Small_field.keySequence().toString()
                 finalPrefs.append("SC_Dec_3_Small=" + self.SC_Dec_3_Small_field.keySequence().toString())
             
-            if self.SC_Inc_3_Small_field.keySequence().toString() != customKeys[17]:
+            if self.SC_Inc_3_Small_field.keySequence().toString() != "3":
                 customKeys[17] = self.SC_Inc_3_Small_field.keySequence().toString()
                 finalPrefs.append("SC_Inc_3_Small=" + self.SC_Inc_3_Small_field.keySequence().toString())
             
-            if self.SC_Dec_1_Large_field.keySequence().toString() != customKeys[18]:
+            if self.SC_Dec_1_Large_field.keySequence().toString() != "Ctrl+7":
                 customKeys[18] = self.SC_Dec_1_Large_field.keySequence().toString()
                 finalPrefs.append("SC_Dec_1_Large=" + self.SC_Dec_1_Large_field.keySequence().toString())
             
-            if self.SC_Inc_1_Large_field.keySequence().toString() != customKeys[19]:
+            if self.SC_Inc_1_Large_field.keySequence().toString() != "Ctrl+9":
                 customKeys[19] = self.SC_Inc_1_Large_field.keySequence().toString()
                 finalPrefs.append("SC_Inc_1_Large=" + self.SC_Inc_1_Large_field.keySequence().toString())
             
-            if self.SC_Dec_2_Large_field.keySequence().toString() != customKeys[20]:
+            if self.SC_Dec_2_Large_field.keySequence().toString() != "Ctrl+4":
                 customKeys[20] = self.SC_Dec_2_Large_field.keySequence().toString()
                 finalPrefs.append("SC_Dec_2_Large=" + self.SC_Dec_2_Large_field.keySequence().toString())
             
-            if self.SC_Inc_2_Large_field.keySequence().toString() != customKeys[21]:
+            if self.SC_Inc_2_Large_field.keySequence().toString() != "Ctrl+6":
                 customKeys[21] = self.SC_Inc_2_Large_field.keySequence().toString()
                 finalPrefs.append("SC_Inc_2_Large=" + self.SC_Inc_2_Large_field.keySequence().toString())
             
-            if self.SC_Dec_3_Large_field.keySequence().toString() != customKeys[22]:
+            if self.SC_Dec_3_Large_field.keySequence().toString() != "Ctrl+1":
                 customKeys[22] = self.SC_Dec_3_Large_field.keySequence().toString()
                 finalPrefs.append("SC_Dec_3_Large=" + self.SC_Dec_3_Large_field.keySequence().toString())
             
-            if self.SC_Inc_3_Large_field.keySequence().toString() != customKeys[23]:
+            if self.SC_Inc_3_Large_field.keySequence().toString() != "Ctrl+3":
                 customKeys[23] = self.SC_Inc_3_Large_field.keySequence().toString()
                 finalPrefs.append("SC_Inc_3_Large=" + self.SC_Inc_3_Large_field.keySequence().toString())
+
+            # CARRY "HIDDEN" DEBUGGING OPTIONS TO PREFERENCES FILE
+            if enableTabsOnLaunch == True:
+                finalPrefs.append("enableTabsOnLaunch=1")
 
             self.setupShortcutKeys() # change shortcut key assignments to the new values in prefs
 
             # WRITE THE GLOBAL PREFERENCES FILE
             with open(globalPrefsFile, "w") as prefsFileToWrite:
                 prefsFileToWrite.write(("\n").join(finalPrefs))
+
+            # PRINT THIS INFORMATION WHETHER DEBUG OUTPUT IS TURNED ON OR NOT
+            print("New global preferences saved in " + globalPrefsFile + " - here is the list:")
+
+            for a in range(len(finalPrefs)):
+                print(" > " + finalPrefs[a])
 
         def setupShortcutKeys(self):
             self.SC_turnOffButton.setKey(QKeySequence(customKeys[0]))
@@ -555,16 +571,33 @@ try: # try to load the GUI
             # IF THERE ARE CUSTOM KEYS SET UP FOR THE SMALL INCREMENTS, SET THEM HERE (AS THE NUMPAD KEYS WILL BE TAKEN AWAY IN THAT INSTANCE):
             if customKeys[12] != "7":
                 self.SC_Dec_1_Small.setKey(QKeySequence(customKeys[12]))
+            else: # if we changed back to default, clear the key assignment if there was one before
+                self.SC_Dec_1_Small.setKey("")
+
             if customKeys[13] != "9":
                 self.SC_Inc_1_Small.setKey(QKeySequence(customKeys[13]))
+            else:
+                self.SC_Inc_1_Small.setKey("")
+
             if customKeys[14] != "4":
                 self.SC_Dec_2_Small.setKey(QKeySequence(customKeys[14]))
+            else:
+                self.SC_Dec_2_Small.setKey("")
+            
             if customKeys[15] != "6":
                 self.SC_Inc_2_Small.setKey(QKeySequence(customKeys[15]))
+            else:
+                self.SC_Inc_2_Small.setKey("")
+
             if customKeys[16] != "1":
                 self.SC_Dec_3_Small.setKey(QKeySequence(customKeys[16]))
+            else:
+                self.SC_Dec_3_Small.setKey("")
+
             if customKeys[17] != "3":
                 self.SC_Inc_3_Small.setKey(QKeySequence(customKeys[17]))
+            else:
+                self.SC_Inc_3_Small.setKey("")
                 
             self.SC_Dec_1_Large.setKey(QKeySequence(customKeys[18]))
             self.SC_Inc_1_Large.setKey(QKeySequence(customKeys[19]))
@@ -644,9 +677,9 @@ try: # try to load the GUI
                 self.turnOnButton.setText("Turn Light(s) On")
                 self.turnOnButton.setEnabled(False)
 
-                self.ColorModeTabWidget.setTabEnabled(0, False)
-                self.ColorModeTabWidget.setTabEnabled(1, False) # enable the "HSI" mode tab
-                self.ColorModeTabWidget.setTabEnabled(2, False) # enable the "ANM/SCENE" mode tab
+                self.ColorModeTabWidget.setTabEnabled(0, False) # disable the "CCT" mode tab
+                self.ColorModeTabWidget.setTabEnabled(1, False) # disable the "HSI" mode tab
+                self.ColorModeTabWidget.setTabEnabled(2, False) # disable the "ANM/SCENE" mode tab
                 self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have no lights selected
 
                 if currentTab != 3:
@@ -688,7 +721,7 @@ try: # try to load the GUI
 
             exportString = customName + "|" + widerRange + "|" + onlyCCTMode # the exported string, minus the light last set parameters
 
-            if rememberLightOnExit == True: # if we're supposed to remember the last settings, then add that to the Prefs file
+            if rememberLightsOnExit == True: # if we're supposed to remember the last settings, then add that to the Prefs file
                 if len(availableLights[lightID][3]) > 0: # if we actually have a value stored for this light
                     lastSettingsString = ",".join(map(str, availableLights[lightID][3])) # combine all the elements of the last set params
                     exportString += "|" + lastSettingsString # add it to the exported string
@@ -929,7 +962,7 @@ try: # try to load the GUI
             QApplication.processEvents() # force the status bar to update
 
             # Keep in mind, this is broken into 2 separate "for" loops, so we save all the light params FIRST, then try to unlink from them
-            if rememberLightOnExit == True:
+            if rememberLightsOnExit == True:
                 printDebugString("You asked NeewerLite-Python to save the last used light parameters on exit, so we will do that now...")
 
                 for a in range(len(availableLights)):
@@ -1888,7 +1921,7 @@ def formatStringForConsole(theString, maxLength):
 
 def loadPrefsFile(globalPrefsFile = ""):
     global findLightsOnStartup, autoConnectToLights, printDebug, maxNumOfAttempts, \
-           rememberLightOnExit, acceptable_HTTP_IPs, customKeys
+           rememberLightsOnExit, acceptable_HTTP_IPs, customKeys, enableTabsOnLaunch
 
     if globalPrefsFile != "":
         printDebugString("Loading global preferences from file...")
@@ -1897,11 +1930,12 @@ def loadPrefsFile(globalPrefsFile = ""):
         mainPrefs = fileToOpen.read().splitlines()
         fileToOpen.close()
 
-        acceptable_arguments = ["findLightsOnStartup", "autoConnectToLights", "printDebug", "maxNumOfAttempts", "rememberLightOnExit", "acceptableIPs", \
+        acceptable_arguments = ["findLightsOnStartup", "autoConnectToLights", "printDebug", "maxNumOfAttempts", "rememberLightsOnExit", "acceptableIPs", \
             "SC_turnOffButton", "SC_turnOnButton", "SC_scanCommandButton", "SC_tryConnectButton", "SC_Tab_CCT", "SC_Tab_HSI", "SC_Tab_SCENE", "SC_Tab_PREFS", \
             "SC_Dec_Bri_Small", "SC_Inc_Bri_Small", "SC_Dec_Bri_Large", "SC_Inc_Bri_Large", \
             "SC_Dec_1_Small", "SC_Inc_1_Small", "SC_Dec_2_Small", "SC_Inc_2_Small", "SC_Dec_3_Small", "SC_Inc_3_Small", \
-            "SC_Dec_1_Large", "SC_Inc_1_Large", "SC_Dec_2_Large", "SC_Inc_2_Large", "SC_Dec_3_Large", "SC_Inc_3_Large"]
+            "SC_Dec_1_Large", "SC_Inc_1_Large", "SC_Dec_2_Large", "SC_Inc_2_Large", "SC_Dec_3_Large", "SC_Inc_3_Large", \
+            "enableTabsOnLaunch"]
 
         # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST ABOVE
         # THIS SECTION OF CODE IS *SLIGHTLY* DIFFERENT THAN THE CLI KICK OUT CODE
@@ -1923,7 +1957,7 @@ def loadPrefsFile(globalPrefsFile = ""):
     prefsParser.add_argument("--autoConnectToLights", default=1)
     prefsParser.add_argument("--printDebug", default=1)
     prefsParser.add_argument("--maxNumOfAttempts", default=6)
-    prefsParser.add_argument("--rememberLightOnExit", default=0)
+    prefsParser.add_argument("--rememberLightsOnExit", default=0)
     prefsParser.add_argument("--acceptableIPs", default=["127.0.0.1", "192.168", "10.0.0"])
 
     # SHORTCUT KEY CUSTOMIZATIONS
@@ -1952,6 +1986,11 @@ def loadPrefsFile(globalPrefsFile = ""):
     prefsParser.add_argument("--SC_Dec_3_Large", default="Ctrl+1") # 22
     prefsParser.add_argument("--SC_Inc_3_Large", default="Ctrl+3") # 23
 
+    # "HIDDEN" DEBUG OPTIONS - oooooh!
+    # THESE ARE OPTIONS THAT HELP DEBUG THINGS, BUT AREN'T REALLY USEFUL FOR NORMAL OPERATION
+    # enableTabsOnLaunch SHOWS ALL TABS ACTIVE (INSTEAD OF DISABLING THEM) ON LAUNCH SO EVEN WITHOUT A LIGHT, A BYTESTRING CAN BE CALCULATED
+    prefsParser.add_argument("--enableTabsOnLaunch", default=0)
+
     mainPrefs = prefsParser.parse_args(mainPrefs)
 
     # SET GLOBAL VALUES BASED ON PREFERENCES
@@ -1959,7 +1998,7 @@ def loadPrefsFile(globalPrefsFile = ""):
     autoConnectToLights = bool(int(mainPrefs.autoConnectToLights)) # whether or not to connect to lights when found
     printDebug = bool(int(mainPrefs.printDebug)) # whether or not to display debug messages in the console
     maxNumOfAttempts = int(mainPrefs.maxNumOfAttempts) # maximum number of attempts before failing out
-    rememberLightOnExit = bool(int(mainPrefs.rememberLightOnExit)) # whether or not to remember light mode/settings when quitting out
+    rememberLightsOnExit = bool(int(mainPrefs.rememberLightsOnExit)) # whether or not to remember light mode/settings when quitting out
 
     if type(mainPrefs.acceptableIPs) is not list: # we have a string in the return, so we need to post-process it
         acceptable_HTTP_IPs = mainPrefs.acceptableIPs.replace(" ", "").split(";") # split the IP addresses into a list for acceptable IPs
@@ -1982,6 +2021,8 @@ def loadPrefsFile(globalPrefsFile = ""):
                   mainPrefs.SC_Inc_2_Large, \
                   mainPrefs.SC_Dec_3_Large, \
                   mainPrefs.SC_Inc_3_Large]
+                
+    enableTabsOnLaunch = bool(int(mainPrefs.enableTabsOnLaunch))
 
 if __name__ == '__main__':   
     if os.path.exists(globalPrefsFile):
