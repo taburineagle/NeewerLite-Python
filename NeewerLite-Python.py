@@ -544,15 +544,16 @@ try: # try to load the GUI
 
             self.setupShortcutKeys() # change shortcut key assignments to the new values in prefs
 
-            # WRITE THE GLOBAL PREFERENCES FILE
-            with open(globalPrefsFile, "w") as prefsFileToWrite:
-                prefsFileToWrite.write(("\n").join(finalPrefs))
+            if len(finalPrefs) > 0: # if we have no preferences to save, then don't save a file!
+                # WRITE THE GLOBAL PREFERENCES FILE
+                with open(globalPrefsFile, "w") as prefsFileToWrite:
+                    prefsFileToWrite.write(("\n").join(finalPrefs))
 
-            # PRINT THIS INFORMATION WHETHER DEBUG OUTPUT IS TURNED ON OR NOT
-            print("New global preferences saved in " + globalPrefsFile + " - here is the list:")
+                # PRINT THIS INFORMATION WHETHER DEBUG OUTPUT IS TURNED ON OR NOT
+                print("New global preferences saved in " + globalPrefsFile + " - here is the list:")
 
-            for a in range(len(finalPrefs)):
-                print(" > " + finalPrefs[a])
+                for a in range(len(finalPrefs)):
+                    print(" > " + finalPrefs[a])
 
         def setupShortcutKeys(self):
             self.SC_turnOffButton.setKey(QKeySequence(customKeys[0]))
