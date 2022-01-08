@@ -318,7 +318,7 @@ try: # try to load the GUI
                             self.setupCCTBounds(56)
             elif self.ColorModeTabWidget.currentIndex() == 3: # if we're on the Preferences tab instead
                 if selectedLight != -1: # if there is a specific selected light
-                    self.setupPrefsTab(selectedLight) # update the Prefs tab with the information for that selected light
+                    self.setupLightPrefsTab(selectedLight) # update the Prefs tab with the information for that selected light
 
         def setupCCTBounds(self, gradientBounds):
             self.Slider_CCT_Hue.setMaximum(gradientBounds) # set the max value of the color temperature slider to the new max bounds
@@ -341,7 +341,7 @@ try: # try to load the GUI
     
             self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(gradient) # change the gradient to fit the new boundary
 
-        def setupPrefsTab(self, selectedLight):
+        def setupLightPrefsTab(self, selectedLight):
             self.customNameTF.setText(availableLights[selectedLight][2]) # set the "custom name" field to the custom name of this light
         
             # IF THE OPTION TO ALLOW WIDER COLOR TEMPERATURES IS ENABLED, THEN ENABLE THAT CHECKBOX
@@ -355,6 +355,38 @@ try: # try to load the GUI
                 self.onlyCCTModeCheck.setChecked(True)
             else:
                 self.onlyCCTModeCheck.setChecked(False)
+
+        def setupGlobalLightPrefsTab(self):
+            self.findLightsOnStartup_check.setChecked(findLightsOnStartup)
+            self.autoConnectToLights_check.setChecked(autoConnectToLights)
+            self.printDebug_check.setChecked(printDebug)
+            self.rememberLightOnExit_check.setChecked(rememberLightOnExit)
+            self.maxNumOfAttempts_field.setText(str(maxNumOfAttempts))
+            self.acceptable_HTTP_IPs_field.setText("\n".join(acceptable_HTTP_IPs))
+            self.SC_turnOffButton_field.setKeySequence(customKeys[0])
+            self.SC_turnOnButton_field.setKeySequence(customKeys[1])
+            self.SC_scanCommandButton_field.setKeySequence(customKeys[2])
+            self.SC_tryConnectButton_field.setKeySequence(customKeys[3])
+            self.SC_Tab_CCT_field.setKeySequence(customKeys[4])
+            self.SC_Tab_HSI_field.setKeySequence(customKeys[5])
+            self.SC_Tab_SCENE_field.setKeySequence(customKeys[6])
+            self.SC_Tab_PREFS_field.setKeySequence(customKeys[7])
+            self.SC_Dec_Bri_Small_field.setKeySequence(customKeys[8])
+            self.SC_Inc_Bri_Small_field.setKeySequence(customKeys[9])
+            self.SC_Dec_Bri_Large_field.setKeySequence(customKeys[10])
+            self.SC_Inc_Bri_Large_field.setKeySequence(customKeys[11])
+            self.SC_Dec_1_Small_field.setKeySequence(customKeys[12])
+            self.SC_Inc_1_Small_field.setKeySequence(customKeys[13])
+            self.SC_Dec_2_Small_field.setKeySequence(customKeys[14])
+            self.SC_Inc_2_Small_field.setKeySequence(customKeys[15])
+            self.SC_Dec_3_Small_field.setKeySequence(customKeys[16])
+            self.SC_Inc_3_Small_field.setKeySequence(customKeys[17])
+            self.SC_Dec_1_Large_field.setKeySequence(customKeys[18])
+            self.SC_Inc_1_Large_field.setKeySequence(customKeys[19])
+            self.SC_Dec_2_Large_field.setKeySequence(customKeys[20])
+            self.SC_Inc_2_Large_field.setKeySequence(customKeys[21])
+            self.SC_Dec_3_Large_field.setKeySequence(customKeys[22])
+            self.SC_Inc_3_Large_field.setKeySequence(customKeys[23])
 
         # CHECK TO SEE WHETHER OR NOT TO ENABLE/DISABLE THE "Connect" BUTTON OR CHANGE THE PREFS TAB
         def selectionChanged(self):
@@ -557,7 +589,9 @@ try: # try to load the GUI
                 pass # skip this, we don't want the animation automatically triggering when we go to this page - but keep it for readability
             elif i == 3: # we clicked on the PREFS tab
                 if len(currentSelection) == 1: # this tab function ^^ should *ONLY* call if we have just one light selected, but just in *case*
-                    self.setupPrefsTab(currentSelection[0])
+                    self.setupLightPrefsTab(currentSelection[0])
+            elif i == 4: # we clicked on the Global PREFS tab
+                self.setupGlobalLightPrefsTab()
                             
         # COMPUTE A BYTESTRING FOR THE CCT SECTION
         def computeValueCCT(self, hueOrBrightness = -1):

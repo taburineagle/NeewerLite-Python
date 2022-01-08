@@ -1,7 +1,7 @@
 from PySide2.QtCore import QRect
-from PySide2.QtGui import QFont, QLinearGradient, QColor, Qt
-from PySide2.QtWidgets import QWidget, QPushButton, QTableWidget, QTableWidgetItem, QAbstractScrollArea, QAbstractItemView, \
-                              QTabWidget, QGraphicsScene, QGraphicsView, QFrame, QSlider, QLabel, QLineEdit, QCheckBox, QStatusBar
+from PySide2.QtGui import QFont, QLinearGradient, QColor, Qt, QKeySequence
+from PySide2.QtWidgets import QFormLayout, QGridLayout, QKeySequenceEdit, QWidget, QPushButton, QTableWidget, QTableWidgetItem, QAbstractScrollArea, QAbstractItemView, \
+                              QTabWidget, QGraphicsScene, QGraphicsView, QFrame, QSlider, QLabel, QLineEdit, QCheckBox, QStatusBar, QScrollArea, QTextEdit
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -260,7 +260,7 @@ class Ui_MainWindow(object):
         self.Button_3_lightning_C.setGeometry(QRect(390, 130, 160, 31))     
         self.Button_3_lightning_C.setText("(9) Screen")
      
-        # === >> THE PREFS TAB << ===
+        # === >> THE LIGHT PREFS TAB << ===
         self.lightPrefs = QWidget()
 
         self.customNameTF = QLineEdit(self.lightPrefs)
@@ -285,12 +285,173 @@ class Ui_MainWindow(object):
         self.saveLightPrefsButton = QPushButton(self.lightPrefs)
         self.saveLightPrefsButton.setGeometry(QRect(416, 130, 141, 23))
         self.saveLightPrefsButton.setText("Save Preferences")
+
+        # === >> THE GLOBAL PREFS TAB << ===
+        self.globalPrefs = QScrollArea()
+        self.globalPrefsCW = QWidget()
+
+        self.globalPrefsFlay = QFormLayout(self.globalPrefsCW)
+        self.globalPrefsFlay.setLabelAlignment(Qt.AlignLeft)
         
+        self.globalPrefs.setWidget(self.globalPrefsCW)
+        self.globalPrefs.setWidgetResizable(True)
+
+        self.findLightsOnStartup_check = QCheckBox("Check for Neewer lights on program launch")
+        self.autoConnectToLights_check = QCheckBox("Automatically try to link to newly found lights")
+        self.printDebug_check = QCheckBox("Print debug information to the console")
+        self.rememberLightOnExit_check = QCheckBox("Remember the last parameters set for lights on exit")
+        self.maxNumOfAttempts_field = QLineEdit()
+        self.maxNumOfAttempts_field.setFixedWidth(50)
+        self.acceptable_HTTP_IPs_field = QTextEdit()
+        self.acceptable_HTTP_IPs_field.setFixedHeight(70)
+
+        # KEYBOARD REGISTRATION AREAS
+        self.SC_turnOffButton_field = singleKeySequenceEdit()
+        self.SC_turnOffButton_field.setFixedWidth(100)
+        self.SC_turnOnButton_field = singleKeySequenceEdit()
+        self.SC_turnOnButton_field.setFixedWidth(100)
+        self.SC_scanCommandButton_field = singleKeySequenceEdit()
+        self.SC_scanCommandButton_field.setFixedWidth(100)
+        self.SC_tryConnectButton_field = singleKeySequenceEdit()
+        self.SC_tryConnectButton_field.setFixedWidth(100)
+
+        self.SC_Tab_CCT_field = singleKeySequenceEdit()
+        self.SC_Tab_CCT_field.setFixedWidth(100)
+        self.SC_Tab_HSI_field = singleKeySequenceEdit()
+        self.SC_Tab_HSI_field.setFixedWidth(100)
+        self.SC_Tab_SCENE_field = singleKeySequenceEdit()
+        self.SC_Tab_SCENE_field.setFixedWidth(100)
+        self.SC_Tab_PREFS_field = singleKeySequenceEdit()
+        self.SC_Tab_PREFS_field.setFixedWidth(100)
+
+        self.SC_Dec_Bri_Small_field = singleKeySequenceEdit()
+        self.SC_Dec_Bri_Small_field.setFixedWidth(100)
+        self.SC_Inc_Bri_Small_field = singleKeySequenceEdit()
+        self.SC_Inc_Bri_Small_field.setFixedWidth(100)
+        self.SC_Dec_Bri_Large_field = singleKeySequenceEdit()
+        self.SC_Dec_Bri_Large_field.setFixedWidth(100)
+        self.SC_Inc_Bri_Large_field = singleKeySequenceEdit()
+        self.SC_Inc_Bri_Large_field.setFixedWidth(100)
+
+        self.SC_Dec_1_Small_field = singleKeySequenceEdit()
+        self.SC_Dec_1_Small_field.setFixedWidth(100)
+        self.SC_Dec_1_Large_field = singleKeySequenceEdit()
+        self.SC_Dec_1_Large_field.setFixedWidth(100)
+        self.SC_Inc_1_Small_field = singleKeySequenceEdit()
+        self.SC_Inc_1_Small_field.setFixedWidth(100)
+        self.SC_Inc_1_Large_field = singleKeySequenceEdit()
+        self.SC_Inc_1_Large_field.setFixedWidth(100)
+
+        self.SC_Dec_2_Small_field = singleKeySequenceEdit()
+        self.SC_Dec_2_Small_field.setFixedWidth(100)
+        self.SC_Dec_2_Large_field = singleKeySequenceEdit()
+        self.SC_Dec_2_Large_field.setFixedWidth(100)
+        self.SC_Inc_2_Small_field = singleKeySequenceEdit()
+        self.SC_Inc_2_Small_field.setFixedWidth(100)
+        self.SC_Inc_2_Large_field = singleKeySequenceEdit()
+        self.SC_Inc_2_Large_field.setFixedWidth(100)
+
+        self.SC_Dec_3_Small_field = singleKeySequenceEdit()
+        self.SC_Dec_3_Small_field.setFixedWidth(100)
+        self.SC_Dec_3_Large_field = singleKeySequenceEdit()
+        self.SC_Dec_3_Large_field.setFixedWidth(100)
+        self.SC_Inc_3_Small_field = singleKeySequenceEdit()
+        self.SC_Inc_3_Small_field.setFixedWidth(100)
+        self.SC_Inc_3_Large_field = singleKeySequenceEdit()
+        self.SC_Inc_3_Large_field.setFixedWidth(100)
+
+        # THE FIRST SECTION OF KEYBOARD MAPPING SECTIONS
+        self.windowButtonsCW = QWidget()
+        self.windowButtonsFlay = QGridLayout(self.windowButtonsCW)
+        
+        self.windowButtonsFlay.addWidget(QLabel("<strong>Window Top</strong><br>Turn Light(s) Off", alignment=Qt.AlignCenter), 1, 1)
+        self.windowButtonsFlay.addWidget(self.SC_turnOffButton_field, 2, 1)
+        self.windowButtonsFlay.addWidget(QLabel("<strong>Window Top</strong><br>Turn Light(s) On", alignment=Qt.AlignCenter), 1, 2)
+        self.windowButtonsFlay.addWidget(self.SC_turnOnButton_field, 2, 2)
+        self.windowButtonsFlay.addWidget(QLabel("<strong>Window Top</strong><br>Scan/Re-Scan", alignment=Qt.AlignCenter), 1, 3)
+        self.windowButtonsFlay.addWidget(self.SC_scanCommandButton_field, 2, 3)
+        self.windowButtonsFlay.addWidget(QLabel("<strong>Window Top</strong><br>Connect", alignment=Qt.AlignCenter), 1, 4)
+        self.windowButtonsFlay.addWidget(self.SC_tryConnectButton_field, 2, 4)
+
+        # SWITCHING TAB MAPPING SECTIONS
+        self.tabSwitchCW = QWidget()
+        self.tabSwitchFlay = QGridLayout(self.tabSwitchCW)
+
+        self.tabSwitchFlay.addWidget(QLabel("<strong>Switching Tabs</strong><br>To CCT", alignment=Qt.AlignCenter), 1, 1)
+        self.tabSwitchFlay.addWidget(self.SC_Tab_CCT_field, 2, 1)
+        self.tabSwitchFlay.addWidget(QLabel("<strong>Switching Tabs</strong><br>To HSI", alignment=Qt.AlignCenter), 1, 2)
+        self.tabSwitchFlay.addWidget(self.SC_Tab_HSI_field, 2, 2)
+        self.tabSwitchFlay.addWidget(QLabel("<strong>Switching Tabs</strong><br>To SCENE", alignment=Qt.AlignCenter), 1, 3)
+        self.tabSwitchFlay.addWidget(self.SC_Tab_SCENE_field, 2, 3)
+        self.tabSwitchFlay.addWidget(QLabel("<strong>Switching Tabs</strong><br>To Light Prefs", alignment=Qt.AlignCenter), 1, 4)
+        self.tabSwitchFlay.addWidget(self.SC_Tab_PREFS_field, 2, 4)
+
+        # BRIGHTNESS CONTROLS
+        self.brightnessCW = QWidget()
+        self.brightnessFlay = QGridLayout(self.brightnessCW)
+
+        self.brightnessFlay.addWidget(QLabel("<strong>Brightness</strong><br>Small Decrease", alignment=Qt.AlignCenter), 1, 1)
+        self.brightnessFlay.addWidget(self.SC_Dec_Bri_Small_field, 2, 1)
+        self.brightnessFlay.addWidget(QLabel("<strong>Brightness</strong><br>Large Decrease", alignment=Qt.AlignCenter), 1, 2)
+        self.brightnessFlay.addWidget(self.SC_Dec_Bri_Large_field, 2, 2)
+        self.brightnessFlay.addWidget(QLabel("<strong>Brightness</strong><br>Small Increase", alignment=Qt.AlignCenter), 1, 3)
+        self.brightnessFlay.addWidget(self.SC_Inc_Bri_Small_field, 2, 3)
+        self.brightnessFlay.addWidget(QLabel("<strong>Brightness</strong><br>Large Increase", alignment=Qt.AlignCenter), 1, 4)
+        self.brightnessFlay.addWidget(self.SC_Inc_Bri_Large_field, 2, 4)
+
+        # SLIDER ADJUSTMENT CONTROLS
+        self.sliderAdjustmentCW = QWidget()
+        self.sliderAdjustmentFlay = QGridLayout(self.sliderAdjustmentCW)
+
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 1</strong><br>Small Decrease", alignment=Qt.AlignCenter), 1, 1)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Dec_1_Small_field, 2, 1)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 1</strong><br>Large Decrease", alignment=Qt.AlignCenter), 1, 2)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Dec_1_Large_field, 2, 2)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 1</strong><br>Small Increase", alignment=Qt.AlignCenter), 1, 3)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Inc_1_Small_field, 2, 3)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 1</strong><br>Large Increase", alignment=Qt.AlignCenter), 1, 4)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Inc_1_Large_field, 2, 4)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 2</strong><br>Small Decrease", alignment=Qt.AlignCenter), 3, 1)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Dec_2_Small_field, 4, 1)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 2</strong><br>Large Decrease", alignment=Qt.AlignCenter), 3, 2)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Dec_2_Large_field, 4, 2)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 2</strong><br>Small Increase", alignment=Qt.AlignCenter), 3, 3)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Inc_2_Small_field, 4, 3)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 2</strong><br>Large Increase", alignment=Qt.AlignCenter), 3, 4)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Inc_2_Large_field, 4, 4)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 3</strong><br>Small Decrease", alignment=Qt.AlignCenter), 5, 1)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Dec_3_Small_field, 6, 1)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 3</strong><br>Large Decrease", alignment=Qt.AlignCenter), 5, 2)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Dec_3_Large_field, 6, 2)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 3</strong><br>Small Increase", alignment=Qt.AlignCenter), 5, 3)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Inc_3_Small_field, 6, 3)
+        self.sliderAdjustmentFlay.addWidget(QLabel("<strong>Slider 3</strong><br>Large Increase", alignment=Qt.AlignCenter), 5, 4)
+        self.sliderAdjustmentFlay.addWidget(self.SC_Inc_3_Large_field, 6, 4)        
+
+        # BUILD THE PREFERENCES PANE ITSELF
+        self.globalPrefsFlay.addRow(QLabel("<strong><u>Main Program Options</strong></u>", alignment=Qt.AlignCenter))
+        self.globalPrefsFlay.addRow(self.findLightsOnStartup_check)
+        self.globalPrefsFlay.addRow(self.autoConnectToLights_check)
+        self.globalPrefsFlay.addRow(self.printDebug_check)
+        self.globalPrefsFlay.addRow(self.rememberLightOnExit_check)
+        self.globalPrefsFlay.addRow("Maximum Number of attempts to try (linking, sending, etc.) before erroring out:", self.maxNumOfAttempts_field)
+        self.globalPrefsFlay.addRow(QLabel("<strong><u>Acceptable IPs to use for the HTTP Server:</strong></u><br>", alignment=Qt.AlignCenter))
+        self.globalPrefsFlay.addRow(self.acceptable_HTTP_IPs_field)
+        self.globalPrefsFlay.addRow(QLabel("<strong><u>Custom GUI Keyboard Shortcut Mapping - GUI Buttons</strong></u><br><em>To switch a keyboard shortcut, click on the old shortcut and type a new one in.</em><br><br>These 4 keyboard shortcuts control the buttons on the top of the window.", alignment=Qt.AlignCenter))
+        self.globalPrefsFlay.addRow(self.windowButtonsCW)
+        self.globalPrefsFlay.addRow(QLabel("<strong><u>Custom GUI Keyboard Shortcut Mapping - Switching Mode Tabs</strong></u><br><em>To switch a keyboard shortcut, click on the old shortcut and type a new one in.</em><br><br>These 4 keyboard shortcuts switch between the CCT, HSI, SCENE and LIGHT PREFS tabs.", alignment=Qt.AlignCenter))
+        self.globalPrefsFlay.addRow(self.tabSwitchCW)
+        self.globalPrefsFlay.addRow(QLabel("<strong><u>Custom GUI Keyboard Shortcut Mapping - Increase/Decrease Brightness</strong></u><br><em>To switch a keyboard shortcut, click on the old shortcut and type a new one in.</em><br><br>These 4 keyboard shortcuts adjust the brightness of the selected light(s).", alignment=Qt.AlignCenter))
+        self.globalPrefsFlay.addRow(self.brightnessCW)
+        self.globalPrefsFlay.addRow(QLabel("<strong><u>Custom GUI Keyboard Shortcut Mapping - Slider Adjustments</strong></u><br><em>To switch a keyboard shortcut, click on the old shortcut and type a new one in.</em><br><br>These 12 keyboard shortcuts adjust <em>up to 3 sliders</em> on the currently active tab.<br>If the currently active tab doesn't have a 2nd (SCENE) or 3rd (CCT) slider, then the<br>shortcuts for those sliders don't do anything on that tab.", alignment=Qt.AlignCenter))
+        self.globalPrefsFlay.addRow(self.sliderAdjustmentCW)
+
         # === >> ADD THE TABS TO THE TAB WIDGET << ===
         self.ColorModeTabWidget.addTab(self.CCT, "CCT Mode")
         self.ColorModeTabWidget.addTab(self.HSI, "HSI Mode")
         self.ColorModeTabWidget.addTab(self.ANM, "Scene Mode")
         self.ColorModeTabWidget.addTab(self.lightPrefs, "Light Preferences")
+        self.ColorModeTabWidget.addTab(self.globalPrefs, "Global Preferences")
 
         self.ColorModeTabWidget.setCurrentIndex(0) # make the CCT tab the main tab shown on launch
         
@@ -305,3 +466,14 @@ class Ui_MainWindow(object):
         self.Slider_HSI_2_S.valueChanged.connect(self.TFV_HSI_2_S.setNum)
         self.Slider_HSI_3_L.valueChanged.connect(self.TFV_HSI_3_L.setNum)
         self.Slider_ANM_Brightness.valueChanged.connect(self.TFV_ANM_Brightness.setNum)
+
+class singleKeySequenceEdit(QKeySequenceEdit):
+    # CUSTOM VERSION OF QKeySequenceEdit THAT ONLY ACCEPTS ONE COMBINATION BEFORE RETURNING
+    def keyPressEvent(self, event):
+        super(singleKeySequenceEdit, self).keyPressEvent(event)
+
+        theString = self.keySequence().toString(QKeySequence.NativeText)
+            
+        if theString:
+            lastSequence = theString.split(",")[-1].strip()
+            self.setKeySequence(lastSequence)
