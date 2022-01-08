@@ -6,7 +6,7 @@
 #############################################################
 ## A cross-platform Python script using the bleak and
 ## PySide2 libraries to control Neewer brand lights via
-## Bluetooth on multiple platforms - 
+## Bluetooth on multiple platforms -
 ##          Windows, Linux/Ubuntu, MacOS and RPi
 #############################################################
 ## Based on the NeewerLight project by @keefo (Xu Lian)
@@ -56,7 +56,7 @@ try:
     from PySide2.QtCore import Qt
     from PySide2.QtGui import QLinearGradient, QColor, QKeySequence
     from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QShortcut
-    
+
 except Exception as e:
     importError = 1 # log that we can't find PySide2
 
@@ -97,13 +97,15 @@ rememberLightOnExit = False # whether or not to save the currently set light set
 acceptable_HTTP_IPs = [] # the acceptable IPs for the HTTP server, set on launch by prefs file
 customKeys = [] # custom keymappings for keyboard shortcuts, set on launch by the prefs file
 
+globalPrefsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "NeewerLite-Python.prefs" # the global preferences file for saving/loading
+
 try: # try to load the GUI
     class MainWindow(QMainWindow, Ui_MainWindow):
         def __init__(self):
             QMainWindow.__init__(self)
             self.setupUi(self) # set up the main UI
             self.connectMe() # connect the function handlers to the widgets
-                    
+
             if findLightsOnStartup == True: # if we're set up to find lights on startup, then indicate that
                 self.statusBar.showMessage("Please wait - searching for Neewer lights...")
             else:
@@ -113,14 +115,17 @@ try: # try to load the GUI
                 self.lightTable.horizontalHeaderItem(1).setText("Light UUID")
 
             self.show
-        
+
         def connectMe(self):
+            self.turnOffButton.clicked.connect(self.turnLightOff)
+            self.turnOnButton.clicked.connect(self.turnLightOn)
+
             self.scanCommandButton.clicked.connect(self.startSelfSearch)
             self.tryConnectButton.clicked.connect(self.startConnect)
-                
+
             self.ColorModeTabWidget.currentChanged.connect(self.tabChanged)
             self.lightTable.itemSelectionChanged.connect(self.selectionChanged)
-    
+
             self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
             self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
 
@@ -139,79 +144,81 @@ try: # try to load the GUI
             self.Button_3_lightning_B.clicked.connect(lambda: self.computeValueANM(8))
             self.Button_3_lightning_C.clicked.connect(lambda: self.computeValueANM(9))
 
-            self.turnOffButton.clicked.connect(self.turnLightOff)            
-            self.turnOnButton.clicked.connect(self.turnLightOn)
-
             self.saveLightPrefsButton.clicked.connect(self.checkLightPrefs)
+            self.saveGlobalPrefsButton.clicked.connect(self.saveGlobalPrefs)
 
-            # SHORTCUT KEYS
-            self.SC_turnOffButton = QShortcut(QKeySequence(customKeys[0]), self)
+            # SHORTCUT KEYS - MAKE THEM HERE, SET THEIR ASSIGNMENTS BELOW WITH self.setupShortcutKeys()
+            # IN CASE WE NEED TO CHANGE THEM AFTER CHANGING PREFERENCES
+            self.SC_turnOffButton = QShortcut(self)
+            self.SC_turnOnButton = QShortcut(self)
+            self.SC_scanCommandButton = QShortcut(self)
+            self.SC_tryConnectButton = QShortcut(self)
+            self.SC_Tab_CCT = QShortcut(self)
+            self.SC_Tab_HSI = QShortcut(self)
+            self.SC_Tab_SCENE = QShortcut(self)
+            self.SC_Tab_PREFS = QShortcut(self)
+
+            # DECREASE/INCREASE BRIGHTNESS REGARDLESS OF WHICH TAB WE'RE ON
+            self.SC_Dec_Bri_Small = QShortcut(self)
+            self.SC_Inc_Bri_Small = QShortcut(self)
+            self.SC_Dec_Bri_Large = QShortcut(self)
+            self.SC_Inc_Bri_Large = QShortcut(self)
+
+            # THE SMALL INCREMENTS *DO* NEED A CUSTOM FUNCTION, BUT ONLY IF WE CHANGE THE
+            # SHORTCUT ASSIGNMENT TO SOMETHING OTHER THAN THE NORMAL NUMBERS
+            # THE LARGE INCREMENTS DON'T NEED A CUSTOM FUNCTION
+            self.SC_Dec_1_Small = QShortcut(self)
+            self.SC_Inc_1_Small = QShortcut(self)
+            self.SC_Dec_2_Small = QShortcut(self)
+            self.SC_Inc_2_Small = QShortcut(self)
+            self.SC_Dec_3_Small = QShortcut(self)
+            self.SC_Inc_3_Small = QShortcut(self)
+            self.SC_Dec_1_Large = QShortcut(self)
+            self.SC_Inc_1_Large = QShortcut(self)
+            self.SC_Dec_2_Large = QShortcut(self)
+            self.SC_Inc_2_Large = QShortcut(self)
+            self.SC_Dec_3_Large = QShortcut(self)
+            self.SC_Inc_3_Large = QShortcut(self)
+
+            self.setupShortcutKeys() # set up the shortcut keys for the first time
+
+            # CONNECT THE KEYS TO THEIR FUNCTIONS
             self.SC_turnOffButton.activated.connect(self.turnLightOff)
-            self.SC_turnOnButton = QShortcut(QKeySequence(customKeys[1]), self)
-            self.SC_turnOnButton.activated.connect(self.turnLightOn)            
-            self.SC_scanCommandButton = QShortcut(QKeySequence(customKeys[2]), self)
+            self.SC_turnOnButton.activated.connect(self.turnLightOn)
             self.SC_scanCommandButton.activated.connect(self.startSelfSearch)
-            self.SC_tryConnectButton = QShortcut(QKeySequence(customKeys[3]), self)
-            self.SC_tryConnectButton.activated.connect(self.startConnect)            
-            self.SC_Tab_CCT = QShortcut(QKeySequence(customKeys[4]), self)
+            self.SC_tryConnectButton.activated.connect(self.startConnect)
             self.SC_Tab_CCT.activated.connect(lambda: self.switchToTab(0))
-            self.SC_Tab_HSI = QShortcut(QKeySequence(customKeys[5]), self)
             self.SC_Tab_HSI.activated.connect(lambda: self.switchToTab(1))
-            self.SC_Tab_SCENE = QShortcut(QKeySequence(customKeys[6]), self)
             self.SC_Tab_SCENE.activated.connect(lambda: self.switchToTab(2))
-            self.SC_Tab_PREFS = QShortcut(QKeySequence(customKeys[7]), self)
             self.SC_Tab_PREFS.activated.connect(lambda: self.switchToTab(3))
 
             # DECREASE/INCREASE BRIGHTNESS REGARDLESS OF WHICH TAB WE'RE ON
-            self.SC_Dec_Bri_Small = QShortcut(QKeySequence(customKeys[8]), self)
             self.SC_Dec_Bri_Small.activated.connect(lambda: self.changeSliderValue(0, -1))
-            self.SC_Inc_Bri_Small = QShortcut(QKeySequence(customKeys[9]), self)
             self.SC_Inc_Bri_Small.activated.connect(lambda: self.changeSliderValue(0, 1))
-            self.SC_Dec_Bri_Large = QShortcut(QKeySequence(customKeys[10]), self)
             self.SC_Dec_Bri_Large.activated.connect(lambda: self.changeSliderValue(0, -5))
-            self.SC_Inc_Bri_Large = QShortcut(QKeySequence(customKeys[11]), self)
             self.SC_Inc_Bri_Large.activated.connect(lambda: self.changeSliderValue(0, 5))
 
-            # IF THERE ARE CUSTOM KEYS SET UP FOR THE SMALL INCREMENTS, SET THEM HERE (AS THE NUMPAD KEYS WILL BE TAKEN AWAY IN THAT INSTANCE):
-            if customKeys[12] != "7":
-                self.SC_Dec_1_Small = QShortcut(QKeySequence(customKeys[12]), self)
-                self.SC_Dec_1_Small.activated.connect(lambda: self.changeSliderValue(1, -1))
-            
-            if customKeys[13] != "9":
-                self.SC_Inc_1_Small = QShortcut(QKeySequence(customKeys[13]), self)
-                self.SC_Inc_1_Small.activated.connect(lambda: self.changeSliderValue(1, 1))
-
-            if customKeys[14] != "4":
-                self.SC_Dec_2_Small = QShortcut(QKeySequence(customKeys[14]), self)
-                self.SC_Dec_2_Small.activated.connect(lambda: self.changeSliderValue(2, -1))
-
-            if customKeys[15] != "6":
-                self.SC_Inc_2_Small = QShortcut(QKeySequence(customKeys[15]), self)
-                self.SC_Inc_2_Small.activated.connect(lambda: self.changeSliderValue(2, 1))
-
-            if customKeys[16] != "1":
-                self.SC_Dec_3_Small = QShortcut(QKeySequence(customKeys[16]), self)
-                self.SC_Dec_3_Small.activated.connect(lambda: self.changeSliderValue(3, -1))
-
-            if customKeys[17] != "3":
-                self.SC_Inc_3_Small = QShortcut(QKeySequence(customKeys[17]), self)
-                self.SC_Inc_3_Small.activated.connect(lambda: self.changeSliderValue(3, 1))
+            # THE SMALL INCREMENTS DO NEED A SPECIAL FUNCTION-
+            # (see above) - BASICALLY, IF THEY'RE JUST ASSIGNED THE DEFAULT NUMPAD/NUMBER VALUES
+            # THESE FUNCTIONS DON'T TRIGGER (THE SAME FUNCTIONS ARE HANDLED BY numberShortcuts(n))
+            # BUT IF THEY ARE CUSTOM, *THEN* THESE TRIGGER INSTEAD, AND THIS FUNCTION ^^^^ JUST DOES
+            # SCENE SELECTIONS IN SCENE MODE
+            self.SC_Dec_1_Small.activated.connect(lambda: self.changeSliderValue(1, -1))
+            self.SC_Inc_1_Small.activated.connect(lambda: self.changeSliderValue(1, 1))
+            self.SC_Dec_2_Small.activated.connect(lambda: self.changeSliderValue(2, -1))
+            self.SC_Inc_2_Small.activated.connect(lambda: self.changeSliderValue(2, 1))
+            self.SC_Dec_3_Small.activated.connect(lambda: self.changeSliderValue(3, -1))
+            self.SC_Inc_3_Small.activated.connect(lambda: self.changeSliderValue(3, 1))
 
             # THE LARGE INCREMENTS DON'T NEED A CUSTOM FUNCTION
-            self.SC_Dec_1_Large = QShortcut(QKeySequence(customKeys[18]), self)
             self.SC_Dec_1_Large.activated.connect(lambda: self.changeSliderValue(1, -5))
-            self.SC_Inc_1_Large = QShortcut(QKeySequence(customKeys[19]), self)
             self.SC_Inc_1_Large.activated.connect(lambda: self.changeSliderValue(1, 5))
-            self.SC_Dec_2_Large = QShortcut(QKeySequence(customKeys[20]), self)
             self.SC_Dec_2_Large.activated.connect(lambda: self.changeSliderValue(2, -5))
-            self.SC_Inc_2_Large = QShortcut(QKeySequence(customKeys[21]), self)
             self.SC_Inc_2_Large.activated.connect(lambda: self.changeSliderValue(2, 5))
-            self.SC_Dec_3_Large = QShortcut(QKeySequence(customKeys[22]), self)
             self.SC_Dec_3_Large.activated.connect(lambda: self.changeSliderValue(3, -5))
-            self.SC_Inc_3_Large = QShortcut(QKeySequence(customKeys[23]), self)
             self.SC_Inc_3_Large.activated.connect(lambda: self.changeSliderValue(3, 5))
 
-            # IF WE HAVE CUSTOM KEYS SET UP FOR THE SMALL INCREMENTS, THEN WE'LL JUST CHANGE SCENE AND NOTHING ELSE
+            # THE NUMPAD SHORTCUTS ARE SET UP REGARDLESS OF WHAT THE CUSTOM INC/DEC SHORTCUTS ARE
             self.SC_Num1 = QShortcut(QKeySequence("1"), self)
             self.SC_Num1.activated.connect(lambda: self.numberShortcuts(1))
             self.SC_Num2 = QShortcut(QKeySequence("2"), self)
@@ -231,9 +238,9 @@ try: # try to load the GUI
             self.SC_Num9 = QShortcut(QKeySequence("9"), self)
             self.SC_Num9.activated.connect(lambda: self.numberShortcuts(9))
 
-        def switchToTab(self, theTab):
+        def switchToTab(self, theTab): # SWITCH TO THE REQUESTED TAB **IF IT IS AVAILABLE**
             if self.ColorModeTabWidget.isTabEnabled(theTab) == True:
-                self.ColorModeTabWidget.setCurrentIndex(theTab) # if the tab we're requesting is available, then switch to it
+                self.ColorModeTabWidget.setCurrentIndex(theTab)
 
         def numberShortcuts(self, theNumber):
             # THE KEYS (IF THERE AREN'T CUSTOM ONES SET UP):
@@ -288,13 +295,12 @@ try: # try to load the GUI
                         self.changeSliderValue(1, 1) # increment slider 1
 
         def changeSliderValue(self, sliderToChange, changeAmt):
-            # CCT mode only has 2 sliders, so don't do anything if you ask for the "3rd" set
-            if self.ColorModeTabWidget.currentIndex() == 0:
+            if self.ColorModeTabWidget.currentIndex() == 0: # we have 2 sliders in CCT mode
                 if sliderToChange == 1:
                     self.Slider_CCT_Hue.setValue(self.Slider_CCT_Hue.value() + changeAmt)
                 elif sliderToChange == 2 or sliderToChange == 0:
                     self.Slider_CCT_Bright.setValue(self.Slider_CCT_Bright.value() + changeAmt)
-            elif self.ColorModeTabWidget.currentIndex() == 1:
+            elif self.ColorModeTabWidget.currentIndex() == 1: # we have 3 sliders in HSI mode
                 if sliderToChange == 1:
                     self.Slider_HSI_1_H.setValue(self.Slider_HSI_1_H.value() + changeAmt)
                 elif sliderToChange == 2:
@@ -302,7 +308,7 @@ try: # try to load the GUI
                 elif sliderToChange == 3 or sliderToChange == 0:
                     self.Slider_HSI_3_L.setValue(self.Slider_HSI_3_L.value() + changeAmt)
             elif self.ColorModeTabWidget.currentIndex() == 2:
-                if sliderToChange == 0:
+                if sliderToChange == 0: # the only "slider" in SCENE mode is the brightness
                     self.Slider_ANM_Brightness.setValue(self.Slider_ANM_Brightness.value() + changeAmt)
 
         def checkLightTab(self, selectedLight = -1):
@@ -338,12 +344,12 @@ try: # try to load the GUI
                 gradient.setColorAt(0.50, QColor(255, 240, 233, 255)) # 5800K
                 gradient.setColorAt(0.75, QColor(243, 242, 255, 255)) # 7100K
                 gradient.setColorAt(1.0, QColor(220, 229, 255, 255)) # 8500K
-    
+
             self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(gradient) # change the gradient to fit the new boundary
 
         def setupLightPrefsTab(self, selectedLight):
             self.customNameTF.setText(availableLights[selectedLight][2]) # set the "custom name" field to the custom name of this light
-        
+
             # IF THE OPTION TO ALLOW WIDER COLOR TEMPERATURES IS ENABLED, THEN ENABLE THAT CHECKBOX
             if availableLights[selectedLight][4] == True:
                 self.widerRangeCheck.setChecked(True)
@@ -388,6 +394,185 @@ try: # try to load the GUI
             self.SC_Dec_3_Large_field.setKeySequence(customKeys[22])
             self.SC_Inc_3_Large_field.setKeySequence(customKeys[23])
 
+        def saveGlobalPrefs(self):
+            # change these global values to the new values in Prefs
+            global customKeys, autoConnectToLights, printDebug, rememberLightOnExit, maxNumOfAttempts, acceptable_HTTP_IPs
+
+            finalPrefs = [] # list of final prefs to merge together at the end
+
+            if not self.findLightsOnStartup_check.isChecked(): # this option is usually on, so only add on false
+                finalPrefs.append("findLightsOnStartup=0")
+            
+            if not self.autoConnectToLights_check.isChecked(): # this option is usually on, so only add on false
+                autoConnectToLights = False
+                finalPrefs.append("autoConnectToLights=0")
+            else:
+                autoConnectToLights = True
+            
+            if not self.printDebug_check.isChecked(): # this option is usually on, so only add on false
+                printDebug = False
+                finalPrefs.append("printDebug=0")
+            else:
+                printDebug = True
+            
+            if self.rememberLightOnExit_check.isChecked(): # this option is usually off, so only add on true
+                rememberLightOnExit = True
+                finalPrefs.append("rememberLightsOnExit=1")
+            else:
+                rememberLightOnExit = False
+            
+            if self.maxNumOfAttempts_field.text() != "6": # the default for this option is 6 attempts
+                maxNumOfAttempts = int(self.maxNumOfAttempts_field.text())
+                finalPrefs.append("maxNumOfAttempts=" + self.maxNumOfAttempts_field.text())
+            else:
+                maxNumOfAttempts = 6
+
+            # FIGURE OUT IF THE HTTP IP ADDRESSES HAVE CHANGED
+            returnedList_HTTP_IPs = self.acceptable_HTTP_IPs_field.toPlainText().split("\n")
+            
+            if returnedList_HTTP_IPs != acceptable_HTTP_IPs: # if the list of HTTP IPs have changed
+                acceptable_HTTP_IPs = returnedList_HTTP_IPs # change the global HTTP IPs available
+                finalPrefs.append("acceptable_HTTP_IPs=" + ";".join(acceptable_HTTP_IPs)) # add the new ones to the preferences
+            else:
+                print("HTTP addresses are still the same")
+            
+            if self.SC_turnOffButton_field.keySequence().toString() != customKeys[0]:
+                customKeys[0] = self.SC_turnOffButton_field.keySequence().toString()
+                finalPrefs.append("SC_turnOffButton=" + self.SC_turnOffButton_field.keySequence().toString())
+            
+            if self.SC_turnOnButton_field.keySequence().toString() != customKeys[1]:
+                customKeys[1] = self.SC_turnOnButton_field.keySequence().toString()
+                finalPrefs.append("SC_turnOnButton=" + self.SC_turnOnButton_field.keySequence().toString())
+            
+            if self.SC_scanCommandButton_field.keySequence().toString() != customKeys[2]:
+                customKeys[2] = self.SC_scanCommandButton_field.keySequence().toString()
+                finalPrefs.append("SC_scanCommandButton=" + self.SC_scanCommandButton_field.keySequence().toString())
+            
+            if self.SC_tryConnectButton_field.keySequence().toString() != customKeys[3]:
+                customKeys[3] = self.SC_tryConnectButton_field.keySequence().toString()
+                finalPrefs.append("SC_tryConnectButton=" + self.SC_tryConnectButton_field.keySequence().toString())
+            
+            if self.SC_Tab_CCT_field.keySequence().toString() != customKeys[4]:
+                customKeys[4] = self.SC_Tab_CCT_field.keySequence().toString()
+                finalPrefs.append("SC_Tab_CCT=" + self.SC_Tab_CCT_field.keySequence().toString())
+            
+            if self.SC_Tab_HSI_field.keySequence().toString() != customKeys[5]:
+                customKeys[5] = self.SC_Tab_HSI_field.keySequence().toString()
+                finalPrefs.append("SC_Tab_HSI=" + self.SC_Tab_HSI_field.keySequence().toString())
+            
+            if self.SC_Tab_SCENE_field.keySequence().toString() != customKeys[6]:
+                customKeys[6] = self.SC_Tab_SCENE_field.keySequence().toString()
+                finalPrefs.append("SC_Tab_SCENE=" + self.SC_Tab_SCENE_field.keySequence().toString())
+            
+            if self.SC_Tab_PREFS_field.keySequence().toString() != customKeys[7]:
+                customKeys[7] = self.SC_Tab_PREFS_field.keySequence().toString()
+                finalPrefs.append("SC_Tab_PREFS=" + self.SC_Tab_PREFS_field.keySequence().toString())
+            
+            if self.SC_Dec_Bri_Small_field.keySequence().toString() != customKeys[8]:
+                customKeys[8] = self.SC_Dec_Bri_Small_field.keySequence().toString()
+                finalPrefs.append("SC_Dec_Bri_Small=" + self.SC_Dec_Bri_Small_field.keySequence().toString())
+            
+            if self.SC_Inc_Bri_Small_field.keySequence().toString() != customKeys[9]:
+                customKeys[9] = self.SC_Inc_Bri_Small_field.keySequence().toString()
+                finalPrefs.append("SC_Inc_Bri_Small=" + self.SC_Inc_Bri_Small_field.keySequence().toString())
+            
+            if self.SC_Dec_Bri_Large_field.keySequence().toString() != customKeys[10]:
+                customKeys[10] = self.SC_Dec_Bri_Large_field.keySequence().toString()
+                finalPrefs.append("SC_Dec_Bri_Large=" + self.SC_Dec_Bri_Large_field.keySequence().toString())
+            
+            if self.SC_Inc_Bri_Large_field.keySequence().toString() != customKeys[11]:
+                customKeys[11] = self.SC_Inc_Bri_Large_field.keySequence().toString()
+                finalPrefs.append("SC_Inc_Bri_Large=" + self.SC_Inc_Bri_Large_field.keySequence().toString())
+            
+            if self.SC_Dec_1_Small_field.keySequence().toString() != customKeys[12]:
+                customKeys[12] = self.SC_Dec_1_Small_field.keySequence().toString()
+                finalPrefs.append("SC_Dec_1_Small=" + self.SC_Dec_1_Small_field.keySequence().toString())
+            
+            if self.SC_Inc_1_Small_field.keySequence().toString() != customKeys[13]:
+                customKeys[13] = self.SC_Inc_1_Small_field.keySequence().toString()
+                finalPrefs.append("SC_Inc_1_Small=" + self.SC_Inc_1_Small_field.keySequence().toString())
+            
+            if self.SC_Dec_2_Small_field.keySequence().toString() != customKeys[14]:
+                customKeys[14] = self.SC_Dec_2_Small_field.keySequence().toString()
+                finalPrefs.append("SC_Dec_2_Small=" + self.SC_Dec_2_Small_field.keySequence().toString())
+            
+            if self.SC_Inc_2_Small_field.keySequence().toString() != customKeys[15]:
+                customKeys[15] = self.SC_Inc_2_Small_field.keySequence().toString()
+                finalPrefs.append("SC_Inc_2_Small=" + self.SC_Inc_2_Small_field.keySequence().toString())
+            
+            if self.SC_Dec_3_Small_field.keySequence().toString() != customKeys[16]:
+                customKeys[16] = self.SC_Dec_3_Small_field.keySequence().toString()
+                finalPrefs.append("SC_Dec_3_Small=" + self.SC_Dec_3_Small_field.keySequence().toString())
+            
+            if self.SC_Inc_3_Small_field.keySequence().toString() != customKeys[17]:
+                customKeys[17] = self.SC_Inc_3_Small_field.keySequence().toString()
+                finalPrefs.append("SC_Inc_3_Small=" + self.SC_Inc_3_Small_field.keySequence().toString())
+            
+            if self.SC_Dec_1_Large_field.keySequence().toString() != customKeys[18]:
+                customKeys[18] = self.SC_Dec_1_Large_field.keySequence().toString()
+                finalPrefs.append("SC_Dec_1_Large=" + self.SC_Dec_1_Large_field.keySequence().toString())
+            
+            if self.SC_Inc_1_Large_field.keySequence().toString() != customKeys[19]:
+                customKeys[19] = self.SC_Inc_1_Large_field.keySequence().toString()
+                finalPrefs.append("SC_Inc_1_Large=" + self.SC_Inc_1_Large_field.keySequence().toString())
+            
+            if self.SC_Dec_2_Large_field.keySequence().toString() != customKeys[20]:
+                customKeys[20] = self.SC_Dec_2_Large_field.keySequence().toString()
+                finalPrefs.append("SC_Dec_2_Large=" + self.SC_Dec_2_Large_field.keySequence().toString())
+            
+            if self.SC_Inc_2_Large_field.keySequence().toString() != customKeys[21]:
+                customKeys[21] = self.SC_Inc_2_Large_field.keySequence().toString()
+                finalPrefs.append("SC_Inc_2_Large=" + self.SC_Inc_2_Large_field.keySequence().toString())
+            
+            if self.SC_Dec_3_Large_field.keySequence().toString() != customKeys[22]:
+                customKeys[22] = self.SC_Dec_3_Large_field.keySequence().toString()
+                finalPrefs.append("SC_Dec_3_Large=" + self.SC_Dec_3_Large_field.keySequence().toString())
+            
+            if self.SC_Inc_3_Large_field.keySequence().toString() != customKeys[23]:
+                customKeys[23] = self.SC_Inc_3_Large_field.keySequence().toString()
+                finalPrefs.append("SC_Inc_3_Large=" + self.SC_Inc_3_Large_field.keySequence().toString())
+
+            self.setupShortcutKeys() # change shortcut key assignments to the new values in prefs
+
+            # WRITE THE GLOBAL PREFERENCES FILE
+            with open(globalPrefsFile, "w") as prefsFileToWrite:
+                prefsFileToWrite.write(("\n").join(finalPrefs))
+
+        def setupShortcutKeys(self):
+            self.SC_turnOffButton.setKey(QKeySequence(customKeys[0]))
+            self.SC_turnOnButton.setKey(QKeySequence(customKeys[1]))
+            self.SC_scanCommandButton.setKey(QKeySequence(customKeys[2]))
+            self.SC_tryConnectButton.setKey(QKeySequence(customKeys[3]))
+            self.SC_Tab_CCT.setKey(QKeySequence(customKeys[4]))
+            self.SC_Tab_HSI.setKey(QKeySequence(customKeys[5]))
+            self.SC_Tab_SCENE.setKey(QKeySequence(customKeys[6]))
+            self.SC_Tab_PREFS.setKey(QKeySequence(customKeys[7]))
+            self.SC_Dec_Bri_Small.setKey(QKeySequence(customKeys[8]))
+            self.SC_Inc_Bri_Small.setKey(QKeySequence(customKeys[9]))
+            self.SC_Dec_Bri_Large.setKey(QKeySequence(customKeys[10]))
+            self.SC_Inc_Bri_Large.setKey(QKeySequence(customKeys[11]))
+
+            # IF THERE ARE CUSTOM KEYS SET UP FOR THE SMALL INCREMENTS, SET THEM HERE (AS THE NUMPAD KEYS WILL BE TAKEN AWAY IN THAT INSTANCE):
+            if customKeys[12] != "7":
+                self.SC_Dec_1_Small.setKey(QKeySequence(customKeys[12]))
+            if customKeys[13] != "9":
+                self.SC_Inc_1_Small.setKey(QKeySequence(customKeys[13]))
+            if customKeys[14] != "4":
+                self.SC_Dec_2_Small.setKey(QKeySequence(customKeys[14]))
+            if customKeys[15] != "6":
+                self.SC_Inc_2_Small.setKey(QKeySequence(customKeys[15]))
+            if customKeys[16] != "1":
+                self.SC_Dec_3_Small.setKey(QKeySequence(customKeys[16]))
+            if customKeys[17] != "3":
+                self.SC_Inc_3_Small.setKey(QKeySequence(customKeys[17]))
+                
+            self.SC_Dec_1_Large.setKey(QKeySequence(customKeys[18]))
+            self.SC_Inc_1_Large.setKey(QKeySequence(customKeys[19]))
+            self.SC_Dec_2_Large.setKey(QKeySequence(customKeys[20]))
+            self.SC_Inc_2_Large.setKey(QKeySequence(customKeys[21]))
+            self.SC_Dec_3_Large.setKey(QKeySequence(customKeys[22]))
+            self.SC_Inc_3_Large.setKey(QKeySequence(customKeys[23]))
+
         # CHECK TO SEE WHETHER OR NOT TO ENABLE/DISABLE THE "Connect" BUTTON OR CHANGE THE PREFS TAB
         def selectionChanged(self):
             selectedRows = self.selectedLights() # get the list of currently selected lights
@@ -413,7 +598,7 @@ try: # try to load the GUI
                         self.ColorModeTabWidget.setTabEnabled(1, True) # enable the HSI mode tab
                         self.ColorModeTabWidget.setTabEnabled(2, True) # enable the ANM/SCENE tab
 
-                    currentlySelectedRow = selectedRows[0] # get the row index of the 1 selected item                
+                    currentlySelectedRow = selectedRows[0] # get the row index of the 1 selected item
                     self.checkLightTab(currentlySelectedRow) # if we're on CCT, check to see if this light can use extended values + on Prefs, update Prefs
 
                     # RECALL LAST SENT SETTING FOR THIS PARTICULAR LIGHT, IF A SETTING EXISTS
@@ -435,7 +620,7 @@ try: # try to load the GUI
                                         brightness=sendValue[3],
                                         scene=sendValue[4])
                         else:
-                            self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if the light is off and there ARE prior parameters 
+                            self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if the light is off and there ARE prior parameters
                     else:
                         self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if there are no prior parameters
                 else: # we have multiple lights selected
@@ -481,11 +666,11 @@ try: # try to load the GUI
 
                 # IF A CUSTOM NAME IS SET UP FOR THIS LIGHT, THEN CHANGE THE TABLE TO REFLECT THAT
                 if availableLights[selectedRows[0]][2] != "":
-                    self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")" "\n  [ʀssɪ: " + str(availableLights[selectedRows[0]][0].rssi) + " dBm]", 
+                    self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")" "\n  [ʀssɪ: " + str(availableLights[selectedRows[0]][0].rssi) + " dBm]",
                                     "", "", ""], selectedRows[0])
-            
-                self.saveLightPrefs(selectedRows[0]) # save the light settings to a special file                
-        
+
+                self.saveLightPrefs(selectedRows[0]) # save the light settings to a special file
+
         def saveLightPrefs(self, lightID): # save a sidecar file with the preferences for a specific light
             #CREATE THE light_prefs FOLDER IF IT DOESN'T EXIST
             try:
@@ -522,7 +707,7 @@ try: # try to load the GUI
         # ADD A LIGHT TO THE TABLE VIEW
         def setTheTable(self, infoArray, rowToChange = -1):
             if rowToChange == -1:
-                currentRow = self.lightTable.rowCount()       
+                currentRow = self.lightTable.rowCount()
                 self.lightTable.insertRow(currentRow) # if rowToChange is not specified, then we'll make a new row at the end
             else:
                 currentRow = rowToChange # change data for the specified row
@@ -541,7 +726,7 @@ try: # try to load the GUI
 
         def returnTableInfo(self, row, column):
             return self.lightTable.item(row, column).text()
-                
+
         # CLEAR ALL LIGHTS FROM THE TABLE VIEW
         def clearTheTable(self):
             if self.lightTable.rowCount() != 0:
@@ -552,7 +737,7 @@ try: # try to load the GUI
         def startSelfSearch(self):
             global threadAction
             threadAction = "discover"
-            
+
             self.statusBar.showMessage("Please wait - searching for Neewer lights...")
 
         # TELL THE BACKGROUND THREAD TO START CONNECTING TO LIGHTS
@@ -566,11 +751,11 @@ try: # try to load the GUI
 
             if threadAction == "":
                 threadAction = "send"
-        
+
         # IF YOU CLICK ON ONE OF THE TABS, THIS WILL SWITCH THE VIEW/SEND A NEW SIGNAL FROM THAT SPECIFIC TAB
         def tabChanged(self, i):
             currentSelection = self.selectedLights() # get the list of currently selected lights
-            
+
             if i == 0: # we clicked on the CCT tab
                 if len(currentSelection) > 0: # if we have something selected
                     if len(currentSelection) == 1: # if we have just one light selected
@@ -592,20 +777,20 @@ try: # try to load the GUI
                     self.setupLightPrefsTab(currentSelection[0])
             elif i == 4: # we clicked on the Global PREFS tab
                 self.setupGlobalLightPrefsTab()
-                            
+
         # COMPUTE A BYTESTRING FOR THE CCT SECTION
         def computeValueCCT(self, hueOrBrightness = -1):
             global CCTSlider
             # CCTSlider = -1 # force this value to -1 to send both hue and brightness at the same time on SNL-660
-            CCTSlider = hueOrBrightness # set the global CCT "current slider" to the slider you just... slid        
+            CCTSlider = hueOrBrightness # set the global CCT "current slider" to the slider you just... slid
 
             self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
-            
+
             calculateByteString(colorMode="CCT",\
                                 temp=str(int(self.Slider_CCT_Hue.value())),\
                                 brightness=str(int(self.Slider_CCT_Bright.value())))
-            
-            self.statusBar.showMessage("Current value (CCT Mode): " + updateStatus())        
+
+            self.statusBar.showMessage("Current value (CCT Mode): " + updateStatus())
             self.startSend()
 
         # COMPUTE A BYTESTRING FOR THE HSI SECTION
@@ -617,7 +802,7 @@ try: # try to load the GUI
 
             self.statusBar.showMessage("Current value (HSI Mode): " + updateStatus())
             self.startSend()
-    
+
         # COMPUTE A BYTESTRING FOR THE ANIM SECTION
         def computeValueANM(self, buttonPressed):
             global lastAnimButtonPressed
@@ -636,7 +821,7 @@ try: # try to load the GUI
                     self.Button_2_party_A.setStyleSheet("background-color : None")
                 elif lastAnimButtonPressed == 5:
                     self.Button_2_party_B.setStyleSheet("background-color : None")
-                elif lastAnimButtonPressed == 6:    
+                elif lastAnimButtonPressed == 6:
                     self.Button_2_party_C.setStyleSheet("background-color : None")
                 elif lastAnimButtonPressed == 7:
                     self.Button_3_lightning_A.setStyleSheet("background-color : None")
@@ -644,7 +829,7 @@ try: # try to load the GUI
                     self.Button_3_lightning_B.setStyleSheet("background-color : None")
                 elif lastAnimButtonPressed == 9:
                     self.Button_3_lightning_C.setStyleSheet("background-color : None")
-                    
+
                 # CHANGE THE NEW BUTTON COLOR TO SHOW WHICH ANIMATION WE'RE CURRENTLY ON
                 if buttonPressed == 1:
                     self.Button_1_police_A.setStyleSheet("background-color : aquamarine")
@@ -656,7 +841,7 @@ try: # try to load the GUI
                     self.Button_2_party_A.setStyleSheet("background-color : aquamarine")
                 elif buttonPressed == 5:
                     self.Button_2_party_B.setStyleSheet("background-color : aquamarine")
-                elif buttonPressed == 6:    
+                elif buttonPressed == 6:
                     self.Button_2_party_C.setStyleSheet("background-color : aquamarine")
                 elif buttonPressed == 7:
                     self.Button_3_lightning_A.setStyleSheet("background-color : aquamarine")
@@ -664,7 +849,7 @@ try: # try to load the GUI
                     self.Button_3_lightning_B.setStyleSheet("background-color : aquamarine")
                 elif buttonPressed == 9:
                     self.Button_3_lightning_C.setStyleSheet("background-color : aquamarine")
-                
+
                 lastAnimButtonPressed = buttonPressed
 
             calculateByteString(colorMode="ANM",\
@@ -678,7 +863,7 @@ try: # try to load the GUI
             setPowerBytestring("ON")
             self.statusBar.showMessage("Turning light on")
             self.startSend()
-                    
+
         def turnLightOff(self):
             setPowerBytestring("OFF")
             self.statusBar.showMessage("Turning light off")
@@ -699,7 +884,7 @@ try: # try to load the GUI
                     selectionList.append(currentSelection[a].row()) # add the row index of the nth selected light to the selectionList array
 
             return selectionList # return the row IDs that are currently selected, or an empty array ([]) otherwise
-        
+
         # UPDATE THE TABLE WITH THE CURRENT INFORMATION FROM availableLights
         def updateLights(self):
             self.clearTheTable()
@@ -711,9 +896,9 @@ try: # try to load the GUI
                 if len(availableLights) == 1: # we found 1 light
                     self.statusBar.showMessage("We located 1 Neewer light on the last search")
                 elif len(availableLights) > 1: # we found more than 1 light
-                    self.statusBar.showMessage("We located " + str(len(availableLights)) + " Neewer lights on the last search")            
+                    self.statusBar.showMessage("We located " + str(len(availableLights)) + " Neewer lights on the last search")
             else: # if we didn't find any (additional) lights on the last scan
-                self.statusBar.showMessage("We didn't locate any Neewer lights on the last search")        
+                self.statusBar.showMessage("We didn't locate any Neewer lights on the last search")
 
             for a in range(len(availableLights)):
                 if availableLights[a][1] == "": # the light is not currently linked, so put "waiting to connect" as status
@@ -758,11 +943,11 @@ try: # try to load the GUI
                 printDebugString("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
                 self.statusBar.showMessage("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)...")
                 QApplication.processEvents() # force update to show statusbar progress
-                
+
                 loop.run_until_complete(disconnectFromLight(a)) # disconnect from each light, one at a time
 
             printDebugString("Closing the program NOW")
-        
+
         # SET UP THE GUI BASED ON COMMAND LINE ARGUMENTS
         def setUpGUI(self, **modeArgs):
             if modeArgs["colorMode"] == "CCT":
@@ -778,7 +963,7 @@ try: # try to load the GUI
                 self.Slider_HSI_1_H.setValue(modeArgs["hue"])
                 self.Slider_HSI_2_S.setValue(modeArgs["sat"])
                 self.Slider_HSI_3_L.setValue(modeArgs["brightness"])
-                
+
                 self.computeValueHSI()
             elif modeArgs["colorMode"] == "ANM":
                 self.ColorModeTabWidget.setCurrentIndex(2)
@@ -813,7 +998,7 @@ def testValid(theParam, theValue, defaultValue, startBounds, endBounds):
             elif theValue > endBounds: # if the value specified is above the ending boundary, make it the ending boundary
                 printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to closest boundary of " + str(endBounds))
                 theValue = endBounds
-        
+
         return theValue # return the within-bounds value
     except ValueError: # if the string can not be converted, then return the defaultValue
         printDebugString(" >> --" + theParam + " specified is not a number - falling back to default value of " + str(defaultValue))
@@ -854,7 +1039,7 @@ def calculateByteString(**modeArgs):
         sendValue[3] = int(modeArgs["brightness"]) # brightness value
         sendValue[4] = int(modeArgs["animation"]) # the number of animation you're going to run (check comments above)
         sendValue[5] = calculateChecksum(sendValue) # compute the checksum
-    else:        
+    else:
         sendValue = [0]
 
 # RECALCULATE THE BYTESTRING FOR CCT-ONLY NEEWER LIGHTS INTO HUE AND BRIGHTNESS SEPARATELY
@@ -894,7 +1079,7 @@ def updateStatus(splitString = False, customValue=False):
                 currentHexString = currentHexString + " " + str(hex(customValue[a]))
         else: # True is for the table view, this view no longer shows bytestring, but readable status of current mode (temp/bri/hue, etc.)
             currentHexString = ""
-            
+
             if customValue[1] == 134:
                 currentHexString = "(HSI MODE):\n"
                 currentHexString = currentHexString + "  H: " + str(customValue[3] + (256 * customValue[4])) + u'\N{DEGREE SIGN}' + " / S: " + str(customValue[5]) + " / I: " + str(customValue[6])
@@ -924,7 +1109,7 @@ def calculateChecksum(sendValue):
 async def findDevices():
     global availableLights
     printDebugString("Searching for new lights")
-  
+
     currentScan = [] # add all the current scan's lights detected to a standby array (to check against the main one)
     devices = await BleakScanner.discover() # scan all available Bluetooth devices nearby
 
@@ -938,7 +1123,7 @@ async def findDevices():
 
     for a in range(len(currentScan)): # scan the newly found NEEWER devices
         newLight = True # initially mark this light as a "new light"
-        
+
         # check the "new light" against the global list
         for b in range(len(availableLights)):
             if currentScan[a].address == availableLights[b][0].address: # if the new light's MAC address matches one already in the global list
@@ -954,7 +1139,7 @@ async def findDevices():
         if newLight == True: # if this light was not found in the global list, then we need to add it
             printDebugString("Found new light! [" + currentScan[a].name + "] " + returnMACname() + " " + currentScan[a].address + " RSSI: " + str(currentScan[a].rssi) + " dBm")
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
-            
+
             if len(customPrefs) == 3: # we need to rename the light and set up CCT and color temp range
                 availableLights.append([currentScan[a], "", customPrefs[0], [], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
             elif len(customPrefs) == 4: # same as above, but we have previously stored parameters, so add them in as well
@@ -971,7 +1156,7 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
 
     if os.path.exists(customPrefsPath):
         printDebugString("A custom preferences file was found for " + MACAddress + "!")
-                
+
         # READ THE PREFERENCES FILE INTO A LIST
         fileToOpen = open(customPrefsPath)
         customPrefs = fileToOpen.read().split("|")
@@ -983,7 +1168,7 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
                 customPrefs[b] = True
             else:
                 customPrefs[b] = False
-                
+
         if len(customPrefs) == 4: # if we have a 4th element (the last used parameters), then load them here
             customPrefs[3] = customPrefs[3].replace(" ", "").split(",") # split the last params into a list
 
@@ -1012,7 +1197,7 @@ async def connectToLight(selectedLight, updateGUI=True):
 
     # TRY TO CONNECT TO THE LIGHT SEVERAL TIMES BEFORE GIVING UP THE LINK
     currentAttempt = 1
-    
+
     while isConnected == False and currentAttempt <= maxNumOfAttempts:
         if threadAction != "quit":
             printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
@@ -1039,7 +1224,7 @@ async def connectToLight(selectedLight, updateGUI=True):
     else:
         if isConnected == True:
             printDebugString("Successfully linked to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
-                  
+
             if updateGUI == True:
                 await getLightChannelandPower(selectedLight)
                 mainWindow.setTheTable(["", "", "LINKED\n" + availableLights[selectedLight][7][0] + " / ᴄʜ. " + str(availableLights[selectedLight][7][1]), "Waiting to send..."], selectedLight) # if it's successful, show that in the table
@@ -1048,11 +1233,11 @@ async def connectToLight(selectedLight, updateGUI=True):
         else:
             if updateGUI == True:
                 mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light"], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
-                    
+
             returnValue = False # the light is not connected
-            
+
     return returnValue # once the connection is over, then return either True or False (for CLI) or nothing (for GUI)
-    
+
 async def readNotifyCharacteristic(selectedLight, diagCommand):
     # clear the global variable before asking the light for info
     global receivedData
@@ -1085,19 +1270,19 @@ async def getLightChannelandPower(selectedLight):
     returnInfo = ["---", "---"] # the information to return to the light
 
     powerInfo = await readNotifyCharacteristic(selectedLight, [120, 133, 0, 253])
-    
+
     try:
         if powerInfo != "" and powerInfo[3] == 1:
             returnInfo[0] = "ON"
 
             # IF THE LIGHT IS ON, THEN ATTEMPT TO READ THE CURRENT CHANNEL
             chanInfo = await readNotifyCharacteristic(selectedLight, [120, 132, 0, 252])
-            
+
             if chanInfo != "": # if we got a result from the query
                 try:
                     returnInfo[1] = chanInfo[3] # set the current channel to the returned result
                 except IndexError:
-                    pass # if we have an index error (the above value doesn't exist), then just return -1    
+                    pass # if we have an index error (the above value doesn't exist), then just return -1
         elif powerInfo != "" and powerInfo[3] == 2:
             returnInfo[0] = "STBY"
     except IndexError:
@@ -1107,10 +1292,10 @@ async def getLightChannelandPower(selectedLight):
         print(powerInfo)
 
     availableLights[selectedLight][7][0] = returnInfo[0]
-    
+
     if availableLights[selectedLight][1] != "---" and returnInfo[1] != "---":
         availableLights[selectedLight][7][1] = returnInfo[1]
-  
+
 def notifyCallback(sender, data):
     global receivedData
     receivedData = data
@@ -1128,16 +1313,16 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
 
             printDebugString("Error unlinking from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
             print(e)
-        
+
         try:
             if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
                 if updateGUI == False:
                     returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
-                
+
                 printDebugString("Successfully unlinked from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
         except AttributeError:
             printDebugString("Light " + str(selectedLight + 1) + " has no Bleak object attached to it, so not attempting to disconnect from it")
-    
+
     return returnValue
 
 # WRITE TO A LIGHT - optional arguments for the CLI version (GUI version doesn't use either of these)
@@ -1150,12 +1335,12 @@ async def writeToLight(selectedLights=0, updateGUI=True):
     try:
         if updateGUI == True:
             selectedLights = mainWindow.selectedLights() # get the list of currently selected lights from the GUI table
-        else:           
+        else:
             if type(selectedLights) is int: # if we specify an integer-based index
                 selectedLights = [selectedLights] # convert asked-for light to list
 
         currentSendValue = [] # initialize the value check
-        
+
         # if there are lights selected (otherwise just dump out), and the delay timer is less than it's maximum, then try to send to the lights selected
         while (len(selectedLights) > 0 and time.time() - startTimer < 0.4) :
             if currentSendValue != sendValue: # if the current value is different than what was last sent to the light, then send a new one
@@ -1175,7 +1360,7 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                                         await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(splitCommands[1]), False)
                                     else: # we're only writing either HUE or BRI independently
                                         await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(calculateSeparateBytestrings(currentSendValue)), False)
-                                elif currentSendValue[1] == 129: # we're using an old light, but we're either turning the light on or off                                    
+                                elif currentSendValue[1] == 129: # we're using an old light, but we're either turning the light on or off
                                     await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
                                 elif currentSendValue[1] == 134: # we can't use HSI mode with this light, so show that
                                     if updateGUI == True:
@@ -1198,7 +1383,7 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                                     else: # we ARE turning the light on or off
                                         if currentSendValue[3] == 1: # we turned the light on
                                             availableLights[int(selectedLights[a])][6] = True # toggle the "light on" parameter of this light to ON
-                                            
+
                                             changeStatus = mainWindow.returnTableInfo(selectedLights[a], 2).replace("STBY", "ON")
                                             mainWindow.setTheTable(["", "", changeStatus, "Light turned on"], int(selectedLights[a]))
 
@@ -1220,11 +1405,11 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                             mainWindow.setTheTable(["", "", "", "Light isn't linked yet, can't send to it"], int(selectedLights[a]))
                         else:
                             returnValue = 0 # the light is not linked, even though it *should* be if it gets to this point, so this is an odd error
-                
+
                 startTimer = time.time() # if we sent a value, then reset the timer
-           
+
             await asyncio.sleep(0.05) # wait 1/20th of a second to give the Bluetooth bus a little time to recover
-            
+
             if updateGUI == True:
                 selectedLights = mainWindow.selectedLights() # re-acquire the current list of selected lights
     except Exception as e:
@@ -1258,7 +1443,7 @@ async def connectToOneLight(MACAddress):
 # THE BACKGROUND WORKER THREAD
 def workerThread(_loop):
     global threadAction
-    
+
     if findLightsOnStartup == True: # if we're set to find lights at startup, then automatically set the thread to discovery mode
         threadAction = "discover"
 
@@ -1270,7 +1455,7 @@ def workerThread(_loop):
         elif delayTicks == 12:
             delayTicks = 1
             printDebugString("Background Thread Running")
-           
+
             # CHECK EACH LIGHT AGAINST THE TABLE TO SEE IF THERE ARE CONNECTION ISSUES
             for a in range(len(availableLights)):
                 if threadAction == "": # if we're not sending, then update the light info... (check this before scanning each light)
@@ -1281,11 +1466,11 @@ def workerThread(_loop):
                         else:
                             _loop.run_until_complete(getLightChannelandPower(a))
                             mainWindow.setTheTable(["", "", "LINKED\n" + availableLights[a][7][0] + " / ᴄʜ. " + str(availableLights[a][7][1]), ""], a)
-        
+
         if threadAction == "quit":
             printDebugString("Stopping the background thread")
             threadAction = "finished"
-            break # stop the background thread before quitting the program            
+            break # stop the background thread before quitting the program
         elif threadAction == "discover":
             threadAction = _loop.run_until_complete(findDevices()) # add new lights to the main array
 
@@ -1300,7 +1485,7 @@ def workerThread(_loop):
             selectedLights = mainWindow.selectedLights() # get the list of currently selected lights
 
             for a in range(len(mainWindow.selectedLights())): # and try to link to each of those lights
-                threadAction = _loop.run_until_complete(connectToLight(selectedLights[a]))                
+                threadAction = _loop.run_until_complete(connectToLight(selectedLights[a]))
         elif threadAction == "send":
             threadAction = _loop.run_until_complete(writeToLight()) # write a value to the light(s) - the selectedLights() section is in the write loop itself for responsiveness
 
@@ -1329,12 +1514,12 @@ def processCommands(listToProcess=[]):
     # DELETE ANY INVALID ARGUMENTS FROM THE COMMAND LINE BEFORE RUNNING THE ARGUMENT PARSER
     # TO CLEAN UP THE ARGUMENT LIST AND ENSURE THE PARSER CAN STILL RUN WHEN INVALID ARGUMENTS ARE PRESENT
     if inStartupMode == True:
-        acceptable_arguments = ["--http", "--cli", "--silent", "--light", "--mode", "--temp", "--hue", 
+        acceptable_arguments = ["--http", "--cli", "--silent", "--light", "--mode", "--temp", "--hue",
         "--sat", "--bri", "--intensity", "--scene", "--animation", "--help", "--off", "--on", "--list"]
     else: # if we're doing HTTP processing, we don't need the http, cli, silent and help flags, so toss 'em
-        acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity", 
+        acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity",
         "--scene", "--animation", "--list", "--discover", "--link", "--off", "--on"]
-   
+
     # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST
     for a in range(len(listToProcess) - 1, -1, -1):
         if not any(x in listToProcess[a] for x in acceptable_arguments): # if the current argument is invalid
@@ -1343,7 +1528,7 @@ def processCommands(listToProcess=[]):
                     listToProcess.pop(a) # delete the invalid argument from the list
             else: # if we're not in startup mode, then also delete the "-h" flag
                 listToProcess.pop(a) # delete the invalid argument from the list
-    
+
     # IF THERE ARE NO VALID PARAMETERS LEFT TO PARSE, THEN RETURN THAT TO THE HTTP SERVER
     if inStartupMode == False and len(listToProcess) == 0:
         printDebugString("There are no usable parameters from the HTTP request!")
@@ -1351,21 +1536,21 @@ def processCommands(listToProcess=[]):
 
     # FORCE VALUES THAT NEED PARAMETERS TO HAVE ONE, AND VALUES THAT REQUIRE NO PARAMETERS TO HAVE NONE
     for a in range(len(listToProcess)):
-        if listToProcess[a].find("--silent") != -1: 
+        if listToProcess[a].find("--silent") != -1:
             listToProcess[a] = "--silent"
-        elif listToProcess[a].find("--cli") != -1: 
+        elif listToProcess[a].find("--cli") != -1:
             listToProcess[a] = "--cli"
-        elif listToProcess[a].find("--html") != -1: 
+        elif listToProcess[a].find("--html") != -1:
             listToProcess[a] = "--html"
-        elif listToProcess[a].find("--list") != -1: 
+        elif listToProcess[a].find("--list") != -1:
             listToProcess[a] = "--list"
-        elif listToProcess[a].find("--discover") != -1: 
+        elif listToProcess[a].find("--discover") != -1:
             listToProcess[a] = "--discover"
-        elif listToProcess[a].find("--off") != -1: 
+        elif listToProcess[a].find("--off") != -1:
             listToProcess[a] = "--off"
-        elif listToProcess[a].find("--on") != -1: 
+        elif listToProcess[a].find("--on") != -1:
             listToProcess[a] = "--on"
-        elif listToProcess[a] == "--link": 
+        elif listToProcess[a] == "--link":
             listToProcess[a] = "--link=-1"
 
     # PARSE THE ARGUMENT LIST FOR CUSTOM PARAMETERS
@@ -1374,16 +1559,16 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--list", action="store_true", help="Scan for nearby Neewer lights and list them on the CLI") # list the currently available lights
     parser.add_argument("--http", action="store_true", help="Use an HTTP server to send commands to Neewer lights using a web browser")
     parser.add_argument("--silent", action="store_false", help="Don't show any debug information in the console")
-    parser.add_argument("--cli", action="store_false", help="Don't show the GUI at all, just send command to one light and quit")    
-       
+    parser.add_argument("--cli", action="store_false", help="Don't show the GUI at all, just send command to one light and quit")
+
     # HTML SERVER SPECIFIC PARAMETERS
     if inStartupMode == False:
         parser.add_argument("--discover", action="store_true") # tell the HTTP server to search for newly added lights
         parser.add_argument("--link", default=-1) # link a specific light to NeewerPython-Lite
-    
-    
+
+
     parser.add_argument("--on", action="store_true", help="Turn the light on")
-    parser.add_argument("--off", action="store_true", help="Turn the light off")        
+    parser.add_argument("--off", action="store_true", help="Turn the light off")
     parser.add_argument("--light", default="", help="The MAC Address (XX:XX:XX:XX:XX:XX) of the light you want to send a command to or ALL to find and control all lights (only valid when also using --cli switch)")
     parser.add_argument("--mode", default="CCT", help="[DEFAULT: CCT] The current control mode - options are HSI, CCT and either ANM or SCENE")
     parser.add_argument("--temp", "--temperature", default="56", help="[DEFAULT: 56(00)K] (CCT mode) - the color temperature (3200K+) to set the light to")
@@ -1392,7 +1577,7 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--bri", "--brightness", "--intensity", default="100", help="[DEFAULT: 100] (CCT/HSI/ANM mode) The brightness (intensity) to set the light to")
     parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation (1-9) to use in Scene mode")
     args = parser.parse_args(listToProcess)
-    
+
     if args.silent == True:
         if inStartupMode == True:
             if args.list != True: # if we're not looking for lights using --list, then print line
@@ -1404,12 +1589,12 @@ def processCommands(listToProcess=[]):
 
     if args.http == True:
         return ["HTTP", args.silent] # special mode - don't do any other mode/color/etc. processing, just jump into running the HTML server
-       
+
     if inStartupMode == False:
         # HTTP specific parameter returns!
         if args.list == True:
             return["list"] # list the currently available lights
-    
+
         if args.discover == True:
             return["discover"] # discover new lights
 
@@ -1419,7 +1604,7 @@ def processCommands(listToProcess=[]):
         # If we request "LIST" from the CLI, then return a CLI list of lights available
         if args.list == True:
             return["LIST", False]
-        
+
     # CHECK TO SEE IF THE LIGHT SHOULD BE TURNED OFF
     if args.on == True: # we want to turn the light on
         return [args.cli, args.silent, args.light, "ON"]
@@ -1440,12 +1625,12 @@ def processCommands(listToProcess=[]):
         if args.mode.lower() != "cct": # if we're not actually asking for CCT mode, display error message
             printDebugString(" >> Improper mode selected with --mode command - valid entries are")
             printDebugString(" >> CCT, HSI or either ANM or SCENE, so rolling back to CCT mode.")
-        
+
         # RETURN CCT MODE PARAMETERS IN CCT/ALL OTHER CASES
         return [args.cli, args.silent, args.light, "CCT",
                 testValid("temp", args.temp, 56, 32, 85),
                 testValid("bri", args.bri, 100, 0, 100)]
-               
+
 def processHTMLCommands(paramsList, loop):
     global threadAction
 
@@ -1454,7 +1639,7 @@ def processHTMLCommands(paramsList, loop):
         if len(paramsList) != 0:
             if paramsList[0] == "discover": # we asked to discover new lights
                 loop.run_until_complete(findDevices()) # find the lights available to control
-                    
+
                 # try to connect to each light
                 for a in range(len(availableLights)):
                     loop.run_until_complete(connectToLight(a, False))
@@ -1475,7 +1660,7 @@ def processHTMLCommands(paramsList, loop):
                     setPowerBytestring("ON")
                 elif paramsList[3] == "OFF": # turn the light(s) off
                     setPowerBytestring("OFF")
-                
+
                 selectedLights = returnLightIndexesFromMacAddress(paramsList[2])
 
                 if len(selectedLights) > 0:
@@ -1527,7 +1712,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                 self.send_error(404)
             except ConnectionAbortedError:
                 printDebugString("Could not serve the error page, the HTTP server is already busy with another request.")
-            
+
             return
         else:
             # CHECK THE LENGTH OF THE URL REQUEST AND SEE IF IT'S TOO LONG
@@ -1568,7 +1753,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                 paramsList = self.path.replace(acceptableURL, "").split("&") # split the included params into a list
                 paramsList = processCommands(paramsList) # process the commands returned from the HTTP parameters
 
-            if len(paramsList) == 0: # if we have no valid parameters, then say that in the error report                
+            if len(paramsList) == 0: # if we have no valid parameters, then say that in the error report
                 writeHTMLSections(self, "errorHelp", "You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a & character.")
             else:
                 self.wfile.write(bytes("<h1>Request Successful!</h1>", "utf-8"))
@@ -1601,7 +1786,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                     htmlProcessThread.start()
                 else: # build the list of lights to display in the browser
                     totalLights = len(availableLights)
-                  
+
                     if totalLights == 0: # there are no lights available to you at the moment!
                         self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <a href=""doAction?discover"">click here</a>.<br>", "utf-8"))
                     else:
@@ -1635,7 +1820,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
 
                             self.wfile.write(bytes("<TD>" + updateStatus(False, availableLights[a][3]) + "</TD>", "utf-8")) # the last sent value to the light
                             self.wfile.write(bytes("</TR>", "utf-8"))
-                        
+
                         self.wfile.write(bytes("</TABLE>", "utf-8"))
 
             writeHTMLSections(self, "footer") # add the footer to the bottom of the page
@@ -1685,7 +1870,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = "Shortcut links: "
         footerLinks = footerLinks + "<A HREF=""doAction?discover"">Scan for New Lights</A> | "
         footerLinks = footerLinks + "<A HREF=""doAction?list"">List Currently Available Lights</A>"
-                        
+
         self.wfile.write(bytes("<HR>" + footerLinks + "<br>", "utf-8"))
         self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.6b</A> by Zach Glenwright<br>", "utf-8"))
         self.wfile.write(bytes("</body></html>", "utf-8"))
@@ -1701,14 +1886,14 @@ def formatStringForConsole(theString, maxLength):
         else: # truncate the string, it's too long
             return theString[0:maxLength - 4] + " ..."
 
-def loadPrefsFile(prefsFile = ""):
+def loadPrefsFile(globalPrefsFile = ""):
     global findLightsOnStartup, autoConnectToLights, printDebug, maxNumOfAttempts, \
            rememberLightOnExit, acceptable_HTTP_IPs, customKeys
-    
-    if prefsFile != "":
+
+    if globalPrefsFile != "":
         printDebugString("Loading global preferences from file...")
 
-        fileToOpen = open(prefsFile)
+        fileToOpen = open(globalPrefsFile)
         mainPrefs = fileToOpen.read().splitlines()
         fileToOpen.close()
 
@@ -1732,14 +1917,14 @@ def loadPrefsFile(prefsFile = ""):
         mainPrefs = [] # submit an empty list to return the default values for everything
 
     prefsParser = argparse.ArgumentParser() # parser for preference arguments
-                
+
     # SET PROGRAM DEFAULTS
     prefsParser.add_argument("--findLightsOnStartup", default=1)
     prefsParser.add_argument("--autoConnectToLights", default=1)
     prefsParser.add_argument("--printDebug", default=1)
     prefsParser.add_argument("--maxNumOfAttempts", default=6)
     prefsParser.add_argument("--rememberLightOnExit", default=0)
-    prefsParser.add_argument("--acceptableIPs", default=["192.168", "10.0.0", "172.20", "127.0.0.1"])
+    prefsParser.add_argument("--acceptableIPs", default=["127.0.0.1", "192.168", "10.0.0"])
 
     # SHORTCUT KEY CUSTOMIZATIONS
     prefsParser.add_argument("--SC_turnOffButton", default="Ctrl+PgDown") # 0
@@ -1766,7 +1951,7 @@ def loadPrefsFile(prefsFile = ""):
     prefsParser.add_argument("--SC_Inc_2_Large", default="Ctrl+6") # 21
     prefsParser.add_argument("--SC_Dec_3_Large", default="Ctrl+1") # 22
     prefsParser.add_argument("--SC_Inc_3_Large", default="Ctrl+3") # 23
-    
+
     mainPrefs = prefsParser.parse_args(mainPrefs)
 
     # SET GLOBAL VALUES BASED ON PREFERENCES
@@ -1780,7 +1965,7 @@ def loadPrefsFile(prefsFile = ""):
         acceptable_HTTP_IPs = mainPrefs.acceptableIPs.replace(" ", "").split(";") # split the IP addresses into a list for acceptable IPs
     else: # the return is already a list (the default list), so return it
         acceptable_HTTP_IPs = mainPrefs.acceptableIPs
-        
+
     # RETURN THE CUSTOM KEYBOARD MAPPINGS
     customKeys = [mainPrefs.SC_turnOffButton, mainPrefs.SC_turnOnButton, mainPrefs.SC_scanCommandButton, mainPrefs.SC_tryConnectButton, \
                   mainPrefs.SC_Tab_CCT, mainPrefs.SC_Tab_HSI, mainPrefs.SC_Tab_SCENE, mainPrefs.SC_Tab_PREFS, \
@@ -1798,11 +1983,9 @@ def loadPrefsFile(prefsFile = ""):
                   mainPrefs.SC_Dec_3_Large, \
                   mainPrefs.SC_Inc_3_Large]
 
-if __name__ == '__main__':
-    prefsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "NeewerLite-Python.prefs"
-
-    if os.path.exists(prefsFile):
-        loadPrefsFile(prefsFile) # if a preferences file exists, process it and load the preferences
+if __name__ == '__main__':   
+    if os.path.exists(globalPrefsFile):
+        loadPrefsFile(globalPrefsFile) # if a preferences file exists, process it and load the preferences
     else:
         loadPrefsFile() # if it doesn't, then just load the defaults
 
@@ -1841,10 +2024,10 @@ if __name__ == '__main__':
             print("NeewerLite-Python 0.6b by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             loop.run_until_complete(findDevices())
-            
+
             if len(availableLights) > 0:
                 print()
-                
+
                 if len(availableLights) == 1: # we only found one
                     print("We found 1 Neewer light on the last search.")
                 else: # we found more than one
@@ -1858,14 +2041,14 @@ if __name__ == '__main__':
                 else:
                     addressCharsAllowed = 17 # MAC addresses are 17 characters long
                     addressString = "MAC Address"
-                
+
                 nameCharsAllowed = 79 - addressCharsAllowed # the remaining space is to display the light name
 
                 # PRINT THE HEADERS
                 print(formatStringForConsole("Custom Name (Light Type)", nameCharsAllowed) + \
                       " " + \
                       formatStringForConsole(addressString, addressCharsAllowed))
-                
+
                 # PRINT THE SEPARATORS
                 print(formatStringForConsole("-", nameCharsAllowed) + " " + formatStringForConsole("-", addressCharsAllowed))
 
@@ -1879,7 +2062,7 @@ if __name__ == '__main__':
                     print(formatStringForConsole(" > RSSI: " + str(availableLights[a][0].rssi) + "dBm", nameCharsAllowed))
             else:
                 print("We did not find any Neewer lights on the last search.")
-                
+
             sys.exit(0) # show the list, then quit out to the command line
 
         printDebugString(" > Launch GUI: " + str(cmdReturn[0]))
@@ -1910,7 +2093,7 @@ if __name__ == '__main__':
                 printDebugString(" > CLI >> and write either a MAC Address (XX:XX:XX:XX:XX:XX) to a Neewer light or")
                 printDebugString(" > CLI >> ALL to send to all available Neewer lights found by Bluetooth")
                 printDebugString("-------------------------------------------------------------------------------------")
-                          
+
     if cmdReturn[0] == True: # launch the GUI with the command-line arguments
         if importError == 0:
             try: # try to load the GUI
@@ -1925,14 +2108,14 @@ if __name__ == '__main__':
                         mainWindow.setUpGUI(colorMode=cmdReturn[3], hue=cmdReturn[4], sat=cmdReturn[5], brightness=cmdReturn[6])
                     elif cmdReturn[3] == "ANM": # set up the GUI in ANM mode with specified parameters (or default, if none)
                         mainWindow.setUpGUI(colorMode=cmdReturn[3], scene=cmdReturn[4], brightness=cmdReturn[5])
-                            
+
                 mainWindow.show()
-                
+
                 # START THE BACKGROUND THREAD
                 workerThread = threading.Thread(target=workerThread, args=(loop,), name="workerThread")
                 workerThread.start()
-            
-                ret = app.exec_()    
+
+                ret = app.exec_()
                 sys.exit( ret )
             except NameError:
                 pass # same as above - we could not load the GUI, but we have already sorted error messages
@@ -1948,7 +2131,7 @@ if __name__ == '__main__':
                 print("    pip3 install PySide2")
                 print()
                 print(" Or visit this website for more information:")
-                print("    https://pypi.org/project/PySide2/")              
+                print("    https://pypi.org/project/PySide2/")
             elif importError == 2: # we have PySide2, but can't load the GUI file itself for some reason
                 print(" ===== COULD NOT LOAD/FIND GUI FILE =====")
                 print(" If you don't need to use the GUI, you are fine going without the PySide2 pacakge.")
@@ -1975,7 +2158,7 @@ if __name__ == '__main__':
 
         if availableLights != []:
             printDebugString(" > CLI >> Bytestring to send to light:" + updateStatus())
-           
+
             # CONNECT TO THE LIGHT AND SEND INFORMATION TO IT
             isFinished = False
             numOfAttempts = 1
@@ -1994,13 +2177,13 @@ if __name__ == '__main__':
 
             isFinished = False
             numOfAttempts = 1
-        
+
             while isFinished == False:
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> Attempting to write to light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
                 printDebugString("-------------------------------------------------------------------------------------")
                 isFinished = loop.run_until_complete(writeToLight(0, False))
-                
+
                 if numOfAttempts < maxNumOfAttempts:
                     numOfAttempts = numOfAttempts + 1
                 else:
@@ -2015,7 +2198,7 @@ if __name__ == '__main__':
                 printDebugString(" > CLI >> Attempting to disconnect from light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
                 printDebugString("-------------------------------------------------------------------------------------")
                 isFinished = loop.run_until_complete(disconnectFromLight(0))
-                
+
                 if numOfAttempts < maxNumOfAttempts:
                     numOfAttempts = numOfAttempts + 1
                 else:
