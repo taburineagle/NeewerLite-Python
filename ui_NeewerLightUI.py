@@ -466,10 +466,18 @@ class singleKeySequenceEditCancel(QWidget):
         # self.keyPressField.setToolTip("Click on this field and type in a new keyboard shortcut to register it")
 
         # THE RESET BUTTON
-        self.resetButton = QPushButton("X")
-        self.resetButton.setFixedWidth(25)
+        self.resetButton = QLabel("X", alignment=Qt.AlignCenter)
+        self.resetButton.setFixedWidth(24)
+        self.resetButton.setStyleSheet("QLabel"
+                                       "{"
+                                       "border: 1px solid black; background-color: light grey;"
+                                       "}"
+                                       "QLabel::hover"
+                                       "{"
+                                       "background-color: salmon;"
+                                       "}")
         # self.resetButton.setToolTip("Click on this button to reset the current keyboard shortcut to it's default value")
-        self.resetButton.clicked.connect(self.resetValue)
+        self.resetButton.mousePressEvent = self.resetValue
 
         customLayout.addWidget(self.keyPressField, 1, 1)
         customLayout.addWidget(self.resetButton, 1, 2)
@@ -483,7 +491,7 @@ class singleKeySequenceEditCancel(QWidget):
     def setKeySequence(self, keySequence):
         self.keyPressField.setKeySequence(keySequence)
 
-    def resetValue(self):
+    def resetValue(self, event):
         self.keyPressField.setKeySequence(self.defaultValue)
 
 class singleKeySequenceEdit(QKeySequenceEdit):
