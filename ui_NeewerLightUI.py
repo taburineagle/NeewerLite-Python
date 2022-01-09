@@ -307,22 +307,24 @@ class Ui_MainWindow(object):
         self.maxNumOfAttempts_field.setFixedWidth(35)
         self.acceptable_HTTP_IPs_field = QTextEdit()
         self.acceptable_HTTP_IPs_field.setFixedHeight(70)
+        
+        self.resetGlobalPrefsButton = QPushButton("Reset Preferences to Defaults")
         self.saveGlobalPrefsButton = QPushButton("Save Global Preferences")
 
         # THE FIRST SECTION OF KEYBOARD MAPPING SECTION
         self.windowButtonsCW = QWidget()
         self.windowButtonsLay = QGridLayout(self.windowButtonsCW)
         
-        self.SC_turnOffButton_field = singleKeySequenceEdit()
+        self.SC_turnOffButton_field = singleKeySequenceEditCancel("Ctrl+PgDown")
         self.windowButtonsLay.addWidget(QLabel("<strong>Window Top</strong><br>Turn Light(s) Off", alignment=Qt.AlignCenter), 1, 1)
         self.windowButtonsLay.addWidget(self.SC_turnOffButton_field, 2, 1)
-        self.SC_turnOnButton_field = singleKeySequenceEdit()
+        self.SC_turnOnButton_field = singleKeySequenceEditCancel("Ctrl+PgUp")
         self.windowButtonsLay.addWidget(QLabel("<strong>Window Top</strong><br>Turn Light(s) On", alignment=Qt.AlignCenter), 1, 2)
         self.windowButtonsLay.addWidget(self.SC_turnOnButton_field, 2, 2)
-        self.SC_scanCommandButton_field = singleKeySequenceEdit()
+        self.SC_scanCommandButton_field = singleKeySequenceEditCancel("Ctrl+Shift+S")
         self.windowButtonsLay.addWidget(QLabel("<strong>Window Top</strong><br>Scan/Re-Scan", alignment=Qt.AlignCenter), 1, 3)
         self.windowButtonsLay.addWidget(self.SC_scanCommandButton_field, 2, 3)
-        self.SC_tryConnectButton_field = singleKeySequenceEdit()
+        self.SC_tryConnectButton_field = singleKeySequenceEditCancel("Ctrl+Shift+C")
         self.windowButtonsLay.addWidget(QLabel("<strong>Window Top</strong><br>Connect", alignment=Qt.AlignCenter), 1, 4)
         self.windowButtonsLay.addWidget(self.SC_tryConnectButton_field, 2, 4)
 
@@ -330,16 +332,16 @@ class Ui_MainWindow(object):
         self.tabSwitchCW = QWidget()
         self.tabSwitchLay = QGridLayout(self.tabSwitchCW)
 
-        self.SC_Tab_CCT_field = singleKeySequenceEdit()
+        self.SC_Tab_CCT_field = singleKeySequenceEditCancel("Alt+1")
         self.tabSwitchLay.addWidget(QLabel("<strong>Switching Tabs</strong><br>To CCT", alignment=Qt.AlignCenter), 1, 1)
         self.tabSwitchLay.addWidget(self.SC_Tab_CCT_field, 2, 1)
-        self.SC_Tab_HSI_field = singleKeySequenceEdit()
+        self.SC_Tab_HSI_field = singleKeySequenceEditCancel("Alt+2")
         self.tabSwitchLay.addWidget(QLabel("<strong>Switching Tabs</strong><br>To HSI", alignment=Qt.AlignCenter), 1, 2)
         self.tabSwitchLay.addWidget(self.SC_Tab_HSI_field, 2, 2)
-        self.SC_Tab_SCENE_field = singleKeySequenceEdit()
+        self.SC_Tab_SCENE_field = singleKeySequenceEditCancel("Alt+3")
         self.tabSwitchLay.addWidget(QLabel("<strong>Switching Tabs</strong><br>To SCENE", alignment=Qt.AlignCenter), 1, 3)
         self.tabSwitchLay.addWidget(self.SC_Tab_SCENE_field, 2, 3)
-        self.SC_Tab_PREFS_field = singleKeySequenceEdit()
+        self.SC_Tab_PREFS_field = singleKeySequenceEditCancel("Alt+4")
         self.tabSwitchLay.addWidget(QLabel("<strong>Switching Tabs</strong><br>To Light Prefs", alignment=Qt.AlignCenter), 1, 4)
         self.tabSwitchLay.addWidget(self.SC_Tab_PREFS_field, 2, 4)
 
@@ -347,16 +349,16 @@ class Ui_MainWindow(object):
         self.brightnessCW = QWidget()
         self.brightnessLay = QGridLayout(self.brightnessCW)
 
-        self.SC_Dec_Bri_Small_field = singleKeySequenceEdit()
+        self.SC_Dec_Bri_Small_field = singleKeySequenceEditCancel("/")
         self.brightnessLay.addWidget(QLabel("<strong>Brightness</strong><br>Small Decrease", alignment=Qt.AlignCenter), 1, 1)
         self.brightnessLay.addWidget(self.SC_Dec_Bri_Small_field, 2, 1)
-        self.SC_Dec_Bri_Large_field = singleKeySequenceEdit()
+        self.SC_Dec_Bri_Large_field = singleKeySequenceEditCancel("Ctrl+/")
         self.brightnessLay.addWidget(QLabel("<strong>Brightness</strong><br>Large Decrease", alignment=Qt.AlignCenter), 1, 2)
         self.brightnessLay.addWidget(self.SC_Dec_Bri_Large_field, 2, 2)
-        self.SC_Inc_Bri_Small_field = singleKeySequenceEdit()
+        self.SC_Inc_Bri_Small_field = singleKeySequenceEditCancel("*")
         self.brightnessLay.addWidget(QLabel("<strong>Brightness</strong><br>Small Increase", alignment=Qt.AlignCenter), 1, 3)
         self.brightnessLay.addWidget(self.SC_Inc_Bri_Small_field, 2, 3)
-        self.SC_Inc_Bri_Large_field = singleKeySequenceEdit()
+        self.SC_Inc_Bri_Large_field = singleKeySequenceEditCancel("Ctrl+*")
         self.brightnessLay.addWidget(QLabel("<strong>Brightness</strong><br>Large Increase", alignment=Qt.AlignCenter), 1, 4)
         self.brightnessLay.addWidget(self.SC_Inc_Bri_Large_field, 2, 4)
 
@@ -364,44 +366,51 @@ class Ui_MainWindow(object):
         self.sliderAdjustmentCW = QWidget()
         self.sliderAdjustmentLay = QGridLayout(self.sliderAdjustmentCW)
 
-        self.SC_Dec_1_Small_field = singleKeySequenceEdit()
+        self.SC_Dec_1_Small_field = singleKeySequenceEditCancel("7")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 1</strong><br>Small Decrease", alignment=Qt.AlignCenter), 1, 1)
         self.sliderAdjustmentLay.addWidget(self.SC_Dec_1_Small_field, 2, 1)
-        self.SC_Dec_1_Large_field = singleKeySequenceEdit()
+        self.SC_Dec_1_Large_field = singleKeySequenceEditCancel("Ctrl+7")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 1</strong><br>Large Decrease", alignment=Qt.AlignCenter), 1, 2)
         self.sliderAdjustmentLay.addWidget(self.SC_Dec_1_Large_field, 2, 2)
-        self.SC_Inc_1_Small_field = singleKeySequenceEdit()
+        self.SC_Inc_1_Small_field = singleKeySequenceEditCancel("9")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 1</strong><br>Small Increase", alignment=Qt.AlignCenter), 1, 3)
         self.sliderAdjustmentLay.addWidget(self.SC_Inc_1_Small_field, 2, 3)
-        self.SC_Inc_1_Large_field = singleKeySequenceEdit()
+        self.SC_Inc_1_Large_field = singleKeySequenceEditCancel("Ctrl+9")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 1</strong><br>Large Increase", alignment=Qt.AlignCenter), 1, 4)
         self.sliderAdjustmentLay.addWidget(self.SC_Inc_1_Large_field, 2, 4)
 
-        self.SC_Dec_2_Small_field = singleKeySequenceEdit()
+        self.SC_Dec_2_Small_field = singleKeySequenceEditCancel("4")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 2</strong><br>Small Decrease", alignment=Qt.AlignCenter), 3, 1)
         self.sliderAdjustmentLay.addWidget(self.SC_Dec_2_Small_field, 4, 1)
-        self.SC_Dec_2_Large_field = singleKeySequenceEdit()
+        self.SC_Dec_2_Large_field = singleKeySequenceEditCancel("Ctrl+4")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 2</strong><br>Large Decrease", alignment=Qt.AlignCenter), 3, 2)
         self.sliderAdjustmentLay.addWidget(self.SC_Dec_2_Large_field, 4, 2)
-        self.SC_Inc_2_Small_field = singleKeySequenceEdit()
+        self.SC_Inc_2_Small_field = singleKeySequenceEditCancel("6")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 2</strong><br>Small Increase", alignment=Qt.AlignCenter), 3, 3)
         self.sliderAdjustmentLay.addWidget(self.SC_Inc_2_Small_field, 4, 3)
-        self.SC_Inc_2_Large_field = singleKeySequenceEdit()
+        self.SC_Inc_2_Large_field = singleKeySequenceEditCancel("Ctrl+6")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 2</strong><br>Large Increase", alignment=Qt.AlignCenter), 3, 4)
         self.sliderAdjustmentLay.addWidget(self.SC_Inc_2_Large_field, 4, 4)
 
-        self.SC_Dec_3_Small_field = singleKeySequenceEdit()
+        self.SC_Dec_3_Small_field = singleKeySequenceEditCancel("1")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 3</strong><br>Small Decrease", alignment=Qt.AlignCenter), 5, 1)
         self.sliderAdjustmentLay.addWidget(self.SC_Dec_3_Small_field, 6, 1)
-        self.SC_Dec_3_Large_field = singleKeySequenceEdit()
+        self.SC_Dec_3_Large_field = singleKeySequenceEditCancel("Ctrl+1")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 3</strong><br>Large Decrease", alignment=Qt.AlignCenter), 5, 2)
         self.sliderAdjustmentLay.addWidget(self.SC_Dec_3_Large_field, 6, 2)
-        self.SC_Inc_3_Small_field = singleKeySequenceEdit()
+        self.SC_Inc_3_Small_field = singleKeySequenceEditCancel("3")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 3</strong><br>Small Increase", alignment=Qt.AlignCenter), 5, 3)
         self.sliderAdjustmentLay.addWidget(self.SC_Inc_3_Small_field, 6, 3)
-        self.SC_Inc_3_Large_field = singleKeySequenceEdit()
+        self.SC_Inc_3_Large_field = singleKeySequenceEditCancel("Ctrl+3")
         self.sliderAdjustmentLay.addWidget(QLabel("<strong>Slider 3</strong><br>Large Increase", alignment=Qt.AlignCenter), 5, 4)
-        self.sliderAdjustmentLay.addWidget(self.SC_Inc_3_Large_field, 6, 4)        
+        self.sliderAdjustmentLay.addWidget(self.SC_Inc_3_Large_field, 6, 4)
+
+        # BOTTOM BUTTONS
+        self.bottomButtonsCW = QWidget()
+        self.bottomButtonsLay = QGridLayout(self.bottomButtonsCW)
+
+        self.bottomButtonsLay.addWidget(self.resetGlobalPrefsButton, 1, 1)
+        self.bottomButtonsLay.addWidget(self.saveGlobalPrefsButton, 1, 2)
 
         # FINALLY, IT'S TIME TO BUILD THE PREFERENCES PANE ITSELF
         self.globalPrefsLay.addRow(QLabel("<strong><u>Main Program Options</strong></u>", alignment=Qt.AlignCenter))
@@ -421,7 +430,7 @@ class Ui_MainWindow(object):
         self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Custom GUI Keyboard Shortcut Mapping - Slider Adjustments</strong></u><br><em>To switch a keyboard shortcut, click on the old shortcut and type a new one in.</em><br><br>These 12 keyboard shortcuts adjust <em>up to 3 sliders</em> on the currently active tab.<br>If the currently active tab doesn't have a 2nd (SCENE) or 3rd (CCT) slider, then the<br>shortcuts for those sliders don't do anything on that tab.", alignment=Qt.AlignCenter))
         self.globalPrefsLay.addRow(self.sliderAdjustmentCW)
         self.globalPrefsLay.addRow(QLabel("<hr>"))
-        self.globalPrefsLay.addRow(self.saveGlobalPrefsButton)
+        self.globalPrefsLay.addRow(self.bottomButtonsCW)
 
         # === >> ADD THE TABS TO THE TAB WIDGET << ===
         self.ColorModeTabWidget.addTab(self.CCT, "CCT Mode")
@@ -444,12 +453,41 @@ class Ui_MainWindow(object):
         self.Slider_HSI_3_L.valueChanged.connect(self.TFV_HSI_3_L.setNum)
         self.Slider_ANM_Brightness.valueChanged.connect(self.TFV_ANM_Brightness.setNum)
 
+class singleKeySequenceEditCancel(QWidget):
+    def __init__(self, defaultValue):
+        super(singleKeySequenceEditCancel, self).__init__()
+        self.defaultValue = defaultValue # the default keyboard shortcut for this field
+
+        customLayout = QGridLayout()
+        customLayout.setContentsMargins(0, 0, 0, 0) # don't use any extra padding for this control
+
+        # THE KEYBOARD SHORTCUT FIELD
+        self.keyPressField = singleKeySequenceEdit()
+        # self.keyPressField.setToolTip("Click on this field and type in a new keyboard shortcut to register it")
+
+        # THE RESET BUTTON
+        self.resetButton = QPushButton("X")
+        self.resetButton.setFixedWidth(25)
+        # self.resetButton.setToolTip("Click on this button to reset the current keyboard shortcut to it's default value")
+        self.resetButton.clicked.connect(self.resetValue)
+
+        customLayout.addWidget(self.keyPressField, 1, 1)
+        customLayout.addWidget(self.resetButton, 1, 2)
+
+        self.setMaximumWidth(135) # make sure the entire control is no longer than 135 pixels wide
+        self.setLayout(customLayout)
+    
+    def keySequence(self):
+        return self.keyPressField.keySequence()
+
+    def setKeySequence(self, keySequence):
+        self.keyPressField.setKeySequence(keySequence)
+
+    def resetValue(self):
+        self.keyPressField.setKeySequence(self.defaultValue)
+
 class singleKeySequenceEdit(QKeySequenceEdit):
     # CUSTOM VERSION OF QKeySequenceEdit THAT ONLY ACCEPTS ONE COMBINATION BEFORE RETURNING
-    def __init__(self):
-        super(singleKeySequenceEdit, self).__init__()
-        self.setFixedWidth(90) # set the size to all of these widgets to 90
-
     def keyPressEvent(self, event):
         super(singleKeySequenceEdit, self).keyPressEvent(event)
 

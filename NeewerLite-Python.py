@@ -153,6 +153,8 @@ try: # try to load the GUI
             self.Button_3_lightning_C.clicked.connect(lambda: self.computeValueANM(9))
 
             self.saveLightPrefsButton.clicked.connect(self.checkLightPrefs)
+
+            self.resetGlobalPrefsButton.clicked.connect(lambda: self.setupGlobalLightPrefsTab(True))
             self.saveGlobalPrefsButton.clicked.connect(self.saveGlobalPrefs)
 
             # SHORTCUT KEYS - MAKE THEM HERE, SET THEIR ASSIGNMENTS BELOW WITH self.setupShortcutKeys()
@@ -370,37 +372,69 @@ try: # try to load the GUI
             else:
                 self.onlyCCTModeCheck.setChecked(False)
 
-        def setupGlobalLightPrefsTab(self):
-            self.findLightsOnStartup_check.setChecked(findLightsOnStartup)
-            self.autoConnectToLights_check.setChecked(autoConnectToLights)
-            self.printDebug_check.setChecked(printDebug)
-            self.rememberLightsOnExit_check.setChecked(rememberLightsOnExit)
-            self.maxNumOfAttempts_field.setText(str(maxNumOfAttempts))
-            self.acceptable_HTTP_IPs_field.setText("\n".join(acceptable_HTTP_IPs))
-            self.SC_turnOffButton_field.setKeySequence(customKeys[0])
-            self.SC_turnOnButton_field.setKeySequence(customKeys[1])
-            self.SC_scanCommandButton_field.setKeySequence(customKeys[2])
-            self.SC_tryConnectButton_field.setKeySequence(customKeys[3])
-            self.SC_Tab_CCT_field.setKeySequence(customKeys[4])
-            self.SC_Tab_HSI_field.setKeySequence(customKeys[5])
-            self.SC_Tab_SCENE_field.setKeySequence(customKeys[6])
-            self.SC_Tab_PREFS_field.setKeySequence(customKeys[7])
-            self.SC_Dec_Bri_Small_field.setKeySequence(customKeys[8])
-            self.SC_Inc_Bri_Small_field.setKeySequence(customKeys[9])
-            self.SC_Dec_Bri_Large_field.setKeySequence(customKeys[10])
-            self.SC_Inc_Bri_Large_field.setKeySequence(customKeys[11])
-            self.SC_Dec_1_Small_field.setKeySequence(customKeys[12])
-            self.SC_Inc_1_Small_field.setKeySequence(customKeys[13])
-            self.SC_Dec_2_Small_field.setKeySequence(customKeys[14])
-            self.SC_Inc_2_Small_field.setKeySequence(customKeys[15])
-            self.SC_Dec_3_Small_field.setKeySequence(customKeys[16])
-            self.SC_Inc_3_Small_field.setKeySequence(customKeys[17])
-            self.SC_Dec_1_Large_field.setKeySequence(customKeys[18])
-            self.SC_Inc_1_Large_field.setKeySequence(customKeys[19])
-            self.SC_Dec_2_Large_field.setKeySequence(customKeys[20])
-            self.SC_Inc_2_Large_field.setKeySequence(customKeys[21])
-            self.SC_Dec_3_Large_field.setKeySequence(customKeys[22])
-            self.SC_Inc_3_Large_field.setKeySequence(customKeys[23])
+        def setupGlobalLightPrefsTab(self, setDefault=False):
+            if setDefault == False:
+                self.findLightsOnStartup_check.setChecked(findLightsOnStartup)
+                self.autoConnectToLights_check.setChecked(autoConnectToLights)
+                self.printDebug_check.setChecked(printDebug)
+                self.rememberLightsOnExit_check.setChecked(rememberLightsOnExit)
+                self.maxNumOfAttempts_field.setText(str(maxNumOfAttempts))
+                self.acceptable_HTTP_IPs_field.setText("\n".join(acceptable_HTTP_IPs))
+                self.SC_turnOffButton_field.setKeySequence(customKeys[0])
+                self.SC_turnOnButton_field.setKeySequence(customKeys[1])
+                self.SC_scanCommandButton_field.setKeySequence(customKeys[2])
+                self.SC_tryConnectButton_field.setKeySequence(customKeys[3])
+                self.SC_Tab_CCT_field.setKeySequence(customKeys[4])
+                self.SC_Tab_HSI_field.setKeySequence(customKeys[5])
+                self.SC_Tab_SCENE_field.setKeySequence(customKeys[6])
+                self.SC_Tab_PREFS_field.setKeySequence(customKeys[7])
+                self.SC_Dec_Bri_Small_field.setKeySequence(customKeys[8])
+                self.SC_Inc_Bri_Small_field.setKeySequence(customKeys[9])
+                self.SC_Dec_Bri_Large_field.setKeySequence(customKeys[10])
+                self.SC_Inc_Bri_Large_field.setKeySequence(customKeys[11])
+                self.SC_Dec_1_Small_field.setKeySequence(customKeys[12])
+                self.SC_Inc_1_Small_field.setKeySequence(customKeys[13])
+                self.SC_Dec_2_Small_field.setKeySequence(customKeys[14])
+                self.SC_Inc_2_Small_field.setKeySequence(customKeys[15])
+                self.SC_Dec_3_Small_field.setKeySequence(customKeys[16])
+                self.SC_Inc_3_Small_field.setKeySequence(customKeys[17])
+                self.SC_Dec_1_Large_field.setKeySequence(customKeys[18])
+                self.SC_Inc_1_Large_field.setKeySequence(customKeys[19])
+                self.SC_Dec_2_Large_field.setKeySequence(customKeys[20])
+                self.SC_Inc_2_Large_field.setKeySequence(customKeys[21])
+                self.SC_Dec_3_Large_field.setKeySequence(customKeys[22])
+                self.SC_Inc_3_Large_field.setKeySequence(customKeys[23])
+            else: # if you clicked the RESET button, reset all preference values to their defaults
+                self.findLightsOnStartup_check.setChecked(True)
+                self.autoConnectToLights_check.setChecked(True)
+                self.printDebug_check.setChecked(True)
+                self.rememberLightsOnExit_check.setChecked(False)
+                self.maxNumOfAttempts_field.setText("6")
+                self.acceptable_HTTP_IPs_field.setText("\n".join(["127.0.0.1", "192.168", "10.0.0"]))
+                self.SC_turnOffButton_field.setKeySequence("Ctrl+PgDown")
+                self.SC_turnOnButton_field.setKeySequence("Ctrl+PgUp")
+                self.SC_scanCommandButton_field.setKeySequence("Ctrl+Shift+S")
+                self.SC_tryConnectButton_field.setKeySequence("Ctrl+Shift+C")
+                self.SC_Tab_CCT_field.setKeySequence("Alt+1")
+                self.SC_Tab_HSI_field.setKeySequence("Alt+2")
+                self.SC_Tab_SCENE_field.setKeySequence("Alt+3")
+                self.SC_Tab_PREFS_field.setKeySequence("Alt+4")
+                self.SC_Dec_Bri_Small_field.setKeySequence("/")
+                self.SC_Inc_Bri_Small_field.setKeySequence("*")
+                self.SC_Dec_Bri_Large_field.setKeySequence("Ctrl+/")
+                self.SC_Inc_Bri_Large_field.setKeySequence("Ctrl+*")
+                self.SC_Dec_1_Small_field.setKeySequence("7")
+                self.SC_Inc_1_Small_field.setKeySequence("9")
+                self.SC_Dec_2_Small_field.setKeySequence("4")
+                self.SC_Inc_2_Small_field.setKeySequence("6")
+                self.SC_Dec_3_Small_field.setKeySequence("1")
+                self.SC_Inc_3_Small_field.setKeySequence("3")
+                self.SC_Dec_1_Large_field.setKeySequence("Ctrl+7")
+                self.SC_Inc_1_Large_field.setKeySequence("Ctrl+9")
+                self.SC_Dec_2_Large_field.setKeySequence("Ctrl+4")
+                self.SC_Inc_2_Large_field.setKeySequence("Ctrl+6")
+                self.SC_Dec_3_Large_field.setKeySequence("Ctrl+1")
+                self.SC_Inc_3_Large_field.setKeySequence("Ctrl+3")
 
         def saveGlobalPrefs(self):
             # change these global values to the new values in Prefs
@@ -438,122 +472,129 @@ try: # try to load the GUI
             # FIGURE OUT IF THE HTTP IP ADDRESSES HAVE CHANGED
             returnedList_HTTP_IPs = self.acceptable_HTTP_IPs_field.toPlainText().split("\n")
             
-            if returnedList_HTTP_IPs != acceptable_HTTP_IPs: # if the list of HTTP IPs have changed
+            if returnedList_HTTP_IPs != ["127.0.0.1", "192.168", "10.0.0"]: # if the list of HTTP IPs have changed
                 acceptable_HTTP_IPs = returnedList_HTTP_IPs # change the global HTTP IPs available
                 finalPrefs.append("acceptable_HTTP_IPs=" + ";".join(acceptable_HTTP_IPs)) # add the new ones to the preferences
+            else:
+                acceptable_HTTP_IPs = ["127.0.0.1", "192.168", "10.0.0"] # if we reset the IPs, then re-reset the parameter
             
-            if self.SC_turnOffButton_field.keySequence().toString() != "Ctrl+PgDown":
-                customKeys[0] = self.SC_turnOffButton_field.keySequence().toString()
-                finalPrefs.append("SC_turnOffButton=" + self.SC_turnOffButton_field.keySequence().toString())
+            # SET THE NEW KEYBOARD SHORTCUTS TO THE VALUES IN PREFERENCES
+            customKeys[0] = self.SC_turnOffButton_field.keySequence().toString()
+            customKeys[1] = self.SC_turnOnButton_field.keySequence().toString()
+            customKeys[2] = self.SC_scanCommandButton_field.keySequence().toString()
+            customKeys[3] = self.SC_tryConnectButton_field.keySequence().toString()
+            customKeys[4] = self.SC_Tab_CCT_field.keySequence().toString()
+            customKeys[5] = self.SC_Tab_HSI_field.keySequence().toString()
+            customKeys[6] = self.SC_Tab_SCENE_field.keySequence().toString()
+            customKeys[7] = self.SC_Tab_PREFS_field.keySequence().toString()
+            customKeys[8] = self.SC_Dec_Bri_Small_field.keySequence().toString()
+            customKeys[9] = self.SC_Inc_Bri_Small_field.keySequence().toString()
+            customKeys[10] = self.SC_Dec_Bri_Large_field.keySequence().toString()
+            customKeys[11] = self.SC_Inc_Bri_Large_field.keySequence().toString()
+            customKeys[12] = self.SC_Dec_1_Small_field.keySequence().toString()
+            customKeys[13] = self.SC_Inc_1_Small_field.keySequence().toString()
+            customKeys[14] = self.SC_Dec_2_Small_field.keySequence().toString()
+            customKeys[15] = self.SC_Inc_2_Small_field.keySequence().toString()
+            customKeys[16] = self.SC_Dec_3_Small_field.keySequence().toString()
+            customKeys[17] = self.SC_Inc_3_Small_field.keySequence().toString()
+            customKeys[18] = self.SC_Dec_1_Large_field.keySequence().toString()
+            customKeys[19] = self.SC_Inc_1_Large_field.keySequence().toString()
+            customKeys[20] = self.SC_Dec_2_Large_field.keySequence().toString()
+            customKeys[21] = self.SC_Inc_2_Large_field.keySequence().toString()
+            customKeys[22] = self.SC_Dec_3_Large_field.keySequence().toString()
+            customKeys[23] = self.SC_Inc_3_Large_field.keySequence().toString()
+
+            self.setupShortcutKeys() # change shortcut key assignments to the new values in prefs
+
+            if customKeys[0] != "Ctrl+PgDown": 
+                finalPrefs.append("SC_turnOffButton=" + customKeys[0])
             
-            if self.SC_turnOnButton_field.keySequence().toString() != "Ctrl+PgUp":
-                customKeys[1] = self.SC_turnOnButton_field.keySequence().toString()
-                finalPrefs.append("SC_turnOnButton=" + self.SC_turnOnButton_field.keySequence().toString())
+            if customKeys[1] != "Ctrl+PgUp":
+                finalPrefs.append("SC_turnOnButton=" + customKeys[1])
             
-            if self.SC_scanCommandButton_field.keySequence().toString() != "Ctrl+Shift+S":
-                customKeys[2] = self.SC_scanCommandButton_field.keySequence().toString()
-                finalPrefs.append("SC_scanCommandButton=" + self.SC_scanCommandButton_field.keySequence().toString())
+            if customKeys[2] != "Ctrl+Shift+S":
+                finalPrefs.append("SC_scanCommandButton=" + customKeys[2])
             
-            if self.SC_tryConnectButton_field.keySequence().toString() != "Ctrl+Shift+C":
-                customKeys[3] = self.SC_tryConnectButton_field.keySequence().toString()
-                finalPrefs.append("SC_tryConnectButton=" + self.SC_tryConnectButton_field.keySequence().toString())
+            if customKeys[3] != "Ctrl+Shift+C":
+                finalPrefs.append("SC_tryConnectButton=" + customKeys[3])
             
-            if self.SC_Tab_CCT_field.keySequence().toString() != "Alt+1":
-                customKeys[4] = self.SC_Tab_CCT_field.keySequence().toString()
-                finalPrefs.append("SC_Tab_CCT=" + self.SC_Tab_CCT_field.keySequence().toString())
+            if customKeys[4] != "Alt+1":
+                finalPrefs.append("SC_Tab_CCT=" + customKeys[4])
             
-            if self.SC_Tab_HSI_field.keySequence().toString() != "Alt+2":
-                customKeys[5] = self.SC_Tab_HSI_field.keySequence().toString()
-                finalPrefs.append("SC_Tab_HSI=" + self.SC_Tab_HSI_field.keySequence().toString())
+            if customKeys[5] != "Alt+2":
+                finalPrefs.append("SC_Tab_HSI=" + customKeys[5])
             
-            if self.SC_Tab_SCENE_field.keySequence().toString() != "Alt+3":
-                customKeys[6] = self.SC_Tab_SCENE_field.keySequence().toString()
-                finalPrefs.append("SC_Tab_SCENE=" + self.SC_Tab_SCENE_field.keySequence().toString())
+            if customKeys[6] != "Alt+3":
+                finalPrefs.append("SC_Tab_SCENE=" + customKeys[6])
             
-            if self.SC_Tab_PREFS_field.keySequence().toString() != "Alt+4":
-                customKeys[7] = self.SC_Tab_PREFS_field.keySequence().toString()
-                finalPrefs.append("SC_Tab_PREFS=" + self.SC_Tab_PREFS_field.keySequence().toString())
+            if customKeys[7] != "Alt+4":
+                finalPrefs.append("SC_Tab_PREFS=" + customKeys[7])
             
-            if self.SC_Dec_Bri_Small_field.keySequence().toString() != "/":
-                customKeys[8] = self.SC_Dec_Bri_Small_field.keySequence().toString()
-                finalPrefs.append("SC_Dec_Bri_Small=" + self.SC_Dec_Bri_Small_field.keySequence().toString())
+            if customKeys[8] != "/":
+                finalPrefs.append("SC_Dec_Bri_Small=" + customKeys[8])
             
-            if self.SC_Inc_Bri_Small_field.keySequence().toString() != "*":
-                customKeys[9] = self.SC_Inc_Bri_Small_field.keySequence().toString()
-                finalPrefs.append("SC_Inc_Bri_Small=" + self.SC_Inc_Bri_Small_field.keySequence().toString())
+            if customKeys[9] != "*":
+                finalPrefs.append("SC_Inc_Bri_Small=" + customKeys[9])
             
-            if self.SC_Dec_Bri_Large_field.keySequence().toString() != "Ctrl+/":
-                customKeys[10] = self.SC_Dec_Bri_Large_field.keySequence().toString()
-                finalPrefs.append("SC_Dec_Bri_Large=" + self.SC_Dec_Bri_Large_field.keySequence().toString())
+            if customKeys[10] != "Ctrl+/":
+                finalPrefs.append("SC_Dec_Bri_Large=" + customKeys[10])
             
-            if self.SC_Inc_Bri_Large_field.keySequence().toString() != "Ctrl+*":
-                customKeys[11] = self.SC_Inc_Bri_Large_field.keySequence().toString()
-                finalPrefs.append("SC_Inc_Bri_Large=" + self.SC_Inc_Bri_Large_field.keySequence().toString())
+            if customKeys[11] != "Ctrl+*":
+                finalPrefs.append("SC_Inc_Bri_Large=" + customKeys[11])
             
-            if self.SC_Dec_1_Small_field.keySequence().toString() != "7":
-                customKeys[12] = self.SC_Dec_1_Small_field.keySequence().toString()
-                finalPrefs.append("SC_Dec_1_Small=" + self.SC_Dec_1_Small_field.keySequence().toString())
+            if customKeys[12] != "7":
+                finalPrefs.append("SC_Dec_1_Small=" + customKeys[12])
             
-            if self.SC_Inc_1_Small_field.keySequence().toString() != "9":
-                customKeys[13] = self.SC_Inc_1_Small_field.keySequence().toString()
-                finalPrefs.append("SC_Inc_1_Small=" + self.SC_Inc_1_Small_field.keySequence().toString())
+            if customKeys[13] != "9":
+                finalPrefs.append("SC_Inc_1_Small=" + customKeys[13])
             
-            if self.SC_Dec_2_Small_field.keySequence().toString() != "4":
-                customKeys[14] = self.SC_Dec_2_Small_field.keySequence().toString()
-                finalPrefs.append("SC_Dec_2_Small=" + self.SC_Dec_2_Small_field.keySequence().toString())
+            if customKeys[14] != "4":
+                finalPrefs.append("SC_Dec_2_Small=" + customKeys[14])
             
-            if self.SC_Inc_2_Small_field.keySequence().toString() != "6":
-                customKeys[15] = self.SC_Inc_2_Small_field.keySequence().toString()
-                finalPrefs.append("SC_Inc_2_Small=" + self.SC_Inc_2_Small_field.keySequence().toString())
+            if customKeys[15] != "6":
+                finalPrefs.append("SC_Inc_2_Small=" + customKeys[15])
             
-            if self.SC_Dec_3_Small_field.keySequence().toString() != "1":
-                customKeys[16] = self.SC_Dec_3_Small_field.keySequence().toString()
-                finalPrefs.append("SC_Dec_3_Small=" + self.SC_Dec_3_Small_field.keySequence().toString())
+            if customKeys[16] != "1":
+                finalPrefs.append("SC_Dec_3_Small=" + customKeys[16])
             
-            if self.SC_Inc_3_Small_field.keySequence().toString() != "3":
-                customKeys[17] = self.SC_Inc_3_Small_field.keySequence().toString()
-                finalPrefs.append("SC_Inc_3_Small=" + self.SC_Inc_3_Small_field.keySequence().toString())
+            if customKeys[17] != "3":
+                finalPrefs.append("SC_Inc_3_Small=" + customKeys[17])
             
-            if self.SC_Dec_1_Large_field.keySequence().toString() != "Ctrl+7":
-                customKeys[18] = self.SC_Dec_1_Large_field.keySequence().toString()
-                finalPrefs.append("SC_Dec_1_Large=" + self.SC_Dec_1_Large_field.keySequence().toString())
+            if customKeys[18] != "Ctrl+7":
+                finalPrefs.append("SC_Dec_1_Large=" + customKeys[18])
             
-            if self.SC_Inc_1_Large_field.keySequence().toString() != "Ctrl+9":
-                customKeys[19] = self.SC_Inc_1_Large_field.keySequence().toString()
-                finalPrefs.append("SC_Inc_1_Large=" + self.SC_Inc_1_Large_field.keySequence().toString())
+            if customKeys[19] != "Ctrl+9":
+                finalPrefs.append("SC_Inc_1_Large=" + customKeys[19])
             
-            if self.SC_Dec_2_Large_field.keySequence().toString() != "Ctrl+4":
-                customKeys[20] = self.SC_Dec_2_Large_field.keySequence().toString()
-                finalPrefs.append("SC_Dec_2_Large=" + self.SC_Dec_2_Large_field.keySequence().toString())
+            if customKeys[20] != "Ctrl+4":
+                finalPrefs.append("SC_Dec_2_Large=" + customKeys[20])
             
-            if self.SC_Inc_2_Large_field.keySequence().toString() != "Ctrl+6":
-                customKeys[21] = self.SC_Inc_2_Large_field.keySequence().toString()
-                finalPrefs.append("SC_Inc_2_Large=" + self.SC_Inc_2_Large_field.keySequence().toString())
+            if customKeys[21] != "Ctrl+6":
+                finalPrefs.append("SC_Inc_2_Large=" + customKeys[21])
             
-            if self.SC_Dec_3_Large_field.keySequence().toString() != "Ctrl+1":
-                customKeys[22] = self.SC_Dec_3_Large_field.keySequence().toString()
-                finalPrefs.append("SC_Dec_3_Large=" + self.SC_Dec_3_Large_field.keySequence().toString())
+            if customKeys[22] != "Ctrl+1":
+                finalPrefs.append("SC_Dec_3_Large=" + customKeys[22])
             
-            if self.SC_Inc_3_Large_field.keySequence().toString() != "Ctrl+3":
-                customKeys[23] = self.SC_Inc_3_Large_field.keySequence().toString()
-                finalPrefs.append("SC_Inc_3_Large=" + self.SC_Inc_3_Large_field.keySequence().toString())
+            if customKeys[23] != "Ctrl+3":
+                finalPrefs.append("SC_Inc_3_Large=" + customKeys[23])
 
             # CARRY "HIDDEN" DEBUGGING OPTIONS TO PREFERENCES FILE
             if enableTabsOnLaunch == True:
                 finalPrefs.append("enableTabsOnLaunch=1")
+      
+            # WRITE THE GLOBAL PREFERENCES FILE
+            with open(globalPrefsFile, "w") as prefsFileToWrite:
+                prefsFileToWrite.write(("\n").join(finalPrefs))
 
-            self.setupShortcutKeys() # change shortcut key assignments to the new values in prefs
-
-            if len(finalPrefs) > 0: # if we have no preferences to save, then don't save a file!
-                # WRITE THE GLOBAL PREFERENCES FILE
-                with open(globalPrefsFile, "w") as prefsFileToWrite:
-                    prefsFileToWrite.write(("\n").join(finalPrefs))
-
+            if len(finalPrefs) > 0:
                 # PRINT THIS INFORMATION WHETHER DEBUG OUTPUT IS TURNED ON OR NOT
                 print("New global preferences saved in " + globalPrefsFile + " - here is the list:")
 
                 for a in range(len(finalPrefs)):
                     print(" > " + finalPrefs[a])
+            else:
+                print("There are no new preferences to save (all preferences are set to their default values).")
+                print("The NeewerLite-Python.prefs file has been cleared out - you can delete the file if you'd like to.")
 
         def setupShortcutKeys(self):
             self.SC_turnOffButton.setKey(QKeySequence(customKeys[0]))
