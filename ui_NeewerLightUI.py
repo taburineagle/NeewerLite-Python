@@ -11,7 +11,7 @@ class Ui_MainWindow(object):
         mainFont.setWeight(75)
 
         MainWindow.setFixedSize(590, 521) # the main window should be this size at launch, and no bigger
-        MainWindow.setWindowTitle("NeewerLite-Python 0.6b by Zach Glenwright")
+        MainWindow.setWindowTitle("NeewerLite-Python 0.7 by Zach Glenwright")
         
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
@@ -290,6 +290,8 @@ class Ui_MainWindow(object):
         self.globalPrefs = QScrollArea()
         self.globalPrefsCW = QWidget()
 
+        self.globalPrefsCW.setMaximumWidth(550) # make sure to resize all contents to fit in the horizontal space of the scrollbar widget
+
         self.globalPrefsLay = QFormLayout(self.globalPrefsCW)
         self.globalPrefsLay.setLabelAlignment(Qt.AlignLeft)
         
@@ -419,7 +421,7 @@ class Ui_MainWindow(object):
         self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Custom GUI Keyboard Shortcut Mapping - Slider Adjustments</strong></u><br><em>To switch a keyboard shortcut, click on the old shortcut and type a new one in.</em><br><br>These 12 keyboard shortcuts adjust <em>up to 3 sliders</em> on the currently active tab.<br>If the currently active tab doesn't have a 2nd (SCENE) or 3rd (CCT) slider, then the<br>shortcuts for those sliders don't do anything on that tab.", alignment=Qt.AlignCenter))
         self.globalPrefsLay.addRow(self.sliderAdjustmentCW)
         self.globalPrefsLay.addRow(QLabel("<hr>"))
-        self.globalPrefsLay.addRow(QLabel(), self.saveGlobalPrefsButton)
+        self.globalPrefsLay.addRow(self.saveGlobalPrefsButton)
 
         # === >> ADD THE TABS TO THE TAB WIDGET << ===
         self.ColorModeTabWidget.addTab(self.CCT, "CCT Mode")
