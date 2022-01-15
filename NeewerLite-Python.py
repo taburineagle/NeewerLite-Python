@@ -997,12 +997,6 @@ try: # try to load the GUI
                 threadAction = "quit" # make sure to tell the thread to quit again (if it missed it the first time)
                 time.sleep(2)
 
-            loop = asyncio.get_event_loop()
-
-            # THE THREAD HAS TERMINATED, NOW CONTINUE...
-            self.statusBar.showMessage("Quitting program - unlinking from lights...")
-            QApplication.processEvents() # force the status bar to update
-
             # Keep in mind, this is broken into 2 separate "for" loops, so we save all the light params FIRST, then try to unlink from them
             if rememberLightsOnExit == True:
                 printDebugString("You asked NeewerLite-Python to save the last used light parameters on exit, so we will do that now...")
@@ -1011,15 +1005,13 @@ try: # try to load the GUI
                     printDebugString("Saving last used parameters for light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + ")")
                     self.saveLightPrefs(a)
 
+            # THE THREAD HAS TERMINATED, NOW CONTINUE...
             printDebugString("We will now attempt to unlink from the lights...")
+            self.statusBar.showMessage("Quitting program - unlinking from lights...")
+            QApplication.processEvents() # force the status bar to update
 
-            # TRY TO DISCONNECT EACH LIGHT FROM BLUETOOTH BEFORE QUITTING THE PROGRAM COMPLETELY
-            for a in range (len(availableLights)):
-                printDebugString("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
-                self.statusBar.showMessage("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)...")
-                QApplication.processEvents() # force update to show statusbar progress
-
-                loop.run_until_complete(disconnectFromLight(a)) # disconnect from each light, one at a time
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(parallelAction("disconnect")) # disconnect from all lights in parallel
 
             printDebugString("Closing the program NOW")
 
@@ -1393,6 +1385,7 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
             if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
                 if updateGUI == False:
                     returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
+                    mainWindow.setTheTable(["", "", "NOT\nLINKED", "Light disconnected!"], selectedLight) # show the new status in the table
 
                 printDebugString("Successfully unlinked from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
         except AttributeError:
@@ -1553,18 +1546,42 @@ def workerThread(_loop):
                 mainWindow.updateLights() # tell the GUI to update its list of available lights
 
                 if autoConnectToLights == True: # if we're set to automatically link to the lights on startup, then do it here
-                    for a in range(len(availableLights)):
-                        if threadAction != "quit": # if we're not supposed to quit, then try to connect to the light(s)
-                            threadAction = _loop.run_until_complete(connectToLight(a)) # connect to each light in turn
+                    #for a in range(len(availableLights)):
+                    if threadAction != "quit": # if we're not supposed to quit, then try to connect to the light(s)
+                        _loop.run_until_complete(parallelAction("connect")) # connect to each available light in parallel
+
+                threadAction = ""
         elif threadAction == "connect":
             selectedLights = mainWindow.selectedLights() # get the list of currently selected lights
 
-            for a in range(len(mainWindow.selectedLights())): # and try to link to each of those lights
-                threadAction = _loop.run_until_complete(connectToLight(selectedLights[a]))
+            if threadAction != "quit": # if we're not supposed to quit, then try to connect to the light(s)
+                _loop.run_until_complete(parallelAction("connect", selectedLights)) # connect to each *selected* light in parallel
+
+            threadAction = ""                
         elif threadAction == "send":
             threadAction = _loop.run_until_complete(writeToLight()) # write a value to the light(s) - the selectedLights() section is in the write loop itself for responsiveness
 
         time.sleep(0.25)
+
+async def parallelAction(theAction, theLights = [-1]):
+    # SUBMIT A SERIES OF PARALLEL ASYNCIO FUNCTIONS TO RUN ALL IN PARALLEL
+    parallelFuncs = []
+
+    if theLights[0] == -1: # if we have no specific lights set, then operate on the entire availableLights range
+        theLights = [] # clear the selected light list
+
+        for a in range(len(availableLights)):
+            theLights.append(a) # add all of availableLights to the list
+
+    for a in range(len(theLights)):
+        if theAction == "connect": # connect to a series of lights
+            parallelFuncs.append(connectToLight(theLights[a]))
+        elif theAction == "disconnect": # disconnect from a series of lights
+            parallelFuncs.append(disconnectFromLight(theLights[a]))
+        elif theAction == "getInfo": # get the info for a series of lights
+            pass
+
+    await asyncio.gather(*parallelFuncs) # run the functions in parallel
 
 def processCommands(listToProcess=[]):
     inStartupMode = False # if we're in startup mode (so report that to the log), start as False initially to be set to True below
