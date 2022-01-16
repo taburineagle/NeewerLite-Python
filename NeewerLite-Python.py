@@ -1305,7 +1305,7 @@ async def connectToLight(selectedLight, updateGUI=True):
 
     return returnValue # once the connection is over, then return either True or False (for CLI) or nothing (for GUI)
 
-async def readNotifyCharacteristic(selectedLight, diagCommand):
+async def readNotifyCharacteristic(selectedLight, diagCommand, typeOfData):
     # clear the global variable before asking the light for info
     global receivedData
     receivedData = ""
@@ -1321,7 +1321,7 @@ async def readNotifyCharacteristic(selectedLight, diagCommand):
         except Exception as e:
             return "" # if there is an error checking the characteristic, just quit out of this routine
 
-        if receivedData != "":
+        if receivedData != "" and receivedData[1] == typeOfData: # if we've received data, and the data returned is the right *kind* of data, then return it
             break # we found data, so we can stop checking
         else:
             await asyncio.sleep(0.25) # wait a little bit of time before checking again
@@ -1336,14 +1336,14 @@ async def getLightChannelandPower(selectedLight):
     global availableLights
     returnInfo = ["---", "---"] # the information to return to the light
 
-    powerInfo = await readNotifyCharacteristic(selectedLight, [120, 133, 0, 253])
+    powerInfo = await readNotifyCharacteristic(selectedLight, [120, 133, 0, 253], 2)
 
     try:
         if powerInfo != "" and powerInfo[3] == 1:
             returnInfo[0] = "ON"
 
             # IF THE LIGHT IS ON, THEN ATTEMPT TO READ THE CURRENT CHANNEL
-            chanInfo = await readNotifyCharacteristic(selectedLight, [120, 132, 0, 252])
+            chanInfo = await readNotifyCharacteristic(selectedLight, [120, 132, 0, 252], 1)
 
             if chanInfo != "": # if we got a result from the query
                 try:
