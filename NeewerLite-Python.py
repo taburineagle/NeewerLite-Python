@@ -57,7 +57,7 @@ importError = 0 # whether or not there's an issue loading PySide2 or the GUI fil
 try:
     from PySide2.QtCore import Qt
     from PySide2.QtGui import QLinearGradient, QColor, QKeySequence
-    from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QShortcut
+    from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QShortcut, QMessageBox
 
 except Exception as e:
     importError = 1 # log that we can't find PySide2
@@ -101,21 +101,36 @@ customKeys = [] # custom keymappings for keyboard shortcuts, set on launch by th
 enableTabsOnLaunch = False # whether or not to enable tabs on startup (even with no lights connected)
 
 lockFile = tempfile.gettempdir() + os.sep + "NeewerLite-Python.lock"
+anotherInstance = False # whether or not we're using a new instance (for the Singleton check)
 globalPrefsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "NeewerLite-Python.prefs" # the global preferences file for saving/loading
 
 # FILE LOCKING FOR SINGLE INSTANCE
 def singleInstanceLock():
-    try:
-        lf = os.open(lockFile, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
-    except IOError:
-        print("You're already running another copy of NeewerLite-Python.  Please close that copy first before opening a new one.")
-        sys.exit(0) # quit out if we're already running an instance of NeewerLite-Python
-    with os.fdopen(lf, 'w') as lockfile:
-        lockfile.write(str(os.getpid())) # write the PID of the current running process to the temporary lockfile
+    global anotherInstance
 
+    try:
+        lf = os.open(lockFile, os.O_WRONLY | os.O_CREAT | os.O_EXCL) # try to get a file spec to lock the "running" instance
+
+        with os.fdopen(lf, 'w') as lockfile:
+            lockfile.write(str(os.getpid())) # write the PID of the current running process to the temporary lockfile
+    except IOError: # if we had an error acquiring the file descriptor, the file most likely already exists.
+        anotherInstance = True
+    
 def singleInstanceUnlockandQuit(exitCode):
-    os.remove(lockFile) # delete the lockfile on exit
+    try:
+        os.remove(lockFile) # try to delete the lockfile on exit
+    except FileNotFoundError: # if another process deleted it, then just error out
+        printDebugString("Lockfile not found in temp directory, so we're going to skip deleting it!")
+
     sys.exit(exitCode) # quit out, with the specified exitCode
+
+def doAnotherInstanceCheck():
+    if anotherInstance == True: # if we're running a 2nd instance, but we shouldn't be
+        print("You're already running another instance of NeewerLite-Python.")
+        print("Please close that copy first before opening a new one.")
+        print()
+        print("To force opening a new instance, add --force_instance to the command line.")
+        sys.exit(1)
 
 try: # try to load the GUI
     class MainWindow(QMainWindow, Ui_MainWindow):
@@ -1338,7 +1353,7 @@ async def readNotifyCharacteristic(selectedLight, diagCommand, typeOfData):
         except Exception as e:
             return "" # if there is an error checking the characteristic, just quit out of this routine
 
-        if receivedData != "" and receivedData[1] == typeOfData: # if we've received data, and the data returned is the right *kind* of data, then return it
+        if receivedData != "" and len(receivedData) > 1 and receivedData[1] == typeOfData: # if we've received data, and the data returned is the right *kind* of data, then return it
             break # we found data, so we can stop checking
         else:
             await asyncio.sleep(0.25) # wait a little bit of time before checking again
@@ -1623,7 +1638,7 @@ def processCommands(listToProcess=[]):
     # TO CLEAN UP THE ARGUMENT LIST AND ENSURE THE PARSER CAN STILL RUN WHEN INVALID ARGUMENTS ARE PRESENT
     if inStartupMode == True:
         acceptable_arguments = ["--http", "--cli", "--silent", "--light", "--mode", "--temp", "--hue",
-        "--sat", "--bri", "--intensity", "--scene", "--animation", "--help", "--off", "--on", "--list"]
+        "--sat", "--bri", "--intensity", "--scene", "--animation", "--help", "--off", "--on", "--list", "--force_instance"]
     else: # if we're doing HTTP processing, we don't need the http, cli, silent and help flags, so toss 'em
         acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity",
         "--scene", "--animation", "--list", "--discover", "--link", "--off", "--on"]
@@ -1668,6 +1683,7 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--http", action="store_true", help="Use an HTTP server to send commands to Neewer lights using a web browser")
     parser.add_argument("--silent", action="store_false", help="Don't show any debug information in the console")
     parser.add_argument("--cli", action="store_false", help="Don't show the GUI at all, just send command to one light and quit")
+    parser.add_argument("--force_instance", action="store_false", help="Force a new instance of NeewerLite-Python if another one is already running")
 
     # HTML SERVER SPECIFIC PARAMETERS
     if inStartupMode == False:
@@ -1685,6 +1701,10 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--bri", "--brightness", "--intensity", default="100", help="[DEFAULT: 100] (CCT/HSI/ANM mode) The brightness (intensity) to set the light to")
     parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation (1-9) to use in Scene mode")
     args = parser.parse_args(listToProcess)
+
+    if args.force_instance == False: # if this value is True, then don't do anything
+        global anotherInstance
+        anotherInstance = False # change the global to False to allow new instances
 
     if args.silent == True:
         if inStartupMode == True:
@@ -2113,8 +2133,13 @@ if __name__ == '__main__':
         cmdReturn = processCommands()
         printDebug = cmdReturn[1] # if we use the --quiet option, then don't show debug strings in the console
 
+        if cmdReturn[0] == False: # if we're trying to load the CLI, make sure we aren't already running another version of it
+            doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
+
         # START HTTP SERVER HERE AND SIT IN THIS LOOP UNTIL THE END
         if cmdReturn[0] == "HTTP":
+            doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
+                
             webServer = ThreadingHTTPServer(("", 8080), NLPythonServer)
 
             try:
@@ -2137,6 +2162,8 @@ if __name__ == '__main__':
             singleInstanceUnlockandQuit(0) # delete the lock file and quit out
 
         if cmdReturn[0] == "LIST":
+            doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
+
             print("NeewerLite-Python 0.8 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             loop.run_until_complete(findDevices())
@@ -2179,7 +2206,7 @@ if __name__ == '__main__':
             else:
                 print("We did not find any Neewer lights on the last search.")
 
-            singleInstanceUnlockandQuit(0) # delete the lock file and quit out
+            sys.exit(0) # we shouldn't need to do anything with the lock file here, so just quit out
 
         printDebugString(" > Launch GUI: " + str(cmdReturn[0]))
         printDebugString(" > Show Debug Strings on Console: " + str(cmdReturn[1]))
@@ -2214,6 +2241,22 @@ if __name__ == '__main__':
         if importError == 0:
             try: # try to load the GUI
                 app = QApplication(sys.argv)
+                
+                if anotherInstance == True: # different than the CLI handling, the GUI needs to show a dialog box asking to quit or launch
+                    errDlg = QMessageBox()
+                    errDlg.setWindowTitle("Another Instance Running!")
+                    errDlg.setTextFormat(Qt.TextFormat.RichText)
+                    errDlg.setText("There is another instance of NeewerLite-Python already running.&nbsp;Please close out of that instance first before trying to launch a new instance of the program.<br><br>If you are positive that you don't have any other instances running and you want to launch a new one anyway,&nbsp;click <em>Launch New Instance</em> below.&nbsp;Otherwise click <em>Quit</em> to quit out.")
+                    errDlg.addButton("Launch New Instance", QMessageBox.ButtonRole.YesRole)
+                    errDlg.addButton("Quit", QMessageBox.ButtonRole.NoRole)
+                    errDlg.setDefaultButton(QMessageBox.No)
+                    errDlg.setIcon(QMessageBox.Warning)
+
+                    button = errDlg.exec_()
+
+                    if button == 1: # if we clicked the Quit button, then quit out
+                        sys.exit(1)
+
                 mainWindow = MainWindow()
 
                 # SET UP GUI BASED ON COMMAND LINE ARGUMENTS
