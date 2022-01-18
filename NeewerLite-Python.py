@@ -15,6 +15,8 @@
 
 import os
 import sys
+import tempfile
+
 import argparse
 import platform # used to determine which OS we're using for MAC address/GUID listing
 
@@ -55,7 +57,7 @@ importError = 0 # whether or not there's an issue loading PySide2 or the GUI fil
 try:
     from PySide2.QtCore import Qt
     from PySide2.QtGui import QLinearGradient, QColor, QKeySequence
-    from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QShortcut
+    from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QShortcut, QMessageBox
 
 except Exception as e:
     importError = 1 # log that we can't find PySide2
@@ -98,7 +100,37 @@ acceptable_HTTP_IPs = [] # the acceptable IPs for the HTTP server, set on launch
 customKeys = [] # custom keymappings for keyboard shortcuts, set on launch by the prefs file
 enableTabsOnLaunch = False # whether or not to enable tabs on startup (even with no lights connected)
 
+lockFile = tempfile.gettempdir() + os.sep + "NeewerLite-Python.lock"
+anotherInstance = False # whether or not we're using a new instance (for the Singleton check)
 globalPrefsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "NeewerLite-Python.prefs" # the global preferences file for saving/loading
+
+# FILE LOCKING FOR SINGLE INSTANCE
+def singleInstanceLock():
+    global anotherInstance
+
+    try:
+        lf = os.open(lockFile, os.O_WRONLY | os.O_CREAT | os.O_EXCL) # try to get a file spec to lock the "running" instance
+
+        with os.fdopen(lf, 'w') as lockfile:
+            lockfile.write(str(os.getpid())) # write the PID of the current running process to the temporary lockfile
+    except IOError: # if we had an error acquiring the file descriptor, the file most likely already exists.
+        anotherInstance = True
+    
+def singleInstanceUnlockandQuit(exitCode):
+    try:
+        os.remove(lockFile) # try to delete the lockfile on exit
+    except FileNotFoundError: # if another process deleted it, then just error out
+        printDebugString("Lockfile not found in temp directory, so we're going to skip deleting it!")
+
+    sys.exit(exitCode) # quit out, with the specified exitCode
+
+def doAnotherInstanceCheck():
+    if anotherInstance == True: # if we're running a 2nd instance, but we shouldn't be
+        print("You're already running another instance of NeewerLite-Python.")
+        print("Please close that copy first before opening a new one.")
+        print()
+        print("To force opening a new instance, add --force_instance to the command line.")
+        sys.exit(1)
 
 try: # try to load the GUI
     class MainWindow(QMainWindow, Ui_MainWindow):
@@ -787,15 +819,20 @@ try: # try to load the GUI
             else:
                 currentRow = rowToChange # change data for the specified row
 
+            # THIS SECTION BELOW LIMITS UPDATING THE TABLE **ONLY** IF THE DATA SUPPLIED IS DIFFERENT THAN IT WAS ORIGINALLY
             if infoArray[0] != "": # the name of the light
-                self.lightTable.setItem(currentRow, 0, QTableWidgetItem(infoArray[0]))
+                if rowToChange == -1 or (rowToChange != -1 and infoArray[0] != self.returnTableInfo(rowToChange, 0)):
+                    self.lightTable.setItem(currentRow, 0, QTableWidgetItem(infoArray[0]))
             if infoArray[1] != "": # the MAC address of the light
-                self.lightTable.setItem(currentRow, 1, QTableWidgetItem(infoArray[1]))
+                if rowToChange == -1 or (rowToChange != -1 and infoArray[1] != self.returnTableInfo(rowToChange, 1)):
+                    self.lightTable.setItem(currentRow, 1, QTableWidgetItem(infoArray[1]))
             if infoArray[2] != "": # the Linked status of the light
-                self.lightTable.setItem(currentRow, 2, QTableWidgetItem(infoArray[2]))
-                self.lightTable.item(currentRow, 2).setTextAlignment(Qt.AlignCenter) # align the light status info to be center-justified
+                if rowToChange == -1 or (rowToChange != -1 and infoArray[2] != self.returnTableInfo(rowToChange, 2)):
+                    self.lightTable.setItem(currentRow, 2, QTableWidgetItem(infoArray[2]))
+                    self.lightTable.item(currentRow, 2).setTextAlignment(Qt.AlignCenter) # align the light status info to be center-justified
             if infoArray[3] != "": # the current status message of the light
-                self.lightTable.setItem(currentRow, 3, QTableWidgetItem(infoArray[3]))
+                if rowToChange == -1 or (rowToChange != -1 and infoArray[2] != self.returnTableInfo(rowToChange, 3)):
+                    self.lightTable.setItem(currentRow, 3, QTableWidgetItem(infoArray[3]))
 
             self.lightTable.resizeRowsToContents()
 
@@ -997,12 +1034,6 @@ try: # try to load the GUI
                 threadAction = "quit" # make sure to tell the thread to quit again (if it missed it the first time)
                 time.sleep(2)
 
-            loop = asyncio.get_event_loop()
-
-            # THE THREAD HAS TERMINATED, NOW CONTINUE...
-            self.statusBar.showMessage("Quitting program - unlinking from lights...")
-            QApplication.processEvents() # force the status bar to update
-
             # Keep in mind, this is broken into 2 separate "for" loops, so we save all the light params FIRST, then try to unlink from them
             if rememberLightsOnExit == True:
                 printDebugString("You asked NeewerLite-Python to save the last used light parameters on exit, so we will do that now...")
@@ -1011,15 +1042,13 @@ try: # try to load the GUI
                     printDebugString("Saving last used parameters for light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + ")")
                     self.saveLightPrefs(a)
 
+            # THE THREAD HAS TERMINATED, NOW CONTINUE...
             printDebugString("We will now attempt to unlink from the lights...")
+            self.statusBar.showMessage("Quitting program - unlinking from lights...")
+            QApplication.processEvents() # force the status bar to update
 
-            # TRY TO DISCONNECT EACH LIGHT FROM BLUETOOTH BEFORE QUITTING THE PROGRAM COMPLETELY
-            for a in range (len(availableLights)):
-                printDebugString("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
-                self.statusBar.showMessage("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)...")
-                QApplication.processEvents() # force update to show statusbar progress
-
-                loop.run_until_complete(disconnectFromLight(a)) # disconnect from each light, one at a time
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(parallelAction("disconnect", [-1])) # disconnect from all lights in parallel
 
             printDebugString("Closing the program NOW")
 
@@ -1275,22 +1304,22 @@ async def connectToLight(selectedLight, updateGUI=True):
 
     while isConnected == False and currentAttempt <= maxNumOfAttempts:
         if threadAction != "quit":
-            printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
-
             try:
                 if not availableLights[selectedLight][1].is_connected: # if the current device isn't linked to Bluetooth
+                    printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
                     isConnected = await availableLights[selectedLight][1].connect() # try connecting it (and return the connection status)
                 else:
                     isConnected = True # the light is already connected, so mark it as being connected
             except Exception as e:
                 printDebugString("Error linking to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
-
+              
                 if updateGUI == True:
                     mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
                 else:
                     returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
 
                 currentAttempt = currentAttempt + 1
+                await asyncio.sleep(4) # wait a few seconds before trying to link to the light again
         else:
             return "quit"
 
@@ -1298,11 +1327,10 @@ async def connectToLight(selectedLight, updateGUI=True):
         return "quit"
     else:
         if isConnected == True:
-            printDebugString("Successfully linked to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
+            printDebugString("Successful link on light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
 
             if updateGUI == True:
-                await getLightChannelandPower(selectedLight)
-                mainWindow.setTheTable(["", "", "LINKED\n" + availableLights[selectedLight][7][0] + " / ᴄʜ. " + str(availableLights[selectedLight][7][1]), "Waiting to send..."], selectedLight) # if it's successful, show that in the table
+                mainWindow.setTheTable(["", "", "LINKED", "Waiting to send..."], selectedLight) # if it's successful, show that in the table
             else:
                 returnValue = True  # if we're in CLI mode, and there is no error connecting to the light, return True
         else:
@@ -1313,7 +1341,7 @@ async def connectToLight(selectedLight, updateGUI=True):
 
     return returnValue # once the connection is over, then return either True or False (for CLI) or nothing (for GUI)
 
-async def readNotifyCharacteristic(selectedLight, diagCommand):
+async def readNotifyCharacteristic(selectedLight, diagCommand, typeOfData):
     # clear the global variable before asking the light for info
     global receivedData
     receivedData = ""
@@ -1329,8 +1357,13 @@ async def readNotifyCharacteristic(selectedLight, diagCommand):
         except Exception as e:
             return "" # if there is an error checking the characteristic, just quit out of this routine
 
-        if receivedData != "":
-            break # we found data, so we can stop checking
+        if receivedData != "": # if the recieved data is populated
+            if len(receivedData) > 1: # if we have enough elements to get a status from
+                if receivedData[1] == typeOfData: # if the data returned is the correct *kind* of data
+                    break # stop scanning for data
+            else: # if we have a list, but it doesn't have a payload in it (the light didn't supply enough data)
+                receivedData = "---" # then just re-set recievedData to the default string
+                break # stop scanning for data
         else:
             await asyncio.sleep(0.25) # wait a little bit of time before checking again
     try:
@@ -1344,22 +1377,23 @@ async def getLightChannelandPower(selectedLight):
     global availableLights
     returnInfo = ["---", "---"] # the information to return to the light
 
-    powerInfo = await readNotifyCharacteristic(selectedLight, [120, 133, 0, 253])
+    powerInfo = await readNotifyCharacteristic(selectedLight, [120, 133, 0, 253], 2)
 
     try:
-        if powerInfo != "" and powerInfo[3] == 1:
-            returnInfo[0] = "ON"
-
+        if powerInfo != "":
+            if powerInfo[3] == 1:
+                returnInfo[0] = "ON"
+            elif powerInfo[3] == 2:
+                returnInfo[0] = "STBY"
+        
             # IF THE LIGHT IS ON, THEN ATTEMPT TO READ THE CURRENT CHANNEL
-            chanInfo = await readNotifyCharacteristic(selectedLight, [120, 132, 0, 252])
+            chanInfo = await readNotifyCharacteristic(selectedLight, [120, 132, 0, 252], 1)
 
             if chanInfo != "": # if we got a result from the query
                 try:
                     returnInfo[1] = chanInfo[3] # set the current channel to the returned result
                 except IndexError:
                     pass # if we have an index error (the above value doesn't exist), then just return -1
-        elif powerInfo != "" and powerInfo[3] == 2:
-            returnInfo[0] = "STBY"
     except IndexError:
         # if we have an IndexError (the information returned isn't blank, but also isn't enough to descipher the status)
         # then just error out, but print the information that *was* returned for debugging purposes
@@ -1393,6 +1427,7 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
             if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
                 if updateGUI == False:
                     returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
+                    mainWindow.setTheTable(["", "", "NOT\nLINKED", "Light disconnected!"], selectedLight) # show the new status in the table
 
                 printDebugString("Successfully unlinked from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
         except AttributeError:
@@ -1519,6 +1554,9 @@ async def connectToOneLight(MACAddress):
 def workerThread(_loop):
     global threadAction
 
+    # A LIST OF LIGHTS THAT DON'T SEND POWER/CHANNEL STATUS
+    lightsToNotCheckPower = ["NEEWER-RGB176"]
+
     if findLightsOnStartup == True: # if we're set to find lights at startup, then automatically set the thread to discovery mode
         threadAction = "discover"
 
@@ -1539,8 +1577,11 @@ def workerThread(_loop):
                             mainWindow.setTheTable(["", "", "NOT\nLINKED", "Light disconnected!"], a) # show the new status in the table
                             availableLights[a][1] = "" # clear the Bleak object
                         else:
-                            _loop.run_until_complete(getLightChannelandPower(a))
-                            mainWindow.setTheTable(["", "", "LINKED\n" + availableLights[a][7][0] + " / ᴄʜ. " + str(availableLights[a][7][1]), ""], a)
+                            if not availableLights[a][0].name in lightsToNotCheckPower: # if the name of the current light is not in the list to skip checking
+                                _loop.run_until_complete(getLightChannelandPower(a)) # then check the power and light status of that light
+                                mainWindow.setTheTable(["", "", "LINKED\n" + availableLights[a][7][0] + " / ᴄʜ. " + str(availableLights[a][7][1]), ""], a)
+                            else: # if the light we're scanning doesn't supply power or channel status, then just show "LINKED"
+                                mainWindow.setTheTable(["", "", "LINKED", ""], a)
 
         if threadAction == "quit":
             printDebugString("Stopping the background thread")
@@ -1553,18 +1594,40 @@ def workerThread(_loop):
                 mainWindow.updateLights() # tell the GUI to update its list of available lights
 
                 if autoConnectToLights == True: # if we're set to automatically link to the lights on startup, then do it here
-                    for a in range(len(availableLights)):
-                        if threadAction != "quit": # if we're not supposed to quit, then try to connect to the light(s)
-                            threadAction = _loop.run_until_complete(connectToLight(a)) # connect to each light in turn
+                    #for a in range(len(availableLights)):
+                    if threadAction != "quit": # if we're not supposed to quit, then try to connect to the light(s)
+                        _loop.run_until_complete(parallelAction("connect", [-1])) # connect to each available light in parallel
+
+                threadAction = ""
         elif threadAction == "connect":
             selectedLights = mainWindow.selectedLights() # get the list of currently selected lights
 
-            for a in range(len(mainWindow.selectedLights())): # and try to link to each of those lights
-                threadAction = _loop.run_until_complete(connectToLight(selectedLights[a]))
+            if threadAction != "quit": # if we're not supposed to quit, then try to connect to the light(s)
+                _loop.run_until_complete(parallelAction("connect", selectedLights)) # connect to each *selected* light in parallel
+
+            threadAction = ""                
         elif threadAction == "send":
             threadAction = _loop.run_until_complete(writeToLight()) # write a value to the light(s) - the selectedLights() section is in the write loop itself for responsiveness
 
         time.sleep(0.25)
+
+async def parallelAction(theAction, theLights, updateGUI = True):
+    # SUBMIT A SERIES OF PARALLEL ASYNCIO FUNCTIONS TO RUN ALL IN PARALLEL
+    parallelFuncs = []
+
+    if theLights[0] == -1: # if we have no specific lights set, then operate on the entire availableLights range
+        theLights = [] # clear the selected light list
+
+        for a in range(len(availableLights)):
+            theLights.append(a) # add all of availableLights to the list
+
+    for a in range(len(theLights)):
+        if theAction == "connect": # connect to a series of lights
+            parallelFuncs.append(connectToLight(theLights[a], updateGUI))
+        elif theAction == "disconnect": # disconnect from a series of lights
+            parallelFuncs.append(disconnectFromLight(theLights[a], updateGUI))
+        
+    await asyncio.gather(*parallelFuncs) # run the functions in parallel
 
 def processCommands(listToProcess=[]):
     inStartupMode = False # if we're in startup mode (so report that to the log), start as False initially to be set to True below
@@ -1590,7 +1653,7 @@ def processCommands(listToProcess=[]):
     # TO CLEAN UP THE ARGUMENT LIST AND ENSURE THE PARSER CAN STILL RUN WHEN INVALID ARGUMENTS ARE PRESENT
     if inStartupMode == True:
         acceptable_arguments = ["--http", "--cli", "--silent", "--light", "--mode", "--temp", "--hue",
-        "--sat", "--bri", "--intensity", "--scene", "--animation", "--help", "--off", "--on", "--list"]
+        "--sat", "--bri", "--intensity", "--scene", "--animation", "--help", "--off", "--on", "--list", "--force_instance"]
     else: # if we're doing HTTP processing, we don't need the http, cli, silent and help flags, so toss 'em
         acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity",
         "--scene", "--animation", "--list", "--discover", "--link", "--off", "--on"]
@@ -1635,6 +1698,7 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--http", action="store_true", help="Use an HTTP server to send commands to Neewer lights using a web browser")
     parser.add_argument("--silent", action="store_false", help="Don't show any debug information in the console")
     parser.add_argument("--cli", action="store_false", help="Don't show the GUI at all, just send command to one light and quit")
+    parser.add_argument("--force_instance", action="store_false", help="Force a new instance of NeewerLite-Python if another one is already running")
 
     # HTML SERVER SPECIFIC PARAMETERS
     if inStartupMode == False:
@@ -1652,6 +1716,10 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--bri", "--brightness", "--intensity", default="100", help="[DEFAULT: 100] (CCT/HSI/ANM mode) The brightness (intensity) to set the light to")
     parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation (1-9) to use in Scene mode")
     args = parser.parse_args(listToProcess)
+
+    if args.force_instance == False: # if this value is True, then don't do anything
+        global anotherInstance
+        anotherInstance = False # change the global to False to allow new instances
 
     if args.silent == True:
         if inStartupMode == True:
@@ -1716,14 +1784,13 @@ def processHTMLCommands(paramsList, loop):
                 loop.run_until_complete(findDevices()) # find the lights available to control
 
                 # try to connect to each light
-                for a in range(len(availableLights)):
-                    loop.run_until_complete(connectToLight(a, False))
+                if autoConnectToLights == True:
+                    loop.run_until_complete(parallelAction("connect", [-1], False)) # try to connect to *all* lights in parallel
             elif paramsList[0] == "link": # we asked to connect to a specific light
                 selectedLights = returnLightIndexesFromMacAddress(paramsList[1])
 
                 if len(selectedLights) > 0:
-                    for a in range(len(selectedLights)):
-                        loop.run_until_complete(connectToLight(selectedLights[a], False))
+                    loop.run_until_complete(parallelAction("connect", selectedLights, False)) # try to connect to all *selected* lights in parallel
             else: # we want to write a value to a specific light
                 if paramsList[3] == "CCT": # calculate CCT bytestring
                     calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
@@ -1947,7 +2014,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = footerLinks + "<A HREF=""doAction?list"">List Currently Available Lights</A>"
 
         self.wfile.write(bytes("<HR>" + footerLinks + "<br>", "utf-8"))
-        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.7</A> by Zach Glenwright<br>", "utf-8"))
+        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.8</A> by Zach Glenwright<br>", "utf-8"))
         self.wfile.write(bytes("</body></html>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -2066,7 +2133,9 @@ def loadPrefsFile(globalPrefsFile = ""):
                 
     enableTabsOnLaunch = bool(int(mainPrefs.enableTabsOnLaunch))
 
-if __name__ == '__main__':   
+if __name__ == '__main__':
+    singleInstanceLock() # make a lockfile if one doesn't exist yet, and quit out if one does
+
     if os.path.exists(globalPrefsFile):
         loadPrefsFile(globalPrefsFile) # if a preferences file exists, process it and load the preferences
     else:
@@ -2079,8 +2148,13 @@ if __name__ == '__main__':
         cmdReturn = processCommands()
         printDebug = cmdReturn[1] # if we use the --quiet option, then don't show debug strings in the console
 
+        if cmdReturn[0] == False: # if we're trying to load the CLI, make sure we aren't already running another version of it
+            doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
+
         # START HTTP SERVER HERE AND SIT IN THIS LOOP UNTIL THE END
         if cmdReturn[0] == "HTTP":
+            doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
+                
             webServer = ThreadingHTTPServer(("", 8080), NLPythonServer)
 
             try:
@@ -2096,15 +2170,16 @@ if __name__ == '__main__':
                 webServer.server_close()
 
                 # DISCONNECT FROM EACH LIGHT BEFORE FINISHING THE PROGRAM
-                for a in range (0, len(availableLights)):
-                    printDebugString("Attempting to unlink from light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + " lights to unlink)")
-                    loop.run_until_complete(disconnectFromLight(a)) # disconnect from each light, one at a time
-
+                printDebugString("Attempting to unlink from lights...")
+                loop.run_until_complete(parallelAction("disconnect", [-1], False)) # disconnect from all lights in parallel
+           
             printDebugString("Closing the program NOW")
-            sys.exit(0)
+            singleInstanceUnlockandQuit(0) # delete the lock file and quit out
 
         if cmdReturn[0] == "LIST":
-            print("NeewerLite-Python 0.7 by Zach Glenwright")
+            doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
+
+            print("NeewerLite-Python 0.8 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             loop.run_until_complete(findDevices())
 
@@ -2146,7 +2221,7 @@ if __name__ == '__main__':
             else:
                 print("We did not find any Neewer lights on the last search.")
 
-            sys.exit(0) # show the list, then quit out to the command line
+            sys.exit(0) # we shouldn't need to do anything with the lock file here, so just quit out
 
         printDebugString(" > Launch GUI: " + str(cmdReturn[0]))
         printDebugString(" > Show Debug Strings on Console: " + str(cmdReturn[1]))
@@ -2181,6 +2256,22 @@ if __name__ == '__main__':
         if importError == 0:
             try: # try to load the GUI
                 app = QApplication(sys.argv)
+                
+                if anotherInstance == True: # different than the CLI handling, the GUI needs to show a dialog box asking to quit or launch
+                    errDlg = QMessageBox()
+                    errDlg.setWindowTitle("Another Instance Running!")
+                    errDlg.setTextFormat(Qt.TextFormat.RichText)
+                    errDlg.setText("There is another instance of NeewerLite-Python already running.&nbsp;Please close out of that instance first before trying to launch a new instance of the program.<br><br>If you are positive that you don't have any other instances running and you want to launch a new one anyway,&nbsp;click <em>Launch New Instance</em> below.&nbsp;Otherwise click <em>Quit</em> to quit out.")
+                    errDlg.addButton("Launch New Instance", QMessageBox.ButtonRole.YesRole)
+                    errDlg.addButton("Quit", QMessageBox.ButtonRole.NoRole)
+                    errDlg.setDefaultButton(QMessageBox.No)
+                    errDlg.setIcon(QMessageBox.Warning)
+
+                    button = errDlg.exec_()
+
+                    if button == 1: # if we clicked the Quit button, then quit out
+                        sys.exit(1)
+
                 mainWindow = MainWindow()
 
                 # SET UP GUI BASED ON COMMAND LINE ARGUMENTS
@@ -2199,7 +2290,7 @@ if __name__ == '__main__':
                 workerThread.start()
 
                 ret = app.exec_()
-                sys.exit( ret )
+                singleInstanceUnlockandQuit(ret) # delete the lock file and quit out
             except NameError:
                 pass # same as above - we could not load the GUI, but we have already sorted error messages
         else:
@@ -2256,7 +2347,7 @@ if __name__ == '__main__':
                     numOfAttempts = numOfAttempts + 1
                 else:
                     printDebugString("Error connecting to light " + str(maxNumOfAttempts) + " times - quitting out")
-                    sys.exit(1)
+                    singleInstanceUnlockandQuit(1) # delete the lock file and quit out
 
             isFinished = False
             numOfAttempts = 1
@@ -2271,7 +2362,7 @@ if __name__ == '__main__':
                     numOfAttempts = numOfAttempts + 1
                 else:
                     printDebugString("Error writing to light " + str(maxNumOfAttempts) + " times - quitting out")
-                    sys.exit(1)
+                    singleInstanceUnlockandQuit(1) # delete the lock file and quit out
 
             isFinished = False
             numOfAttempts = 1
@@ -2286,9 +2377,9 @@ if __name__ == '__main__':
                     numOfAttempts = numOfAttempts + 1
                 else:
                     printDebugString("Error disconnecting from light " + str(maxNumOfAttempts) + " times - quitting out")
-                    sys.exit(1)
+                    singleInstanceUnlockandQuit(1) # delete the lock file and quit out
         else:
             printDebugString("-------------------------------------------------------------------------------------")
             printDebugString(" > CLI >> Calculated bytestring:" + updateStatus())
 
-        sys.exit(0)
+        singleInstanceUnlockandQuit(0) # delete the lock file and quit out
