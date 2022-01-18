@@ -819,15 +819,20 @@ try: # try to load the GUI
             else:
                 currentRow = rowToChange # change data for the specified row
 
+            # THIS SECTION BELOW LIMITS UPDATING THE TABLE **ONLY** IF THE DATA SUPPLIED IS DIFFERENT THAN IT WAS ORIGINALLY
             if infoArray[0] != "": # the name of the light
-                self.lightTable.setItem(currentRow, 0, QTableWidgetItem(infoArray[0]))
+                if rowToChange == -1 or (rowToChange != -1 and infoArray[0] != self.returnTableInfo(rowToChange, 0)):
+                    self.lightTable.setItem(currentRow, 0, QTableWidgetItem(infoArray[0]))
             if infoArray[1] != "": # the MAC address of the light
-                self.lightTable.setItem(currentRow, 1, QTableWidgetItem(infoArray[1]))
+                if rowToChange == -1 or (rowToChange != -1 and infoArray[1] != self.returnTableInfo(rowToChange, 1)):
+                    self.lightTable.setItem(currentRow, 1, QTableWidgetItem(infoArray[1]))
             if infoArray[2] != "": # the Linked status of the light
-                self.lightTable.setItem(currentRow, 2, QTableWidgetItem(infoArray[2]))
-                self.lightTable.item(currentRow, 2).setTextAlignment(Qt.AlignCenter) # align the light status info to be center-justified
+                if rowToChange == -1 or (rowToChange != -1 and infoArray[2] != self.returnTableInfo(rowToChange, 2)):
+                    self.lightTable.setItem(currentRow, 2, QTableWidgetItem(infoArray[2]))
+                    self.lightTable.item(currentRow, 2).setTextAlignment(Qt.AlignCenter) # align the light status info to be center-justified
             if infoArray[3] != "": # the current status message of the light
-                self.lightTable.setItem(currentRow, 3, QTableWidgetItem(infoArray[3]))
+                if rowToChange == -1 or (rowToChange != -1 and infoArray[2] != self.returnTableInfo(rowToChange, 3)):
+                    self.lightTable.setItem(currentRow, 3, QTableWidgetItem(infoArray[3]))
 
             self.lightTable.resizeRowsToContents()
 
@@ -1299,10 +1304,9 @@ async def connectToLight(selectedLight, updateGUI=True):
 
     while isConnected == False and currentAttempt <= maxNumOfAttempts:
         if threadAction != "quit":
-            printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
-
             try:
                 if not availableLights[selectedLight][1].is_connected: # if the current device isn't linked to Bluetooth
+                    printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
                     isConnected = await availableLights[selectedLight][1].connect() # try connecting it (and return the connection status)
                 else:
                     isConnected = True # the light is already connected, so mark it as being connected
@@ -1315,7 +1319,7 @@ async def connectToLight(selectedLight, updateGUI=True):
                     returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
 
                 currentAttempt = currentAttempt + 1
-                await asyncio.sleep(3) # wait a few seconds before trying again
+                await asyncio.sleep(4) # wait a few seconds before trying to link to the light again
         else:
             return "quit"
 
@@ -1323,10 +1327,10 @@ async def connectToLight(selectedLight, updateGUI=True):
         return "quit"
     else:
         if isConnected == True:
-            printDebugString("Successfully linked to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
+            printDebugString("Successful link on light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
 
             if updateGUI == True:
-                mainWindow.setTheTable(["", "", "LINKED\n --- / ᴄʜ. ---", "Waiting to send..."], selectedLight) # if it's successful, show that in the table
+                mainWindow.setTheTable(["", "", "LINKED", "Waiting to send..."], selectedLight) # if it's successful, show that in the table
             else:
                 returnValue = True  # if we're in CLI mode, and there is no error connecting to the light, return True
         else:
@@ -1353,8 +1357,13 @@ async def readNotifyCharacteristic(selectedLight, diagCommand, typeOfData):
         except Exception as e:
             return "" # if there is an error checking the characteristic, just quit out of this routine
 
-        if receivedData != "" and len(receivedData) > 1 and receivedData[1] == typeOfData: # if we've received data, and the data returned is the right *kind* of data, then return it
-            break # we found data, so we can stop checking
+        if receivedData != "": # if the recieved data is populated
+            if len(receivedData) > 1: # if we have enough elements to get a status from
+                if receivedData[1] == typeOfData: # if the data returned is the correct *kind* of data
+                    break # stop scanning for data
+            else: # if we have a list, but it doesn't have a payload in it (the light didn't supply enough data)
+                receivedData = "---" # then just re-set recievedData to the default string
+                break # stop scanning for data
         else:
             await asyncio.sleep(0.25) # wait a little bit of time before checking again
     try:
@@ -1545,6 +1554,9 @@ async def connectToOneLight(MACAddress):
 def workerThread(_loop):
     global threadAction
 
+    # A LIST OF LIGHTS THAT DON'T SEND POWER/CHANNEL STATUS
+    lightsToNotCheckPower = ["NEEWER-RGB176"]
+
     if findLightsOnStartup == True: # if we're set to find lights at startup, then automatically set the thread to discovery mode
         threadAction = "discover"
 
@@ -1565,8 +1577,11 @@ def workerThread(_loop):
                             mainWindow.setTheTable(["", "", "NOT\nLINKED", "Light disconnected!"], a) # show the new status in the table
                             availableLights[a][1] = "" # clear the Bleak object
                         else:
-                            _loop.run_until_complete(getLightChannelandPower(a))
-                            mainWindow.setTheTable(["", "", "LINKED\n" + availableLights[a][7][0] + " / ᴄʜ. " + str(availableLights[a][7][1]), ""], a)
+                            if not availableLights[a][0].name in lightsToNotCheckPower: # if the name of the current light is not in the list to skip checking
+                                _loop.run_until_complete(getLightChannelandPower(a)) # then check the power and light status of that light
+                                mainWindow.setTheTable(["", "", "LINKED\n" + availableLights[a][7][0] + " / ᴄʜ. " + str(availableLights[a][7][1]), ""], a)
+                            else: # if the light we're scanning doesn't supply power or channel status, then just show "LINKED"
+                                mainWindow.setTheTable(["", "", "LINKED", ""], a)
 
         if threadAction == "quit":
             printDebugString("Stopping the background thread")
