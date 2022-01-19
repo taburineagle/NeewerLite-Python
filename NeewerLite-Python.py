@@ -83,6 +83,21 @@ availableLights = [] # the list of Neewer lights currently available to control 
                      #  0                  1                 2            3            4                 5                           6             7
                      # [Bleak Scan Object, Bleak Connection, Custom Name, Last Params, Extend CCT Range, Send BRI/HUE independently, Light On/Off, Power/CH Data Returned]
 
+# A list of preset mode settings, either pre-set (here) or set by custom file - element [0] is the sendValue, and element [1] is whether or
+# not the preset in that position is custom or preset (True if custom) - this is for letting the GUI know if the button should be colored differently
+# to mark it as "custom" - the default settings are: CCT mode - 0 is 5600K, 100% brightness, 1 is 3200K, 100% brightness, 2 is 5600K, 0% brightness
+# 3 is RED at 100% saturation and brightness, 4 is BLUE at 100% saturation and brightness, and 5 is GREEN at 100% saturation and brightness
+# RIGHT click the preset button to set a custom preset to the current settings, LEFT click it to recall the preset stored in that button.
+# TODO: Possibly add a tool tip showing what that preset is stored as (HSI / 100° / 100% Saturation, 100% Brightness), etc.
+# TODO: Find out the most optimal way to store custom presets, either via a sidecar light_prefs/.prefs file, or in the main prefs file
+# TODO: Make GUI elements to set/recall these presets, and make either a custom function or use setUpGUI (or both) to use these values
+customLightPresets = [[[120, 135, 2, 100, 56, 157], False], \
+                      [[120, 135, 2, 100, 32, 133], False], \
+                      [[120, 135, 2, 0, 56, 57], False], \
+                      [[120, 134, 4, 0, 0, 100, 100, 202], False], \
+                      [[120, 134, 4, 240, 0, 100, 100, 186], False], \
+                      [[120, 134, 4, 120, 0, 100, 100, 66], False]]
+
 threadAction = "" # the current action to take from the thread
 
 setLightUUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99" # the UUID to send information to the light
