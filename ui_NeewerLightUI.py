@@ -1,4 +1,4 @@
-from PySide2.QtCore import QRect
+from PySide2.QtCore import QRect, Signal
 from PySide2.QtGui import QFont, QLinearGradient, QColor, Qt, QKeySequence
 from PySide2.QtWidgets import QFormLayout, QGridLayout, QKeySequenceEdit, QWidget, QPushButton, QTableWidget, QTableWidgetItem, QAbstractScrollArea, QAbstractItemView, \
                               QTabWidget, QGraphicsScene, QGraphicsView, QFrame, QSlider, QLabel, QLineEdit, QCheckBox, QStatusBar, QScrollArea, QTextEdit
@@ -10,7 +10,7 @@ class Ui_MainWindow(object):
         mainFont.setBold(True)
         mainFont.setWeight(75)
 
-        MainWindow.setFixedSize(590, 521) # the main window should be this size at launch, and no bigger
+        MainWindow.setFixedSize(590, 610) # the main window should be this size at launch, and no bigger
         MainWindow.setWindowTitle("NeewerLite-Python 0.8 by Zach Glenwright")
         
         self.centralwidget = QWidget(MainWindow)
@@ -69,9 +69,33 @@ class Ui_MainWindow(object):
         self.lightTable.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.lightTable.verticalHeader().setStretchLastSection(False)
 
+        # ============ THE CUSTOM PRESET BUTTONS ============
+
+        self.customPresetButtonsCW = QWidget(self.centralwidget)
+        self.customPresetButtonsCW.setGeometry(QRect(10, 300, 571, 74))
+        self.customPresetButtonsLay = QGridLayout(self.customPresetButtonsCW)
+        self.customPresetButtonsLay.setContentsMargins(0, 0, 0, 0)
+
+        self.customPreset_0_Button = customPresetButton(self.centralwidget, text="0")
+        self.customPresetButtonsLay.addWidget(self.customPreset_0_Button, 1, 1)
+        self.customPreset_1_Button = customPresetButton(self.centralwidget, text="1")
+        self.customPresetButtonsLay.addWidget(self.customPreset_1_Button, 1, 2)
+        self.customPreset_2_Button = customPresetButton(self.centralwidget, text="2")
+        self.customPresetButtonsLay.addWidget(self.customPreset_2_Button, 1, 3)
+        self.customPreset_3_Button = customPresetButton(self.centralwidget, text="3")
+        self.customPresetButtonsLay.addWidget(self.customPreset_3_Button, 1, 4)
+        self.customPreset_4_Button = customPresetButton(self.centralwidget, text="4")
+        self.customPresetButtonsLay.addWidget(self.customPreset_4_Button, 1, 5)
+        self.customPreset_5_Button = customPresetButton(self.centralwidget, text="5")
+        self.customPresetButtonsLay.addWidget(self.customPreset_5_Button, 1, 6)
+        self.customPreset_6_Button = customPresetButton(self.centralwidget, text="6")
+        self.customPresetButtonsLay.addWidget(self.customPreset_6_Button, 1, 7)
+        self.customPreset_7_Button = customPresetButton(self.centralwidget, text="7")
+        self.customPresetButtonsLay.addWidget(self.customPreset_7_Button, 1, 8)
+
         # ============ THE MODE TABS ============
         self.ColorModeTabWidget = QTabWidget(self.centralwidget)
-        self.ColorModeTabWidget.setGeometry(QRect(10, 300, 571, 201))
+        self.ColorModeTabWidget.setGeometry(QRect(10, 380, 571, 201))
 
         # === >> THE CCT TAB << ===
         self.CCT = QWidget()
@@ -452,6 +476,30 @@ class Ui_MainWindow(object):
         self.Slider_HSI_2_S.valueChanged.connect(self.TFV_HSI_2_S.setNum)
         self.Slider_HSI_3_L.valueChanged.connect(self.TFV_HSI_3_L.setNum)
         self.Slider_ANM_Brightness.valueChanged.connect(self.TFV_ANM_Brightness.setNum)
+
+class customPresetButton(QLabel):
+    clicked = Signal()
+    rightclicked = Signal()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.setText(kwargs['text'])
+        self.setAlignment(Qt.AlignCenter)
+        self.setStyleSheet("customPresetButton"
+                           "{"
+                           "border: 1px solid black; background-color: #20B2AA;"
+                           "}"
+                           "customPresetButton::hover"
+                           "{"
+                           "background-color: #66CDAA;"
+                           "}")
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.RightButton:
+            self.rightclicked.emit()
+        elif event.button() == Qt.LeftButton:
+            self.clicked.emit()
 
 class singleKeySequenceEditCancel(QWidget):
     def __init__(self, defaultValue):

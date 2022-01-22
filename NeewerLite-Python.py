@@ -83,20 +83,19 @@ availableLights = [] # the list of Neewer lights currently available to control 
                      #  0                  1                 2            3            4                 5                           6             7
                      # [Bleak Scan Object, Bleak Connection, Custom Name, Last Params, Extend CCT Range, Send BRI/HUE independently, Light On/Off, Power/CH Data Returned]
 
-# A list of preset mode settings, either pre-set (here) or set by custom file - element [0] is the sendValue, and element [1] is whether or
-# not the preset in that position is custom or preset (True if custom) - this is for letting the GUI know if the button should be colored differently
-# to mark it as "custom" - the default settings are: CCT mode - 0 is 5600K, 100% brightness, 1 is 3200K, 100% brightness, 2 is 5600K, 0% brightness
-# 3 is RED at 100% saturation and brightness, 4 is BLUE at 100% saturation and brightness, and 5 is GREEN at 100% saturation and brightness
-# RIGHT click the preset button to set a custom preset to the current settings, LEFT click it to recall the preset stored in that button.
-# TODO: Possibly add a tool tip showing what that preset is stored as (HSI / 100° / 100% Saturation, 100% Brightness), etc.
-# TODO: Find out the most optimal way to store custom presets, either via a sidecar light_prefs/.prefs file, or in the main prefs file
-# TODO: Make GUI elements to set/recall these presets, and make either a custom function or use setUpGUI (or both) to use these values
-customLightPresets = [[[120, 135, 2, 100, 56, 157], False], \
-                      [[120, 135, 2, 100, 32, 133], False], \
-                      [[120, 135, 2, 0, 56, 57], False], \
-                      [[120, 134, 4, 0, 0, 100, 100, 202], False], \
-                      [[120, 134, 4, 240, 0, 100, 100, 186], False], \
-                      [[120, 134, 4, 120, 0, 100, 100, 66], False]]
+# A list of preset mode settings - custom file will overwrite, but here are the default values
+# (0 - CCT - 5600K / 100%) / (1 - CCT - 3200K / 100%) / (2 - CCT - 5600K / 0%) / (3 - HSI - Red / all 100%)
+# (4 - HSI - Blue / all 100%) / (5 - HSI - Green / all 100%) / (6 - HSI - Purple / all 100%) / (7 - HSI - Cyan / all 100%)
+customLightPresets = [
+    [[-1, [5, 100, 56]]],
+    [[-1, [5, 100, 32]]],
+    [[-1, [5, 0, 56]]],
+    [[-1, [4, 100, 0, 100]]],
+    [[-1, [4, 100, 240, 100]]],
+    [[-1, [4, 100, 120, 100]]],
+    [[-1, [4, 100, 300, 100]]],
+    [[-1, [4, 100, 160, 100]]]    
+    ]
 
 threadAction = "" # the current action to take from the thread
 
@@ -180,6 +179,23 @@ try: # try to load the GUI
 
             self.ColorModeTabWidget.currentChanged.connect(self.tabChanged)
             self.lightTable.itemSelectionChanged.connect(self.selectionChanged)
+
+            self.customPreset_0_Button.clicked.connect(lambda: self.recallCustomPreset(0))
+            self.customPreset_0_Button.rightclicked.connect(lambda: saveCustomPreset("global", 0))
+            self.customPreset_1_Button.clicked.connect(lambda: self.recallCustomPreset(1))
+            self.customPreset_1_Button.rightclicked.connect(lambda: saveCustomPreset("global", 1))
+            self.customPreset_2_Button.clicked.connect(lambda: self.recallCustomPreset(2))
+            self.customPreset_2_Button.rightclicked.connect(lambda: saveCustomPreset("global", 2))
+            self.customPreset_3_Button.clicked.connect(lambda: self.recallCustomPreset(3))
+            self.customPreset_3_Button.rightclicked.connect(lambda: saveCustomPreset("global", 3))
+            self.customPreset_4_Button.clicked.connect(lambda: self.recallCustomPreset(4))
+            self.customPreset_4_Button.rightclicked.connect(lambda: saveCustomPreset("global", 4))
+            self.customPreset_5_Button.clicked.connect(lambda: self.recallCustomPreset(5))
+            self.customPreset_5_Button.rightclicked.connect(lambda: saveCustomPreset("global", 5))
+            self.customPreset_6_Button.clicked.connect(lambda: self.recallCustomPreset(6))
+            self.customPreset_6_Button.rightclicked.connect(lambda: saveCustomPreset("global", 6))
+            self.customPreset_7_Button.clicked.connect(lambda: self.recallCustomPreset(7))
+            self.customPreset_7_Button.rightclicked.connect(lambda: saveCustomPreset("global", 7))
 
             self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
             self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
@@ -294,7 +310,7 @@ try: # try to load the GUI
             self.SC_Num8.activated.connect(lambda: self.numberShortcuts(8))
             self.SC_Num9 = QShortcut(QKeySequence("9"), self)
             self.SC_Num9.activated.connect(lambda: self.numberShortcuts(9))
-
+            
         def switchToTab(self, theTab): # SWITCH TO THE REQUESTED TAB **IF IT IS AVAILABLE**
             if self.ColorModeTabWidget.isTabEnabled(theTab) == True:
                 self.ColorModeTabWidget.setCurrentIndex(theTab)
@@ -1067,6 +1083,50 @@ try: # try to load the GUI
 
             printDebugString("Closing the program NOW")
 
+        def recallCustomPreset(self, numOfPreset):
+            if len(customLightPresets[numOfPreset]) == 1:
+                if customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset
+                    if customLightPresets[numOfPreset][0][1][0] == 5:
+                        self.setUpGUI(colorMode="CCT",
+                                    brightness=customLightPresets[numOfPreset][0][1][1],
+                                    temp=customLightPresets[numOfPreset][0][1][2])
+                    elif customLightPresets[numOfPreset][0][1][0] == 4:
+                        self.setUpGUI(colorMode="HSI",
+                                    brightness=customLightPresets[numOfPreset][0][1][1],
+                                    hue=customLightPresets[numOfPreset][0][1][2],
+                                    sat=customLightPresets[numOfPreset][0][1][3])
+                    elif customLightPresets[numOfPreset][0][1][0] == 6:
+                        self.setUpGUI(colorMode="ANM",
+                                    brightness=customLightPresets[numOfPreset][0][1][1],
+                                    scene=customLightPresets[numOfPreset][0][1][2])
+            else:
+                global availableLights
+
+                for a in range(len(customLightPresets[numOfPreset])): # check all the entries stored in this preset
+                    currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
+
+                    if currentLight != []: # if we have a match
+                        print("Before value:")
+                        print(availableLights[currentLight[0]][3])
+
+                        # always refer to the light it found as currentLight[0]
+                        if customLightPresets[numOfPreset][a][1][0] == 5: # the preset is in CCT mode
+                            availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="CCT",\
+                                                                    brightness=customLightPresets[numOfPreset][a][1][1],\
+                                                                    temp=customLightPresets[numOfPreset][a][1][2])
+                        elif customLightPresets[numOfPreset][a][1][0] == 4: # the preset is in HSI mode
+                            availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="HSI",\
+                                                                    HSI_I=customLightPresets[numOfPreset][a][1][1],\
+                                                                    HSI_H=customLightPresets[numOfPreset][a][1][2],\
+                                                                    HSI_S=customLightPresets[numOfPreset][a][1][3])
+                        elif customLightPresets[numOfPreset][a][1][0] == 6: # the preset is in ANM/SCENE mode
+                            availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="ANM",\
+                                                                    brightness=customLightPresets[numOfPreset][a][1][1],\
+                                                                    animation=customLightPresets[numOfPreset][a][1][2])
+
+                        print("After value:")
+                        print(availableLights[currentLight[0]][3])
+
         # SET UP THE GUI BASED ON COMMAND LINE ARGUMENTS
         def setUpGUI(self, **modeArgs):
             if modeArgs["colorMode"] == "CCT":
@@ -1092,13 +1152,54 @@ try: # try to load the GUI
 except NameError:
     pass # could not load the GUI, but we have already logged an error message
 
+# WORKING WITH CUSTOM PRESETS
+def saveCustomPreset(presetType, numOfPreset):
+    global customLightPresets
+
+    if presetType == "global":
+        customLightPresets[numOfPreset] = [listBuilder(-1)]
+    elif presetType == "snapshot":
+        listConstructor = []
+        
+        for a in range(len(availableLights)):
+            listConstructor.append(listBuilder(a))
+
+        customLightPresets[numOfPreset] = listConstructor
+
+def listBuilder(selectedLight):
+    paramsListBuilder = [] # the cut-down list of parameters to return to the main preset constructor
+
+    if selectedLight == -1: # then we get the value from sendValue
+        lightMACAddress = -1 # this is a global preset
+        listToWorkWith = sendValue # we're using the last sent parameter on any light for this
+    else: # we're recalling the params for a specific light
+        lightMACAddress = availableLights[selectedLight][0].address # this is a snapshot preset
+        listToWorkWith = availableLights[selectedLight][3] # we're specificially using the last parameter for the specified light for this
+
+    if listToWorkWith != []: # if we have elements in this list, then sort them out
+        paramsListBuilder.append(listToWorkWith[1] - 130) # the first value is the mode, but minus 130 to simplify it
+
+        if listToWorkWith[1] == 135: # we're in CCT mode
+            paramsListBuilder.append(listToWorkWith[3]) # the brightness
+            paramsListBuilder.append(listToWorkWith[4]) # the color temperature
+        elif listToWorkWith[1] == 134: # we're in HSI mode
+            paramsListBuilder.append(listToWorkWith[6]) # the brightness
+            paramsListBuilder.append(listToWorkWith[3] + (256 * listToWorkWith[4])) # the hue
+            paramsListBuilder.append(listToWorkWith[5]) # the saturation
+        elif listToWorkWith[1] == 136: # we're in ANM/SCENE
+            paramsListBuilder.append(listToWorkWith[3]) # the brightness
+            paramsListBuilder.append(listToWorkWith[4]) # the scene
+
+    return [lightMACAddress, paramsListBuilder]
+
+# RETURN THE CORRECT NAME FOR THE IDENTIFIER OF THE LIGHT (FOR DEBUG STRINGS)
 def returnMACname():
-    # RETURN THE CORRECT NAME FOR THE IDENTIFIER OF THE LIGHT (FOR DEBUG STRINGS)
     if platform.system() == "Darwin":
         return "UUID:"
     else:
         return "MAC Address:"
 
+# TEST TO MAKE SURE THE VALUE GIVEN TO THE FUNCTION IS VALID OR IN BOUNDS
 def testValid(theParam, theValue, defaultValue, startBounds, endBounds):
     if theParam == "temp":
         if len(theValue) > 1: # if the temp has at least 2 characters in it
@@ -1132,34 +1233,38 @@ def printDebugString(theString):
         print("[" + currentTime + "] - " + theString)
 
 # CALCULATE THE BYTESTRING TO SEND TO THE LIGHT
-def calculateByteString(**modeArgs):
-    global sendValue
-
+def calculateByteString(returnValue = False, **modeArgs):
     if modeArgs["colorMode"] == "CCT":
         # We're in CCT (color balance) mode
-        sendValue = [120, 135, 2, 0, 0, 0]
+        computedValue = [120, 135, 2, 0, 0, 0]
 
-        sendValue[3] = int(modeArgs["brightness"]) # the brightness value
-        sendValue[4] = int(modeArgs["temp"]) # the color temp value, ranging from 32(00K) to 85(00)K - some lights (like the SL-80) can go as high as 8500K
-        sendValue[5] = calculateChecksum(sendValue) # compute the checksum
+        computedValue[3] = int(modeArgs["brightness"]) # the brightness value
+        computedValue[4] = int(modeArgs["temp"]) # the color temp value, ranging from 32(00K) to 85(00)K - some lights (like the SL-80) can go as high as 8500K
+        computedValue[5] = calculateChecksum(computedValue) # compute the checksum
     elif modeArgs["colorMode"] == "HSI":
         # We're in HSI (any color of the spectrum) mode
-        sendValue = [120, 134, 4, 0, 0, 0, 0, 0]
+        computedValue = [120, 134, 4, 0, 0, 0, 0, 0]
 
-        sendValue[3] = int(modeArgs["HSI_H"]) & 255 # hue value, up to 255
-        sendValue[4] = (int(modeArgs["HSI_H"]) & 65280) >> 8 # offset value, computed from above value
-        sendValue[5] = int(modeArgs["HSI_S"]) # saturation value
-        sendValue[6] = int(modeArgs["HSI_I"]) # intensity value
-        sendValue[7] = calculateChecksum(sendValue) # compute the checksum
+        computedValue[3] = int(modeArgs["HSI_H"]) & 255 # hue value, up to 255
+        computedValue[4] = (int(modeArgs["HSI_H"]) & 65280) >> 8 # offset value, computed from above value
+        computedValue[5] = int(modeArgs["HSI_S"]) # saturation value
+        computedValue[6] = int(modeArgs["HSI_I"]) # intensity value
+        computedValue[7] = calculateChecksum(computedValue) # compute the checksum
     elif modeArgs["colorMode"] == "ANM":
         # We're in ANM (animation) mode
-        sendValue = [120, 136, 2, 0, 0, 0]
+        computedValue = [120, 136, 2, 0, 0, 0]
 
-        sendValue[3] = int(modeArgs["brightness"]) # brightness value
-        sendValue[4] = int(modeArgs["animation"]) # the number of animation you're going to run (check comments above)
-        sendValue[5] = calculateChecksum(sendValue) # compute the checksum
+        computedValue[3] = int(modeArgs["brightness"]) # brightness value
+        computedValue[4] = int(modeArgs["animation"]) # the number of animation you're going to run (check comments above)
+        computedValue[5] = calculateChecksum(computedValue) # compute the checksum
     else:
-        sendValue = [0]
+        computedValue = [0]
+
+    if returnValue == False: # if we aren't supposed to return a value, then just set sendValue to the value returned from computedValue
+        global sendValue
+        sendValue = computedValue
+    else:
+        return computedValue # return the computed value
 
 # RECALCULATE THE BYTESTRING FOR CCT-ONLY NEEWER LIGHTS INTO HUE AND BRIGHTNESS SEPARATELY
 def calculateSeparateBytestrings(sendValue):
