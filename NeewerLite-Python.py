@@ -98,6 +98,7 @@ maxNumOfAttempts = 6 # the maximum attempts the program will attempt an action b
 rememberLightsOnExit = False # whether or not to save the currently set light settings (mode/hue/brightness/etc.) when quitting out
 acceptable_HTTP_IPs = [] # the acceptable IPs for the HTTP server, set on launch by prefs file
 customKeys = [] # custom keymappings for keyboard shortcuts, set on launch by the prefs file
+whiteListedMACs = [] # whitelisted list of MAC addresses to add to NeewerLite-Python
 enableTabsOnLaunch = False # whether or not to enable tabs on startup (even with no lights connected)
 
 lockFile = tempfile.gettempdir() + os.sep + "NeewerLite-Python.lock"
@@ -1220,8 +1221,10 @@ async def findDevices():
     for d in devices: # go through all of the devices Bleak just found
         try:
             d.name.index("NEEWER") # try to see if the current device has the name "NEEWER" in it
-        except ValueError:
-            pass # if the current device doesn't ^^^^, then this error is thrown
+        except ValueError: # if the name doesn't have "NEEWER" in it, then check to see if it's whitelisted
+            if d.address in whiteListedMACs: # if the MAC address is in the list of whitelisted addresses, add this device anyway
+                printDebugString("Matching whitelisted address found - " + returnMACname() + " " + d.address + ", adding to the list")
+                currentScan.append(d)
         else:
             currentScan.append(d) # and if it finds the phrase, add it to this session's available lights
 
@@ -2030,7 +2033,8 @@ def formatStringForConsole(theString, maxLength):
 
 def loadPrefsFile(globalPrefsFile = ""):
     global findLightsOnStartup, autoConnectToLights, printDebug, maxNumOfAttempts, \
-           rememberLightsOnExit, acceptable_HTTP_IPs, customKeys, enableTabsOnLaunch
+           rememberLightsOnExit, acceptable_HTTP_IPs, customKeys, enableTabsOnLaunch, \
+           whiteListedMACs
 
     if globalPrefsFile != "":
         printDebugString("Loading global preferences from file...")
@@ -2044,7 +2048,7 @@ def loadPrefsFile(globalPrefsFile = ""):
             "SC_Dec_Bri_Small", "SC_Inc_Bri_Small", "SC_Dec_Bri_Large", "SC_Inc_Bri_Large", \
             "SC_Dec_1_Small", "SC_Inc_1_Small", "SC_Dec_2_Small", "SC_Inc_2_Small", "SC_Dec_3_Small", "SC_Inc_3_Small", \
             "SC_Dec_1_Large", "SC_Inc_1_Large", "SC_Dec_2_Large", "SC_Inc_2_Large", "SC_Dec_3_Large", "SC_Inc_3_Large", \
-            "enableTabsOnLaunch"]
+            "enableTabsOnLaunch", "whiteListedMACs"]
 
         # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST ABOVE
         # THIS SECTION OF CODE IS *SLIGHTLY* DIFFERENT THAN THE CLI KICK OUT CODE
@@ -2099,6 +2103,7 @@ def loadPrefsFile(globalPrefsFile = ""):
     # THESE ARE OPTIONS THAT HELP DEBUG THINGS, BUT AREN'T REALLY USEFUL FOR NORMAL OPERATION
     # enableTabsOnLaunch SHOWS ALL TABS ACTIVE (INSTEAD OF DISABLING THEM) ON LAUNCH SO EVEN WITHOUT A LIGHT, A BYTESTRING CAN BE CALCULATED
     prefsParser.add_argument("--enableTabsOnLaunch", default=0)
+    prefsParser.add_argument("--whiteListedMACs" , default=[])
 
     mainPrefs = prefsParser.parse_args(mainPrefs)
 
@@ -2113,6 +2118,9 @@ def loadPrefsFile(globalPrefsFile = ""):
         acceptable_HTTP_IPs = mainPrefs.acceptableIPs.replace(" ", "").split(";") # split the IP addresses into a list for acceptable IPs
     else: # the return is already a list (the default list), so return it
         acceptable_HTTP_IPs = mainPrefs.acceptableIPs
+
+    if type(mainPrefs.whiteListedMACs) is not list: # if we've specified MAC addresses to whitelist, add them to the global list
+        whiteListedMACs = mainPrefs.whiteListedMACs.replace(" ", "").split(";")
 
     # RETURN THE CUSTOM KEYBOARD MAPPINGS
     customKeys = [mainPrefs.SC_turnOffButton, mainPrefs.SC_turnOnButton, mainPrefs.SC_scanCommandButton, mainPrefs.SC_tryConnectButton, \
