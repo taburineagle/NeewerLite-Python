@@ -488,11 +488,11 @@ class customPresetButton(QLabel):
         self.setAlignment(Qt.AlignCenter)
         self.setStyleSheet("customPresetButton"
                            "{"
-                           "border: 1px solid black; background-color: #20B2AA;"
+                           "border: 1px solid black; background-color: #a5cbf7;"
                            "}"
                            "customPresetButton::hover"
                            "{"
-                           "background-color: #66CDAA;"
+                           "background-color: #a5e3f7;"
                            "}")
 
     def mousePressEvent(self, event):
@@ -500,6 +500,16 @@ class customPresetButton(QLabel):
             self.rightclicked.emit()
         elif event.button() == Qt.LeftButton:
             self.clicked.emit()
+
+    def markCustom(self):
+        self.setStyleSheet("customPresetButton"
+                           "{"
+                           "border: 1px solid black; background-color: #7188ff;"
+                           "}"
+                           "customPresetButton::hover"
+                           "{"
+                           "background-color: #70b0ff;"
+                           "}")
 
 class singleKeySequenceEditCancel(QWidget):
     def __init__(self, defaultValue):

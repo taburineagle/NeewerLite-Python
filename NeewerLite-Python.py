@@ -181,21 +181,21 @@ try: # try to load the GUI
             self.lightTable.itemSelectionChanged.connect(self.selectionChanged)
 
             self.customPreset_0_Button.clicked.connect(lambda: self.recallCustomPreset(0))
-            self.customPreset_0_Button.rightclicked.connect(lambda: saveCustomPreset("global", 0))
+            self.customPreset_0_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(0))
             self.customPreset_1_Button.clicked.connect(lambda: self.recallCustomPreset(1))
-            self.customPreset_1_Button.rightclicked.connect(lambda: saveCustomPreset("global", 1))
+            self.customPreset_1_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(1))
             self.customPreset_2_Button.clicked.connect(lambda: self.recallCustomPreset(2))
-            self.customPreset_2_Button.rightclicked.connect(lambda: saveCustomPreset("global", 2))
+            self.customPreset_2_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(2))
             self.customPreset_3_Button.clicked.connect(lambda: self.recallCustomPreset(3))
-            self.customPreset_3_Button.rightclicked.connect(lambda: saveCustomPreset("global", 3))
+            self.customPreset_3_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(3))
             self.customPreset_4_Button.clicked.connect(lambda: self.recallCustomPreset(4))
-            self.customPreset_4_Button.rightclicked.connect(lambda: saveCustomPreset("global", 4))
+            self.customPreset_4_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(4))
             self.customPreset_5_Button.clicked.connect(lambda: self.recallCustomPreset(5))
-            self.customPreset_5_Button.rightclicked.connect(lambda: saveCustomPreset("global", 5))
+            self.customPreset_5_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(5))
             self.customPreset_6_Button.clicked.connect(lambda: self.recallCustomPreset(6))
-            self.customPreset_6_Button.rightclicked.connect(lambda: saveCustomPreset("global", 6))
+            self.customPreset_6_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(6))
             self.customPreset_7_Button.clicked.connect(lambda: self.recallCustomPreset(7))
-            self.customPreset_7_Button.rightclicked.connect(lambda: saveCustomPreset("global", 7))
+            self.customPreset_7_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(7))
 
             self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
             self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
@@ -1083,30 +1083,66 @@ try: # try to load the GUI
 
             printDebugString("Closing the program NOW")
 
+        def saveCustomPresetDialog(self, numOfPreset):
+            saveDlg = QMessageBox(self)
+            saveDlg.setWindowTitle("Save a Custom Preset")
+            saveDlg.setTextFormat(Qt.TextFormat.RichText)
+            saveDlg.setText("Would you like to save a <em>Global</em> or <em>Snapshot</em> preset for preset " + str(numOfPreset + 1) + "?")
+            saveDlg.addButton(" Global Preset ", QMessageBox.ButtonRole.YesRole)
+            saveDlg.addButton(" Snapshot Preset ", QMessageBox.ButtonRole.NoRole)
+            saveDlg.addButton(" Cancel ", QMessageBox.ButtonRole.RejectRole)           
+            saveDlg.setIcon(QMessageBox.Question)
+
+            clickedButton = saveDlg.exec_()
+            
+            if clickedButton == 0: # save a "Global" preset
+                saveCustomPreset("global", numOfPreset)
+            elif clickedButton == 1: # save a "Snapshot" preset
+                saveCustomPreset("snapshot", numOfPreset)
+                # TODO: Apply these changes here once the settings have been switched
+
+            if clickedButton != 2: # if we didn't cancel out, then mark that button as being "custom"
+                if numOfPreset == 0:
+                        self.customPreset_0_Button.markCustom()
+                if numOfPreset == 1:
+                        self.customPreset_1_Button.markCustom()
+                if numOfPreset == 2:
+                        self.customPreset_2_Button.markCustom()
+                if numOfPreset == 3:
+                        self.customPreset_3_Button.markCustom()
+                if numOfPreset == 4:
+                        self.customPreset_4_Button.markCustom()
+                if numOfPreset == 5:
+                        self.customPreset_5_Button.markCustom()
+                if numOfPreset == 6:
+                        self.customPreset_6_Button.markCustom()
+                if numOfPreset == 7:
+                        self.customPreset_7_Button.markCustom()
+
         def recallCustomPreset(self, numOfPreset):
-            if len(customLightPresets[numOfPreset]) == 1:
-                if customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset
-                    if customLightPresets[numOfPreset][0][1][0] == 5:
+            global availableLights
+            changedLights = [] # if a snapshot preset exists in this setting, log the lights that are to be changed here
+
+            for a in range(len(customLightPresets[numOfPreset])): # check all the entries stored in this preset
+                if customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset, so set the light(s) up accordingly
+                    if customLightPresets[numOfPreset][0][1][0] == 5: # the preset is in CCT mode
                         self.setUpGUI(colorMode="CCT",
                                     brightness=customLightPresets[numOfPreset][0][1][1],
                                     temp=customLightPresets[numOfPreset][0][1][2])
-                    elif customLightPresets[numOfPreset][0][1][0] == 4:
+                    elif customLightPresets[numOfPreset][0][1][0] == 4: # the preset is in HSI mode
                         self.setUpGUI(colorMode="HSI",
                                     brightness=customLightPresets[numOfPreset][0][1][1],
                                     hue=customLightPresets[numOfPreset][0][1][2],
                                     sat=customLightPresets[numOfPreset][0][1][3])
-                    elif customLightPresets[numOfPreset][0][1][0] == 6:
+                    elif customLightPresets[numOfPreset][0][1][0] == 6: # the preset is in ANM/SCENE mode
                         self.setUpGUI(colorMode="ANM",
                                     brightness=customLightPresets[numOfPreset][0][1][1],
                                     scene=customLightPresets[numOfPreset][0][1][2])
-            else:
-                global availableLights
-
-                for a in range(len(customLightPresets[numOfPreset])): # check all the entries stored in this preset
+                else: # we're looking at a snapshot preset, so see if any of those lights are available to change
                     currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
 
                     if currentLight != []: # if we have a match
-                        print("Before value:")
+                        print("Before value for light " + str(currentLight[0]) + ":")
                         print(availableLights[currentLight[0]][3])
 
                         # always refer to the light it found as currentLight[0]
@@ -1124,8 +1160,16 @@ try: # try to load the GUI
                                                                     brightness=customLightPresets[numOfPreset][a][1][1],\
                                                                     animation=customLightPresets[numOfPreset][a][1][2])
 
-                        print("After value:")
+                        print("After value for light " + str(currentLight[0]) + ":")
                         print(availableLights[currentLight[0]][3])
+
+                        changedLights.append(currentLight[0])
+
+            print(changedLights)
+            
+            if changedLights != []:
+                global threadAction
+                threadAction = "send|" + "|".join(map(str, changedLights))
 
         # SET UP THE GUI BASED ON COMMAND LINE ARGUMENTS
         def setUpGUI(self, **modeArgs):
@@ -1161,7 +1205,7 @@ def saveCustomPreset(presetType, numOfPreset):
     elif presetType == "snapshot":
         listConstructor = []
         
-        for a in range(len(availableLights)):
+        for a in range(len(availableLights)): # TODO: Figure out which lights we have selected, in the GUI thread - at the moment, it does all
             listConstructor.append(listBuilder(a))
 
         customLightPresets[numOfPreset] = listConstructor
@@ -1556,7 +1600,7 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
     return returnValue
 
 # WRITE TO A LIGHT - optional arguments for the CLI version (GUI version doesn't use either of these)
-async def writeToLight(selectedLights=0, updateGUI=True):
+async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
     returnValue = "" # same as above, return value "" for GUI, or boolean for CLI
 
     startTimer = time.time() # the start of the triggering
@@ -1564,7 +1608,8 @@ async def writeToLight(selectedLights=0, updateGUI=True):
 
     try:
         if updateGUI == True:
-            selectedLights = mainWindow.selectedLights() # get the list of currently selected lights from the GUI table
+            if selectedLights == 0:
+                selectedLights = mainWindow.selectedLights() # get the list of currently selected lights from the GUI table
         else:
             if type(selectedLights) is int: # if we specify an integer-based index
                 selectedLights = [selectedLights] # convert asked-for light to list
@@ -1577,6 +1622,9 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                 currentSendValue = sendValue # get this value before sending to multiple lights, to ensure the same value is sent to each one
 
                 for a in range(len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
+                    if useGlobalValue == False: # if we're forcing the lights to use their stored parameters, then load that in here
+                        currentSendValue = availableLights[selectedLights[a]][3]
+
                     if availableLights[selectedLights[a]][1] != "": # if a Bleak connection is there
                         try:
                             if availableLights[(int(selectedLights[a]))][5] == True: # if we're using the old style of light
@@ -1636,7 +1684,8 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                         else:
                             returnValue = 0 # the light is not linked, even though it *should* be if it gets to this point, so this is an odd error
 
-                startTimer = time.time() # if we sent a value, then reset the timer
+                if useGlobalValue == True:
+                    startTimer = time.time() # if we sent a value, then reset the timer
 
             await asyncio.sleep(0.05) # wait 1/20th of a second to give the Bluetooth bus a little time to recover
 
@@ -1728,6 +1777,16 @@ def workerThread(_loop):
             threadAction = ""                
         elif threadAction == "send":
             threadAction = _loop.run_until_complete(writeToLight()) # write a value to the light(s) - the selectedLights() section is in the write loop itself for responsiveness
+        elif threadAction != "":
+            currentThreadAction = threadAction.split("|")
+
+            if currentThreadAction[0] == "send": # this will come from loading a custom snapshot preset
+                lightsToSendTo = [] # the current lights to affect
+
+                for a in range (1, len(currentThreadAction)):
+                    lightsToSendTo.append(int(currentThreadAction[a]))
+
+                threadAction = _loop.run_until_complete(writeToLight(lightsToSendTo, True, False)) # write the value stored in the lights to the light(s)
 
         time.sleep(0.25)
 
