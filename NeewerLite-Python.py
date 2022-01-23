@@ -76,7 +76,7 @@ except Exception as e:
     pass # if there are any HTTP errors, don't do anything yet
 
 CCTSlider = -1 # the current slider moved in the CCT window - 1 - Brightness / 2 - Hue / -1 - Both Brightness and Hue
-sendValue = [] # an array to hold the values to be sent to the light
+sendValue = [120, 135, 2, 100, 56, 157] # an array to hold the values to be sent to the light - the default is CCT / 5600K / 100%
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
 
 availableLights = [] # the list of Neewer lights currently available to control - format:
@@ -1084,12 +1084,23 @@ try: # try to load the GUI
             printDebugString("Closing the program NOW")
 
         def saveCustomPresetDialog(self, numOfPreset):
+            selectedLights = self.selectedLights() # get the currently selected lights
+
             saveDlg = QMessageBox(self)
             saveDlg.setWindowTitle("Save a Custom Preset")
             saveDlg.setTextFormat(Qt.TextFormat.RichText)
-            saveDlg.setText("Would you like to save a <em>Global</em> or <em>Snapshot</em> preset for preset " + str(numOfPreset + 1) + "?")
+            saveDlg.setText("Would you like to save a <em>Global</em> or <em>Snapshot</em> preset for preset " + str(numOfPreset + 1) + "?" + "<hr>"
+                            "A <em>Global Preset</em> saves only the currently set global parameters (mode, hue, color temperature, brightness, etc.) and applies that global preset to all the lights that are currently selected.<br><br>"
+                            "A <em>Snapshot Preset</em> saves the currently set parameters for each light individually, allowing you to recall more complex lighting setups.  You can also either set a <em>snapshot preset</em> for a series of selected lights (you have to select 1 or more lights for this option), or all the currently available lights.  If you save a <em>snapshot preset</em> of a series of selected lights, it will only apply the settings for those specific lights.")
             saveDlg.addButton(" Global Preset ", QMessageBox.ButtonRole.YesRole)
-            saveDlg.addButton(" Snapshot Preset ", QMessageBox.ButtonRole.NoRole)
+            saveDlg.addButton(" Snapshot Preset - All Lights ", QMessageBox.ButtonRole.YesRole)
+
+            selectedLightsQuestion = 0
+
+            if selectedLights != []:
+                saveDlg.addButton(" Snapshot Preset - Selected Lights ", QMessageBox.ButtonRole.YesRole)
+                selectedLightsQuestion = 1
+            
             saveDlg.addButton(" Cancel ", QMessageBox.ButtonRole.RejectRole)           
             saveDlg.setIcon(QMessageBox.Question)
 
@@ -1097,11 +1108,12 @@ try: # try to load the GUI
             
             if clickedButton == 0: # save a "Global" preset
                 saveCustomPreset("global", numOfPreset)
-            elif clickedButton == 1: # save a "Snapshot" preset
+            elif clickedButton == 1: # save a "Snapshot" preset with all lights
                 saveCustomPreset("snapshot", numOfPreset)
-                # TODO: Apply these changes here once the settings have been switched
-
-            if clickedButton != 2: # if we didn't cancel out, then mark that button as being "custom"
+            elif clickedButton == 2: # save a "Snapshot" preset with only the selected lights
+                saveCustomPreset("snapshot", numOfPreset, selectedLights)
+                
+            if clickedButton != (2 + selectedLightsQuestion): # if we didn't cancel out, then mark that button as being "custom"
                 if numOfPreset == 0:
                         self.customPreset_0_Button.markCustom()
                 if numOfPreset == 1:
@@ -1142,9 +1154,6 @@ try: # try to load the GUI
                     currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
 
                     if currentLight != []: # if we have a match
-                        print("Before value for light " + str(currentLight[0]) + ":")
-                        print(availableLights[currentLight[0]][3])
-
                         # always refer to the light it found as currentLight[0]
                         if customLightPresets[numOfPreset][a][1][0] == 5: # the preset is in CCT mode
                             availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="CCT",\
@@ -1160,13 +1169,8 @@ try: # try to load the GUI
                                                                     brightness=customLightPresets[numOfPreset][a][1][1],\
                                                                     animation=customLightPresets[numOfPreset][a][1][2])
 
-                        print("After value for light " + str(currentLight[0]) + ":")
-                        print(availableLights[currentLight[0]][3])
-
                         changedLights.append(currentLight[0])
 
-            print(changedLights)
-            
             if changedLights != []:
                 global threadAction
                 threadAction = "send|" + "|".join(map(str, changedLights))
@@ -1197,7 +1201,7 @@ except NameError:
     pass # could not load the GUI, but we have already logged an error message
 
 # WORKING WITH CUSTOM PRESETS
-def saveCustomPreset(presetType, numOfPreset):
+def saveCustomPreset(presetType, numOfPreset, selectedLights = []):
     global customLightPresets
 
     if presetType == "global":
@@ -1205,8 +1209,12 @@ def saveCustomPreset(presetType, numOfPreset):
     elif presetType == "snapshot":
         listConstructor = []
         
-        for a in range(len(availableLights)): # TODO: Figure out which lights we have selected, in the GUI thread - at the moment, it does all
-            listConstructor.append(listBuilder(a))
+        if selectedLights == []: # add all the lights to the snapshot preset
+            for a in range(len(availableLights)): 
+                listConstructor.append(listBuilder(a))
+        else: # add only the selected lights to the snapshot preset
+            for a in range(len(selectedLights)):
+                listConstructor.append(listBuilder(selectedLights[a]))
 
         customLightPresets[numOfPreset] = listConstructor
 
@@ -1409,7 +1417,7 @@ async def findDevices():
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
 
             if len(customPrefs) == 3: # we need to rename the light and set up CCT and color temp range
-                availableLights.append([currentScan[a], "", customPrefs[0], [], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
+                availableLights.append([currentScan[a], "", customPrefs[0], [120, 135, 2, 100, 56, 157], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
             elif len(customPrefs) == 4: # same as above, but we have previously stored parameters, so add them in as well
                 availableLights.append([currentScan[a], "", customPrefs[0], customPrefs[3], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
 
@@ -2193,7 +2201,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = footerLinks + "<A HREF=""doAction?list"">List Currently Available Lights</A>"
 
         self.wfile.write(bytes("<HR>" + footerLinks + "<br>", "utf-8"))
-        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.8</A> by Zach Glenwright<br>", "utf-8"))
+        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.9</A> by Zach Glenwright<br>", "utf-8"))
         self.wfile.write(bytes("</body></html>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -2358,7 +2366,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.8 by Zach Glenwright")
+            print("NeewerLite-Python 0.9 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             loop.run_until_complete(findDevices())
 

@@ -10,8 +10,8 @@ class Ui_MainWindow(object):
         mainFont.setBold(True)
         mainFont.setWeight(75)
 
-        MainWindow.setFixedSize(590, 610) # the main window should be this size at launch, and no bigger
-        MainWindow.setWindowTitle("NeewerLite-Python 0.8 by Zach Glenwright")
+        MainWindow.setFixedSize(590, 606) # the main window should be this size at launch, and no bigger
+        MainWindow.setWindowTitle("NeewerLite-Python 0.9 by Zach Glenwright")
         
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
@@ -72,30 +72,30 @@ class Ui_MainWindow(object):
         # ============ THE CUSTOM PRESET BUTTONS ============
 
         self.customPresetButtonsCW = QWidget(self.centralwidget)
-        self.customPresetButtonsCW.setGeometry(QRect(10, 300, 571, 74))
+        self.customPresetButtonsCW.setGeometry(QRect(10, 300, 571, 68))
         self.customPresetButtonsLay = QGridLayout(self.customPresetButtonsCW)
         self.customPresetButtonsLay.setContentsMargins(0, 0, 0, 0)
 
-        self.customPreset_0_Button = customPresetButton(self.centralwidget, text="0")
+        self.customPreset_0_Button = customPresetButton(self.centralwidget, text="1")
         self.customPresetButtonsLay.addWidget(self.customPreset_0_Button, 1, 1)
-        self.customPreset_1_Button = customPresetButton(self.centralwidget, text="1")
+        self.customPreset_1_Button = customPresetButton(self.centralwidget, text="2")
         self.customPresetButtonsLay.addWidget(self.customPreset_1_Button, 1, 2)
-        self.customPreset_2_Button = customPresetButton(self.centralwidget, text="2")
+        self.customPreset_2_Button = customPresetButton(self.centralwidget, text="3")
         self.customPresetButtonsLay.addWidget(self.customPreset_2_Button, 1, 3)
-        self.customPreset_3_Button = customPresetButton(self.centralwidget, text="3")
+        self.customPreset_3_Button = customPresetButton(self.centralwidget, text="4")
         self.customPresetButtonsLay.addWidget(self.customPreset_3_Button, 1, 4)
-        self.customPreset_4_Button = customPresetButton(self.centralwidget, text="4")
+        self.customPreset_4_Button = customPresetButton(self.centralwidget, text="5")
         self.customPresetButtonsLay.addWidget(self.customPreset_4_Button, 1, 5)
-        self.customPreset_5_Button = customPresetButton(self.centralwidget, text="5")
+        self.customPreset_5_Button = customPresetButton(self.centralwidget, text="6")
         self.customPresetButtonsLay.addWidget(self.customPreset_5_Button, 1, 6)
-        self.customPreset_6_Button = customPresetButton(self.centralwidget, text="6")
+        self.customPreset_6_Button = customPresetButton(self.centralwidget, text="7")
         self.customPresetButtonsLay.addWidget(self.customPreset_6_Button, 1, 7)
-        self.customPreset_7_Button = customPresetButton(self.centralwidget, text="7")
+        self.customPreset_7_Button = customPresetButton(self.centralwidget, text="8")
         self.customPresetButtonsLay.addWidget(self.customPreset_7_Button, 1, 8)
 
         # ============ THE MODE TABS ============
         self.ColorModeTabWidget = QTabWidget(self.centralwidget)
-        self.ColorModeTabWidget.setGeometry(QRect(10, 380, 571, 201))
+        self.ColorModeTabWidget.setGeometry(QRect(10, 376, 571, 201))
 
         # === >> THE CCT TAB << ===
         self.CCT = QWidget()
@@ -483,9 +483,14 @@ class customPresetButton(QLabel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        customPresetFont = QFont()
+        customPresetFont.setPointSize(12)
         
         self.setText(kwargs['text'])
+        self.setFont(customPresetFont)
         self.setAlignment(Qt.AlignCenter)
+
         self.setStyleSheet("customPresetButton"
                            "{"
                            "border: 1px solid black; background-color: #a5cbf7;"
