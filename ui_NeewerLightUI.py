@@ -1,5 +1,5 @@
 from PySide2.QtCore import QRect, Signal
-from PySide2.QtGui import QFont, QLinearGradient, QColor, Qt, QKeySequence
+from PySide2.QtGui import QFont, QLinearGradient, QColor, Qt, QKeySequence, QPalette
 from PySide2.QtWidgets import QFormLayout, QGridLayout, QKeySequenceEdit, QWidget, QPushButton, QTableWidget, QTableWidgetItem, QAbstractScrollArea, QAbstractItemView, \
                               QTabWidget, QGraphicsScene, QGraphicsView, QFrame, QSlider, QLabel, QLineEdit, QCheckBox, QStatusBar, QScrollArea, QTextEdit
 
@@ -76,21 +76,21 @@ class Ui_MainWindow(object):
         self.customPresetButtonsLay = QGridLayout(self.customPresetButtonsCW)
         self.customPresetButtonsLay.setContentsMargins(0, 0, 0, 0)
 
-        self.customPreset_0_Button = customPresetButton(self.centralwidget, text="1")
+        self.customPreset_0_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>1</font></strong><br>PRESET<br>GLOBAL")
         self.customPresetButtonsLay.addWidget(self.customPreset_0_Button, 1, 1)
-        self.customPreset_1_Button = customPresetButton(self.centralwidget, text="2")
+        self.customPreset_1_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>2</font></strong><br>PRESET<br>GLOBAL")
         self.customPresetButtonsLay.addWidget(self.customPreset_1_Button, 1, 2)
-        self.customPreset_2_Button = customPresetButton(self.centralwidget, text="3")
+        self.customPreset_2_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>3</font></strong><br>PRESET<br>GLOBAL")
         self.customPresetButtonsLay.addWidget(self.customPreset_2_Button, 1, 3)
-        self.customPreset_3_Button = customPresetButton(self.centralwidget, text="4")
+        self.customPreset_3_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>4</font></strong><br>PRESET<br>GLOBAL")
         self.customPresetButtonsLay.addWidget(self.customPreset_3_Button, 1, 4)
-        self.customPreset_4_Button = customPresetButton(self.centralwidget, text="5")
+        self.customPreset_4_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>5</font></strong><br>PRESET<br>GLOBAL")
         self.customPresetButtonsLay.addWidget(self.customPreset_4_Button, 1, 5)
-        self.customPreset_5_Button = customPresetButton(self.centralwidget, text="6")
+        self.customPreset_5_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>6</font></strong><br>PRESET<br>GLOBAL")
         self.customPresetButtonsLay.addWidget(self.customPreset_5_Button, 1, 6)
-        self.customPreset_6_Button = customPresetButton(self.centralwidget, text="7")
+        self.customPreset_6_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>7</font></strong><br>PRESET<br>GLOBAL")
         self.customPresetButtonsLay.addWidget(self.customPreset_6_Button, 1, 7)
-        self.customPreset_7_Button = customPresetButton(self.centralwidget, text="8")
+        self.customPreset_7_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>8</font></strong><br>PRESET<br>GLOBAL")
         self.customPresetButtonsLay.addWidget(self.customPreset_7_Button, 1, 8)
 
         # ============ THE MODE TABS ============
@@ -486,14 +486,16 @@ class customPresetButton(QLabel):
 
         customPresetFont = QFont()
         customPresetFont.setPointSize(12)
-        
+
+        self.setTextFormat(Qt.TextFormat.RichText)
+
         self.setText(kwargs['text'])
         self.setFont(customPresetFont)
         self.setAlignment(Qt.AlignCenter)
 
         self.setStyleSheet("customPresetButton"
                            "{"
-                           "border: 1px solid black; background-color: #a5cbf7;"
+                           "border: 1px solid grey; background-color: #a5cbf7;"
                            "}"
                            "customPresetButton::hover"
                            "{"
@@ -501,19 +503,44 @@ class customPresetButton(QLabel):
                            "}")
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.RightButton:
-            self.rightclicked.emit()
-        elif event.button() == Qt.LeftButton:
+        if event.button() == Qt.LeftButton:
             self.clicked.emit()
+        elif event.button() == Qt.RightButton:
+            self.rightclicked.emit()
 
-    def markCustom(self):
-        self.setStyleSheet("customPresetButton"
+    def markCustom(self, presetNum, isSnap = 0):
+        if isSnap == 0: # we're using a global preset
+            self.setText("<strong><font size=+2>" + str(presetNum + 1) + "</font></strong><br>CUSTOM<br>GLOBAL")
+
+            self.setStyleSheet("customPresetButton"
                            "{"
                            "border: 1px solid black; background-color: #7188ff;"
                            "}"
                            "customPresetButton::hover"
                            "{"
                            "background-color: #70b0ff;"
+                           "}")
+        elif isSnap >= 1: # we're using a snapshot preset
+            self.setText("<strong><font size=+2>" + str(presetNum + 1) + "</font></strong><br>CUSTOM<br>SNAP")
+
+            self.setStyleSheet("customPresetButton"
+                           "{"
+                           "border: 1px solid black; background-color: #71e993;"
+                           "}"
+                           "customPresetButton::hover"
+                           "{"
+                           "background-color: #abe9ab;"
+                           "}")
+        else: # we're resetting back to a default preset
+            self.setText("<strong><font size=+2>" + str(presetNum + 1) + "</font></strong><br>PRESET<br>GLOBAL")
+
+            self.setStyleSheet("customPresetButton"
+                           "{"
+                           "border: 1px solid grey; background-color: #a5cbf7;"
+                           "}"
+                           "customPresetButton::hover"
+                           "{"
+                           "background-color: #a5e3f7;"
                            "}")
 
 class singleKeySequenceEditCancel(QWidget):
