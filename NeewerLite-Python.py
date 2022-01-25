@@ -1302,6 +1302,7 @@ try: # try to load the GUI
 
         def recallCustomPreset(self, numOfPreset):
             global availableLights
+            global lastSelection
 
             changedLights = [] # if a snapshot preset exists in this setting, log the lights that are to be changed here
 
@@ -1348,9 +1349,8 @@ try: # try to load the GUI
                         changedLights.append(currentLight[0])
 
             if changedLights != []:
-                global lastSelection
-                lastSelection = changedLights
-
+                lastSelection = [] # clear the last selection if you've clicked on a snapshot preset (which, if we're here, you did)
+                
                 self.lightTable.setFocus()
                 self.selectRows(changedLights)
 
@@ -1927,7 +1927,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                 # if we're not looking at an old light, or if we are, we're not in either HSI or ANM modes, then update the status of that light
                                 if not (availableLights[(int(selectedLights[a]))][5] == True and (currentSendValue[1] == 134 or currentSendValue[1] == 136)):
                                     if currentSendValue[1] != 129: # if we're not turning the light on or off
-                                        mainWindow.setTheTable(["", "", "", updateStatus(True)], int(selectedLights[a]))
+                                        mainWindow.setTheTable(["", "", "", updateStatus(True, currentSendValue)], int(selectedLights[a]))
                                     else: # we ARE turning the light on or off
                                         if currentSendValue[3] == 1: # we turned the light on
                                             availableLights[int(selectedLights[a])][6] = True # toggle the "light on" parameter of this light to ON
