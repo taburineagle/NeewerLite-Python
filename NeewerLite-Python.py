@@ -78,6 +78,7 @@ except Exception as e:
 CCTSlider = -1 # the current slider moved in the CCT window - 1 - Brightness / 2 - Hue / -1 - Both Brightness and Hue
 sendValue = [120, 135, 2, 100, 56, 157] # an array to hold the values to be sent to the light - the default is CCT / 5600K / 100%
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
+lastSelection = [] # the current light selection (this is for snapshot preset entering/leaving buttons)
 
 availableLights = [] # the list of Neewer lights currently available to control - format:
                      #  0                  1                 2            3            4                 5                           6             7
@@ -916,23 +917,27 @@ try: # try to load the GUI
             if rowToChange == -1:
                 currentRow = self.lightTable.rowCount()
                 self.lightTable.insertRow(currentRow) # if rowToChange is not specified, then we'll make a new row at the end
+                self.lightTable.setItem(currentRow, 0, QTableWidgetItem())
+                self.lightTable.setItem(currentRow, 1, QTableWidgetItem())
+                self.lightTable.setItem(currentRow, 2, QTableWidgetItem())
+                self.lightTable.setItem(currentRow, 3, QTableWidgetItem())
             else:
                 currentRow = rowToChange # change data for the specified row
 
             # THIS SECTION BELOW LIMITS UPDATING THE TABLE **ONLY** IF THE DATA SUPPLIED IS DIFFERENT THAN IT WAS ORIGINALLY
             if infoArray[0] != "": # the name of the light
                 if rowToChange == -1 or (rowToChange != -1 and infoArray[0] != self.returnTableInfo(rowToChange, 0)):
-                    self.lightTable.setItem(currentRow, 0, QTableWidgetItem(infoArray[0]))
+                    self.lightTable.item(currentRow, 0).setText(infoArray[0])
             if infoArray[1] != "": # the MAC address of the light
                 if rowToChange == -1 or (rowToChange != -1 and infoArray[1] != self.returnTableInfo(rowToChange, 1)):
-                    self.lightTable.setItem(currentRow, 1, QTableWidgetItem(infoArray[1]))
+                    self.lightTable.item(currentRow, 1).setText(infoArray[1])
             if infoArray[2] != "": # the Linked status of the light
                 if rowToChange == -1 or (rowToChange != -1 and infoArray[2] != self.returnTableInfo(rowToChange, 2)):
-                    self.lightTable.setItem(currentRow, 2, QTableWidgetItem(infoArray[2]))
+                    self.lightTable.item(currentRow, 2).setText(infoArray[2])
                     self.lightTable.item(currentRow, 2).setTextAlignment(Qt.AlignCenter) # align the light status info to be center-justified
             if infoArray[3] != "": # the current status message of the light
                 if rowToChange == -1 or (rowToChange != -1 and infoArray[2] != self.returnTableInfo(rowToChange, 3)):
-                    self.lightTable.setItem(currentRow, 3, QTableWidgetItem(infoArray[3]))
+                    self.lightTable.item(currentRow, 3).setText(infoArray[3])
 
             self.lightTable.resizeRowsToContents()
 
@@ -1259,18 +1264,27 @@ try: # try to load the GUI
                             self.customPreset_7_Button.markCustom(7, clickedButton)
 
         def highlightLightsForSnapshotPreset(self, numOfPreset, exited = False):
+            global lastSelection
+
             if exited == False:
                 lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
                 
-                for a in range(len(lightsToHighlight)):
-                    self.lightTable.item(lightsToHighlight[a], 3).font().setBold(True)
-                    self.lightTable.item(lightsToHighlight[a], 3).setBackground(QColor(113, 233, 147)) # set the affected rows the same color as the snapshot button
+                if lightsToHighlight != []:
+                    lastSelection = self.selectedLights() # store the current selection to restore it when leaving the control
+                    self.lightTable.clearSelection() # clear the current selection to allow the preset to shine
+
+                    for a in range(len(lightsToHighlight)):
+                        for b in range(4):
+                            self.lightTable.item(lightsToHighlight[a], b).setBackground(QColor(113, 233, 147)) # set the affected rows the same color as the snapshot button
             else:
                 lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
                 
-                for a in range(len(lightsToHighlight)):
-                    self.lightTable.item(lightsToHighlight[a], 3).font().setBold(False)
-                    self.lightTable.item(lightsToHighlight[a], 3).setBackground(Qt.white) # clear formatting on the previously selected rows
+                if lightsToHighlight != []:
+                    self.selectRows(lastSelection) # re-highlight the last selected lights on exit
+
+                    for a in range(len(lightsToHighlight)):
+                        for b in range(4):
+                            self.lightTable.item(lightsToHighlight[a], b).setBackground(Qt.white) # clear formatting on the previously selected rows
 
         def checkForSnapshotPreset(self, numOfPreset):
             if customLightPresets[numOfPreset][0][0] != -1: # if the value is not -1, then we most likely have a snapshot preset
@@ -1288,6 +1302,7 @@ try: # try to load the GUI
 
         def recallCustomPreset(self, numOfPreset):
             global availableLights
+
             changedLights = [] # if a snapshot preset exists in this setting, log the lights that are to be changed here
 
             for a in range(len(customLightPresets[numOfPreset])): # check all the entries stored in this preset
@@ -1333,6 +1348,9 @@ try: # try to load the GUI
                         changedLights.append(currentLight[0])
 
             if changedLights != []:
+                global lastSelection
+                lastSelection = changedLights
+
                 self.lightTable.setFocus()
                 self.selectRows(changedLights)
 
