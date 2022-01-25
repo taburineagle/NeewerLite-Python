@@ -3,6 +3,8 @@ from PySide2.QtGui import QFont, QLinearGradient, QColor, Qt, QKeySequence, QPal
 from PySide2.QtWidgets import QFormLayout, QGridLayout, QKeySequenceEdit, QWidget, QPushButton, QTableWidget, QTableWidgetItem, QAbstractScrollArea, QAbstractItemView, \
                               QTabWidget, QGraphicsScene, QGraphicsView, QFrame, QSlider, QLabel, QLineEdit, QCheckBox, QStatusBar, QScrollArea, QTextEdit
 
+import platform # for selecting specific fonts for specific systems
+
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         # ============ FONTS AND OTHER WINDOW SPECIFICS ============
@@ -484,14 +486,18 @@ class customPresetButton(QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        customPresetFont = QFont()
-        customPresetFont.setPointSize(12)
+        if platform.system() != "Windows": # if we're not on Windows, use the default font
+            customPresetFont = QFont()
+            customPresetFont.setPointSize(12)
+            self.setFont(customPresetFont)
+        else: # if we are on Windows, use a slightly less garish font than the default one
+            windowsCustomPresetFont = QFont("Segoe UI")
+            windowsCustomPresetFont.setPointSize(10.5)
+            self.setFont(windowsCustomPresetFont)
 
-        self.setTextFormat(Qt.TextFormat.RichText)
-
-        self.setText(kwargs['text'])
-        self.setFont(customPresetFont)
         self.setAlignment(Qt.AlignCenter)
+        self.setTextFormat(Qt.TextFormat.RichText)
+        self.setText(kwargs['text'])
 
         self.setStyleSheet("customPresetButton"
                            "{"

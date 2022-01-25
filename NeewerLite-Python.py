@@ -181,18 +181,6 @@ try: # try to load the GUI
 
             if platform.system() == "Darwin": # if we're on MacOS, then change the column text for the 2nd column in the light table
                 self.lightTable.horizontalHeaderItem(1).setText("Light UUID")
-            elif platform.system() == "Windows": # if we're on Windows, then change the font for the custom preset buttons
-                windowsCustomFont = QFont("Gadugi")
-                windowsCustomFont.setPointSize(10.5)
-
-                self.customPreset_0_Button.setFont(windowsCustomFont)
-                self.customPreset_1_Button.setFont(windowsCustomFont)
-                self.customPreset_2_Button.setFont(windowsCustomFont)
-                self.customPreset_3_Button.setFont(windowsCustomFont)
-                self.customPreset_4_Button.setFont(windowsCustomFont)
-                self.customPreset_5_Button.setFont(windowsCustomFont)
-                self.customPreset_6_Button.setFont(windowsCustomFont)
-                self.customPreset_7_Button.setFont(windowsCustomFont)
 
             # IF ANY OF THE CUSTOM PRESETS ARE ACTUALLY CUSTOM, THEN MARK THOSE BUTTONS AS CUSTOM
             if customLightPresets[0] != defaultLightPresets[0]:
