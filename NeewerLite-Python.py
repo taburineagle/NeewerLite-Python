@@ -55,8 +55,8 @@ importError = 0 # whether or not there's an issue loading PySide2 or the GUI fil
 
 # IMPORT PYSIDE2 (the GUI libraries)
 try:
-    from PySide2.QtCore import Qt
-    from PySide2.QtGui import QLinearGradient, QColor, QKeySequence
+    from PySide2.QtCore import Qt, QItemSelectionModel
+    from PySide2.QtGui import QLinearGradient, QColor, QKeySequence, QFont
     from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QShortcut, QMessageBox
 
 except Exception as e:
@@ -181,6 +181,18 @@ try: # try to load the GUI
 
             if platform.system() == "Darwin": # if we're on MacOS, then change the column text for the 2nd column in the light table
                 self.lightTable.horizontalHeaderItem(1).setText("Light UUID")
+            elif platform.system() == "Windows": # if we're on Windows, then change the font for the custom preset buttons
+                windowsCustomFont = QFont("Gadugi")
+                windowsCustomFont.setPointSize(10.5)
+
+                self.customPreset_0_Button.setFont(windowsCustomFont)
+                self.customPreset_1_Button.setFont(windowsCustomFont)
+                self.customPreset_2_Button.setFont(windowsCustomFont)
+                self.customPreset_3_Button.setFont(windowsCustomFont)
+                self.customPreset_4_Button.setFont(windowsCustomFont)
+                self.customPreset_5_Button.setFont(windowsCustomFont)
+                self.customPreset_6_Button.setFont(windowsCustomFont)
+                self.customPreset_7_Button.setFont(windowsCustomFont)
 
             # IF ANY OF THE CUSTOM PRESETS ARE ACTUALLY CUSTOM, THEN MARK THOSE BUTTONS AS CUSTOM
             if customLightPresets[0] != defaultLightPresets[0]:
@@ -928,6 +940,11 @@ try: # try to load the GUI
                 self.lightTable.clearContents()
                 self.lightTable.setRowCount(0)
 
+        def selectRows(self, rowsToSelect):
+            self.lightTable.clearSelection()
+            indexes = [self.lightTable.model().index(r, 0) for r in rowsToSelect]
+            [self.lightTable.selectionModel().select(i, QItemSelectionModel.Select | QItemSelectionModel.Rows) for i in indexes]
+            
         # TELL THE BACKGROUND THREAD TO START LOOKING FOR LIGHTS
         def startSelfSearch(self):
             global threadAction
@@ -1283,6 +1300,9 @@ try: # try to load the GUI
                         changedLights.append(currentLight[0])
 
             if changedLights != []:
+                self.lightTable.setFocus()
+                self.selectRows(changedLights)
+
                 global threadAction
                 threadAction = "send|" + "|".join(map(str, changedLights))
 
@@ -1986,8 +2006,6 @@ def workerThread(_loop):
                     lightsToSendTo.append(int(currentThreadAction[a]))
 
                 threadAction = _loop.run_until_complete(writeToLight(lightsToSendTo, True, False)) # write the value stored in the lights to the light(s)
-
-                mainWindow.lightTable.clearSelection() # clear the selection first before re-selecting lights
 
         time.sleep(0.25)
 
