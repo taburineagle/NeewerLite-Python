@@ -482,6 +482,8 @@ class Ui_MainWindow(object):
 class customPresetButton(QLabel):
     clicked = Signal()
     rightclicked = Signal()
+    enteredWidget = Signal()
+    leftWidget = Signal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -513,6 +515,12 @@ class customPresetButton(QLabel):
             self.clicked.emit()
         elif event.button() == Qt.RightButton:
             self.rightclicked.emit()
+
+    def enterEvent(self, event):
+        self.enteredWidget.emit()
+
+    def leaveEvent(self, event):
+        self.leftWidget.emit()
 
     def markCustom(self, presetNum, isSnap = 0):
         if isSnap == 0: # we're using a global preset

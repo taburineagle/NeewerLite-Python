@@ -236,22 +236,39 @@ try: # try to load the GUI
             self.ColorModeTabWidget.currentChanged.connect(self.tabChanged)
             self.lightTable.itemSelectionChanged.connect(self.selectionChanged)
 
-            self.customPreset_0_Button.clicked.connect(lambda: self.recallCustomPreset(0))
-            self.customPreset_0_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(0))
+            # COMMENTS ARE THE SAME THE ENTIRE WAY DOWN THIS CHAIN
+            self.customPreset_0_Button.clicked.connect(lambda: self.recallCustomPreset(0)) # when you click a preset
+            self.customPreset_0_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(0)) # when you right-click a preset
+            self.customPreset_0_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(0)) # when the mouse enters the widget
+            self.customPreset_0_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(0, True)) # when the mouse leaves the widget
             self.customPreset_1_Button.clicked.connect(lambda: self.recallCustomPreset(1))
             self.customPreset_1_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(1))
+            self.customPreset_1_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(1))
+            self.customPreset_1_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(1, True))
             self.customPreset_2_Button.clicked.connect(lambda: self.recallCustomPreset(2))
             self.customPreset_2_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(2))
+            self.customPreset_2_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(2))
+            self.customPreset_2_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(2, True))
             self.customPreset_3_Button.clicked.connect(lambda: self.recallCustomPreset(3))
             self.customPreset_3_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(3))
+            self.customPreset_3_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(3))
+            self.customPreset_3_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(3, True))
             self.customPreset_4_Button.clicked.connect(lambda: self.recallCustomPreset(4))
             self.customPreset_4_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(4))
+            self.customPreset_4_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(4))
+            self.customPreset_4_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(4, True))
             self.customPreset_5_Button.clicked.connect(lambda: self.recallCustomPreset(5))
             self.customPreset_5_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(5))
+            self.customPreset_5_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(5))
+            self.customPreset_5_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(5, True))
             self.customPreset_6_Button.clicked.connect(lambda: self.recallCustomPreset(6))
             self.customPreset_6_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(6))
+            self.customPreset_6_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(6))
+            self.customPreset_6_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(6, True))
             self.customPreset_7_Button.clicked.connect(lambda: self.recallCustomPreset(7))
             self.customPreset_7_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(7))
+            self.customPreset_7_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7))
+            self.customPreset_7_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7, True))
 
             self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
             self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
@@ -1240,6 +1257,34 @@ try: # try to load the GUI
                             self.customPreset_6_Button.markCustom(6, clickedButton)
                     if numOfPreset == 7:
                             self.customPreset_7_Button.markCustom(7, clickedButton)
+
+        def highlightLightsForSnapshotPreset(self, numOfPreset, exited = False):
+            if exited == False:
+                lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
+                
+                for a in range(len(lightsToHighlight)):
+                    self.lightTable.item(lightsToHighlight[a], 3).font().setBold(True)
+                    self.lightTable.item(lightsToHighlight[a], 3).setBackground(QColor(113, 233, 147)) # set the affected rows the same color as the snapshot button
+            else:
+                lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
+                
+                for a in range(len(lightsToHighlight)):
+                    self.lightTable.item(lightsToHighlight[a], 3).font().setBold(False)
+                    self.lightTable.item(lightsToHighlight[a], 3).setBackground(Qt.white) # clear formatting on the previously selected rows
+
+        def checkForSnapshotPreset(self, numOfPreset):
+            if customLightPresets[numOfPreset][0][0] != -1: # if the value is not -1, then we most likely have a snapshot preset
+                lightsToHighlight = []
+                
+                for a in range(len(customLightPresets[numOfPreset])): # check each entry in the preset for matching lights
+                    currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
+
+                    if currentLight != []: # if we have a match, add it to the list of lights to highlight
+                        lightsToHighlight.append(currentLight[0])
+
+                return lightsToHighlight
+            else:
+                return [] # if we don't have a snapshot preset, then just return an empty list (no lights directly affected)
 
         def recallCustomPreset(self, numOfPreset):
             global availableLights
