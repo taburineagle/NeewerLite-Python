@@ -1882,9 +1882,10 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
 
         try:
             if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
-                if updateGUI == False:
-                    returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
+                if updateGUI == True: # if we're using the GUI, update the display (if we're waiting)
                     mainWindow.setTheTable(["", "", "NOT\nLINKED", "Light disconnected!"], selectedLight) # show the new status in the table
+                else: # if we're not, then indicate that we're good
+                    returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
 
                 printDebugString("Successfully unlinked from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
         except AttributeError:
