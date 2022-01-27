@@ -76,7 +76,7 @@ class Ui_MainWindow(object):
         self.customPresetButtonsCW = QWidget(self.centralwidget)
         self.customPresetButtonsCW.setGeometry(QRect(10, 300, 571, 68))
         self.customPresetButtonsLay = QGridLayout(self.customPresetButtonsCW)
-        self.customPresetButtonsLay.setContentsMargins(0, 0, 0, 0)
+        self.customPresetButtonsLay.setContentsMargins(0, 0, 0, 0) # ensure this widget spans from the left to the right edge of the light table
 
         self.customPreset_0_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>1</font></strong><br>PRESET<br>GLOBAL")
         self.customPresetButtonsLay.addWidget(self.customPreset_0_Button, 1, 1)
@@ -328,11 +328,14 @@ class Ui_MainWindow(object):
         self.findLightsOnStartup_check = QCheckBox("Scan for Neewer lights on program launch")
         self.autoConnectToLights_check = QCheckBox("Automatically try to link to newly found lights")
         self.printDebug_check = QCheckBox("Print debug information to the console")
-        self.rememberLightsOnExit_check = QCheckBox("Remember the last parameters set for lights on exit")
+        self.rememberLightsOnExit_check = QCheckBox("Remember the last mode parameters set for lights on exit")
+        self.rememberPresetsOnExit_check = QCheckBox("Save configuration of custom presets on exit")
         self.maxNumOfAttempts_field = QLineEdit()
         self.maxNumOfAttempts_field.setFixedWidth(35)
         self.acceptable_HTTP_IPs_field = QTextEdit()
         self.acceptable_HTTP_IPs_field.setFixedHeight(70)
+        self.whiteListedMACs_field = QTextEdit()
+        self.whiteListedMACs_field.setFixedHeight(70)
         
         self.resetGlobalPrefsButton = QPushButton("Reset Preferences to Defaults")
         self.saveGlobalPrefsButton = QPushButton("Save Global Preferences")
@@ -444,9 +447,12 @@ class Ui_MainWindow(object):
         self.globalPrefsLay.addRow(self.autoConnectToLights_check)
         self.globalPrefsLay.addRow(self.printDebug_check)
         self.globalPrefsLay.addRow(self.rememberLightsOnExit_check)
+        self.globalPrefsLay.addRow(self.rememberPresetsOnExit_check)
         self.globalPrefsLay.addRow("Maximum Number of retries:", self.maxNumOfAttempts_field)
         self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Acceptable IPs to use for the HTTP Server:</strong></u><br><em>Each line below is an IP allows access to NeewerLite-Python's HTTP server.<br>Wildcards for IP addresses can be entered by just leaving that section blank.<br><u>For example:</u><br><strong>192.168.*.*</strong> would be entered as just <strong>192.168</strong><br><strong>10.0.1.*</strong> is <strong>10.0.1</strong>", alignment=Qt.AlignCenter))
         self.globalPrefsLay.addRow(self.acceptable_HTTP_IPs_field)
+        self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Whitelisted MAC Addresses/GUIDs</u></strong><br><em>Whitelisted MAC Addresses/GUIDs are added to the light list<br>even if their name doesn't contain <strong>Neewer</strong> in it.<br><br>This preference is really only useful if you have compatible lights<br>that don't show up properly due to name mismatches.</em>", alignment=Qt.AlignCenter))
+        self.globalPrefsLay.addRow(self.whiteListedMACs_field)
         self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Custom GUI Keyboard Shortcut Mapping - GUI Buttons</strong></u><br><em>To switch a keyboard shortcut, click on the old shortcut and type a new one in.<br>To reset a shortcut to default, click the X button next to it.</em><br><br>These 4 keyboard shortcuts control the buttons on the top of the window.", alignment=Qt.AlignCenter))
         self.globalPrefsLay.addRow(self.windowButtonsCW)
         self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Custom GUI Keyboard Shortcut Mapping - Switching Mode Tabs</strong></u><br><em>To switch a keyboard shortcut, click on the old shortcut and type a new one in.<br>To reset a shortcut to default, click the X button next to it.</em><br><br>These 4 keyboard shortcuts switch between<br>the CCT, HSI, SCENE and LIGHT PREFS tabs.", alignment=Qt.AlignCenter))
@@ -480,10 +486,10 @@ class Ui_MainWindow(object):
         self.Slider_ANM_Brightness.valueChanged.connect(self.TFV_ANM_Brightness.setNum)
 
 class customPresetButton(QLabel):
-    clicked = Signal()
-    rightclicked = Signal()
-    enteredWidget = Signal()
-    leftWidget = Signal()
+    clicked = Signal() # signal sent when you click on the button
+    rightclicked = Signal() # signal sent when you right-click on the button
+    enteredWidget = Signal() # signal sent when the mouse enters the button
+    leftWidget = Signal() # signal sent when the mouse leaves the button
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -56,7 +56,7 @@ importError = 0 # whether or not there's an issue loading PySide2 or the GUI fil
 # IMPORT PYSIDE2 (the GUI libraries)
 try:
     from PySide2.QtCore import Qt, QItemSelectionModel
-    from PySide2.QtGui import QLinearGradient, QColor, QKeySequence, QFont
+    from PySide2.QtGui import QLinearGradient, QColor, QKeySequence
     from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QShortcut, QMessageBox
 
 except Exception as e:
@@ -76,7 +76,7 @@ except Exception as e:
     pass # if there are any HTTP errors, don't do anything yet
 
 CCTSlider = -1 # the current slider moved in the CCT window - 1 - Brightness / 2 - Hue / -1 - Both Brightness and Hue
-sendValue = [120, 135, 2, 100, 56, 157] # an array to hold the values to be sent to the light - the default is CCT / 5600K / 100%
+sendValue = [120, 135, 2, 20, 56, 157] # an array to hold the values to be sent to the light - the default is CCT / 5600K / 100%
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
 lastSelection = [] # the current light selection (this is for snapshot preset entering/leaving buttons)
 
@@ -86,28 +86,28 @@ availableLights = [] # the list of Neewer lights currently available to control 
 
 # The list of **default** light presets for restoring and checking against
 defaultLightPresets = [
-    [[-1, [5, 100, 56]]],
-    [[-1, [5, 100, 32]]],
+    [[-1, [5, 20, 56]]],
+    [[-1, [5, 20, 32]]],
     [[-1, [5, 0, 56]]],
-    [[-1, [4, 100, 0, 100]]],
-    [[-1, [4, 100, 240, 100]]],
-    [[-1, [4, 100, 120, 100]]],
-    [[-1, [4, 100, 300, 100]]],
-    [[-1, [4, 100, 160, 100]]]    
+    [[-1, [4, 20, 0, 100]]],
+    [[-1, [4, 20, 240, 100]]],
+    [[-1, [4, 20, 120, 100]]],
+    [[-1, [4, 20, 300, 100]]],
+    [[-1, [4, 20, 160, 100]]]    
     ]
 
 # A list of preset mode settings - custom file will overwrite, but here are the default values
 # (0 - CCT - 5600K / 100%) / (1 - CCT - 3200K / 100%) / (2 - CCT - 5600K / 0%) / (3 - HSI - Red / all 100%)
 # (4 - HSI - Blue / all 100%) / (5 - HSI - Green / all 100%) / (6 - HSI - Purple / all 100%) / (7 - HSI - Cyan / all 100%)
 customLightPresets = [
-    [[-1, [5, 100, 56]]],
-    [[-1, [5, 100, 32]]],
+    [[-1, [5, 20, 56]]],
+    [[-1, [5, 20, 32]]],
     [[-1, [5, 0, 56]]],
-    [[-1, [4, 100, 0, 100]]],
-    [[-1, [4, 100, 240, 100]]],
-    [[-1, [4, 100, 120, 100]]],
-    [[-1, [4, 100, 300, 100]]],
-    [[-1, [4, 100, 160, 100]]]    
+    [[-1, [4, 20, 0, 100]]],
+    [[-1, [4, 20, 240, 100]]],
+    [[-1, [4, 20, 120, 100]]],
+    [[-1, [4, 20, 300, 100]]],
+    [[-1, [4, 20, 160, 100]]]    
     ]
 
 threadAction = "" # the current action to take from the thread
@@ -516,8 +516,10 @@ try: # try to load the GUI
                 self.autoConnectToLights_check.setChecked(autoConnectToLights)
                 self.printDebug_check.setChecked(printDebug)
                 self.rememberLightsOnExit_check.setChecked(rememberLightsOnExit)
+                self.rememberPresetsOnExit_check.setChecked(rememberPresetsOnExit)
                 self.maxNumOfAttempts_field.setText(str(maxNumOfAttempts))
                 self.acceptable_HTTP_IPs_field.setText("\n".join(acceptable_HTTP_IPs))
+                self.whiteListedMACs_field.setText("\n".join(whiteListedMACs))
                 self.SC_turnOffButton_field.setKeySequence(customKeys[0])
                 self.SC_turnOnButton_field.setKeySequence(customKeys[1])
                 self.SC_scanCommandButton_field.setKeySequence(customKeys[2])
@@ -547,8 +549,10 @@ try: # try to load the GUI
                 self.autoConnectToLights_check.setChecked(True)
                 self.printDebug_check.setChecked(True)
                 self.rememberLightsOnExit_check.setChecked(False)
+                self.rememberPresetsOnExit_check.setChecked(True)
                 self.maxNumOfAttempts_field.setText("6")
                 self.acceptable_HTTP_IPs_field.setText("\n".join(["127.0.0.1", "192.168", "10.0.0"]))
+                self.whiteListedMACs_field.setText("")
                 self.SC_turnOffButton_field.setKeySequence("Ctrl+PgDown")
                 self.SC_turnOnButton_field.setKeySequence("Ctrl+PgUp")
                 self.SC_scanCommandButton_field.setKeySequence("Ctrl+Shift+S")
@@ -576,7 +580,7 @@ try: # try to load the GUI
 
         def saveGlobalPrefs(self):
             # change these global values to the new values in Prefs
-            global customKeys, autoConnectToLights, printDebug, rememberLightsOnExit, maxNumOfAttempts, acceptable_HTTP_IPs
+            global customKeys, autoConnectToLights, printDebug, rememberLightsOnExit, rememberPresetsOnExit, maxNumOfAttempts, acceptable_HTTP_IPs, whiteListedMACs
 
             finalPrefs = [] # list of final prefs to merge together at the end
 
@@ -600,6 +604,12 @@ try: # try to load the GUI
                 finalPrefs.append("rememberLightsOnExit=1")
             else:
                 rememberLightsOnExit = False
+
+            if not self.rememberPresetsOnExit_check.isChecked(): # this option is usually on, so only add if false
+                rememberPresetsOnExit = False
+                finalPrefs.append("rememberPresetsOnExit=0")
+            else:
+                rememberPresetsOnExit = True
             
             if self.maxNumOfAttempts_field.text() != "6": # the default for this option is 6 attempts
                 maxNumOfAttempts = int(self.maxNumOfAttempts_field.text())
@@ -615,6 +625,15 @@ try: # try to load the GUI
                 finalPrefs.append("acceptable_HTTP_IPs=" + ";".join(acceptable_HTTP_IPs)) # add the new ones to the preferences
             else:
                 acceptable_HTTP_IPs = ["127.0.0.1", "192.168", "10.0.0"] # if we reset the IPs, then re-reset the parameter
+
+            # ADD WHITELISTED LIGHTS TO PREFERENCES IF THEY EXIST
+            returnedList_whiteListedMACs = self.whiteListedMACs_field.toPlainText().replace(" ", "").split("\n") # remove spaces and split on newlines
+
+            if returnedList_whiteListedMACs[0] != "": # if we have any MAC addresses specified
+                whiteListedMACs = returnedList_whiteListedMACs # then set the list to the addresses specified
+                finalPrefs.append("whiteListedMACs=" + ";".join(whiteListedMACs)) # add the new addresses to the preferences
+            else:
+                whiteListedMACs = [] # or clear the list
             
             # SET THE NEW KEYBOARD SHORTCUTS TO THE VALUES IN PREFERENCES
             customKeys[0] = self.SC_turnOffButton_field.keySequence().toString()
@@ -1197,9 +1216,10 @@ try: # try to load the GUI
             printDebugString("Closing the program NOW")
 
         def saveCustomPresetDialog(self, numOfPreset):
-            if (QApplication.keyboardModifiers() & Qt.AltModifier) == Qt.AltModifier: # if you have the ALT key held down, then delete the current preset
-                customLightPresets[numOfPreset] = defaultLightPresets[numOfPreset]
+            if (QApplication.keyboardModifiers() & Qt.AltModifier) == Qt.AltModifier: # if you have the ALT key held down
+                customLightPresets[numOfPreset] = defaultLightPresets[numOfPreset] # then restore the default for this preset
 
+                # And change the button display back to "PRESET GLOBAL"
                 if numOfPreset == 0:
                     self.customPreset_0_Button.markCustom(0, -1)
                 if numOfPreset == 1:
@@ -1682,7 +1702,7 @@ async def findDevices():
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
 
             if len(customPrefs) == 3: # we need to rename the light and set up CCT and color temp range
-                availableLights.append([currentScan[a], "", customPrefs[0], [120, 135, 2, 100, 56, 157], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
+                availableLights.append([currentScan[a], "", customPrefs[0], [120, 135, 2, 20, 56, 157], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
             elif len(customPrefs) == 4: # same as above, but we have previously stored parameters, so add them in as well
                 availableLights.append([currentScan[a], "", customPrefs[0], customPrefs[3], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
 
@@ -2490,7 +2510,7 @@ def createLightPrefsFolder():
 def loadPrefsFile(globalPrefsFile = ""):
     global findLightsOnStartup, autoConnectToLights, printDebug, maxNumOfAttempts, \
            rememberLightsOnExit, acceptable_HTTP_IPs, customKeys, enableTabsOnLaunch, \
-           whiteListedMACs
+           whiteListedMACs, rememberPresetsOnExit
 
     if globalPrefsFile != "":
         printDebugString("Loading global preferences from file...")
@@ -2504,7 +2524,7 @@ def loadPrefsFile(globalPrefsFile = ""):
             "SC_Dec_Bri_Small", "SC_Inc_Bri_Small", "SC_Dec_Bri_Large", "SC_Inc_Bri_Large", \
             "SC_Dec_1_Small", "SC_Inc_1_Small", "SC_Dec_2_Small", "SC_Inc_2_Small", "SC_Dec_3_Small", "SC_Inc_3_Small", \
             "SC_Dec_1_Large", "SC_Inc_1_Large", "SC_Dec_2_Large", "SC_Inc_2_Large", "SC_Dec_3_Large", "SC_Inc_3_Large", \
-            "enableTabsOnLaunch", "whiteListedMACs"]
+            "enableTabsOnLaunch", "whiteListedMACs", "rememberPresetsOnExit"]
 
         # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST ABOVE
         # THIS SECTION OF CODE IS *SLIGHTLY* DIFFERENT THAN THE CLI KICK OUT CODE
@@ -2528,6 +2548,8 @@ def loadPrefsFile(globalPrefsFile = ""):
     prefsParser.add_argument("--maxNumOfAttempts", default=6)
     prefsParser.add_argument("--rememberLightsOnExit", default=0)
     prefsParser.add_argument("--acceptableIPs", default=["127.0.0.1", "192.168", "10.0.0"])
+    prefsParser.add_argument("--whiteListedMACs" , default=[])
+    prefsParser.add_argument("--rememberPresetsOnExit", default=1)
 
     # SHORTCUT KEY CUSTOMIZATIONS
     prefsParser.add_argument("--SC_turnOffButton", default="Ctrl+PgDown") # 0
@@ -2559,7 +2581,6 @@ def loadPrefsFile(globalPrefsFile = ""):
     # THESE ARE OPTIONS THAT HELP DEBUG THINGS, BUT AREN'T REALLY USEFUL FOR NORMAL OPERATION
     # enableTabsOnLaunch SHOWS ALL TABS ACTIVE (INSTEAD OF DISABLING THEM) ON LAUNCH SO EVEN WITHOUT A LIGHT, A BYTESTRING CAN BE CALCULATED
     prefsParser.add_argument("--enableTabsOnLaunch", default=0)
-    prefsParser.add_argument("--whiteListedMACs" , default=[])
 
     mainPrefs = prefsParser.parse_args(mainPrefs)
 
@@ -2569,6 +2590,7 @@ def loadPrefsFile(globalPrefsFile = ""):
     printDebug = bool(int(mainPrefs.printDebug)) # whether or not to display debug messages in the console
     maxNumOfAttempts = int(mainPrefs.maxNumOfAttempts) # maximum number of attempts before failing out
     rememberLightsOnExit = bool(int(mainPrefs.rememberLightsOnExit)) # whether or not to remember light mode/settings when quitting out
+    rememberPresetsOnExit = bool(int(mainPrefs.rememberPresetsOnExit)) # whether or not to remember the custom presets when quitting out
 
     if type(mainPrefs.acceptableIPs) is not list: # we have a string in the return, so we need to post-process it
         acceptable_HTTP_IPs = mainPrefs.acceptableIPs.replace(" ", "").split(";") # split the IP addresses into a list for acceptable IPs
