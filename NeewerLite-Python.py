@@ -1237,52 +1237,60 @@ try: # try to load the GUI
                 if numOfPreset == 7:
                     self.customPreset_7_Button.markCustom(7, -1)
             else:
-                selectedLights = self.selectedLights() # get the currently selected lights
+                if len(availableLights) == 0: # if we don't have lights, then we can't save a preset!
+                    errDlg = QMessageBox(self)
+                    errDlg.setWindowTitle("Can't Save Preset!")
+                    errDlg.setText("You can't save a custom preset at the moment because you don't have any lights set up yet.  To save a custom preset, connect a light to NeewerLite-Python first.")
+                    errDlg.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
+                    errDlg.setIcon(QMessageBox.Warning)
+                    errDlg.exec_()
+                else: # we have lights, we can do it!
+                    selectedLights = self.selectedLights() # get the currently selected lights
 
-                saveDlg = QMessageBox(self)
-                saveDlg.setWindowTitle("Save a Custom Preset")
-                saveDlg.setTextFormat(Qt.TextFormat.RichText)
-                saveDlg.setText("Would you like to save a <em>Global</em> or <em>Snapshot</em> preset for preset " + str(numOfPreset + 1) + "?" + "<hr>"
-                                "A <em>Global Preset</em> saves only the currently set global parameters (mode, hue, color temperature, brightness, etc.) and applies that global preset to all the lights that are currently selected.<br><br>"
-                                "A <em>Snapshot Preset</em> saves the currently set parameters for each light individually, allowing you to recall more complex lighting setups.  You can also either set a <em>snapshot preset</em> for a series of selected lights (you have to select 1 or more lights for this option), or all the currently available lights.  If you save a <em>snapshot preset</em> of a series of selected lights, it will only apply the settings for those specific lights.")
-                saveDlg.addButton(" Global Preset ", QMessageBox.ButtonRole.YesRole)
-                saveDlg.addButton(" Snapshot Preset - All Lights ", QMessageBox.ButtonRole.YesRole)
+                    saveDlg = QMessageBox(self)
+                    saveDlg.setWindowTitle("Save a Custom Preset")
+                    saveDlg.setTextFormat(Qt.TextFormat.RichText)
+                    saveDlg.setText("Would you like to save a <em>Global</em> or <em>Snapshot</em> preset for preset " + str(numOfPreset + 1) + "?" + "<hr>"
+                                    "A <em>Global Preset</em> saves only the currently set global parameters (mode, hue, color temperature, brightness, etc.) and applies that global preset to all the lights that are currently selected.<br><br>"
+                                    "A <em>Snapshot Preset</em> saves the currently set parameters for each light individually, allowing you to recall more complex lighting setups.  You can also either set a <em>snapshot preset</em> for a series of selected lights (you have to select 1 or more lights for this option), or all the currently available lights.  If you save a <em>snapshot preset</em> of a series of selected lights, it will only apply the settings for those specific lights.")
+                    saveDlg.addButton(" Global Preset ", QMessageBox.ButtonRole.YesRole)
+                    saveDlg.addButton(" Snapshot Preset - All Lights ", QMessageBox.ButtonRole.YesRole)
 
-                selectedLightsQuestion = 0
+                    selectedLightsQuestion = 0
 
-                if selectedLights != []:
-                    saveDlg.addButton(" Snapshot Preset - Selected Lights ", QMessageBox.ButtonRole.YesRole)
-                    selectedLightsQuestion = 1
-                
-                saveDlg.addButton(" Cancel ", QMessageBox.ButtonRole.RejectRole)           
-                saveDlg.setIcon(QMessageBox.Question)
-
-                clickedButton = saveDlg.exec_()
-                
-                if clickedButton == 0: # save a "Global" preset
-                    saveCustomPreset("global", numOfPreset)
-                elif clickedButton == 1: # save a "Snapshot" preset with all lights
-                    saveCustomPreset("snapshot", numOfPreset)
-                elif clickedButton == 2: # save a "Snapshot" preset with only the selected lights
-                    saveCustomPreset("snapshot", numOfPreset, selectedLights)
+                    if selectedLights != []:
+                        saveDlg.addButton(" Snapshot Preset - Selected Lights ", QMessageBox.ButtonRole.YesRole)
+                        selectedLightsQuestion = 1
                     
-                if clickedButton != (2 + selectedLightsQuestion): # if we didn't cancel out, then mark that button as being "custom"
-                    if numOfPreset == 0:
-                            self.customPreset_0_Button.markCustom(0, clickedButton)
-                    if numOfPreset == 1:
-                            self.customPreset_1_Button.markCustom(1, clickedButton)
-                    if numOfPreset == 2:
-                            self.customPreset_2_Button.markCustom(2, clickedButton)
-                    if numOfPreset == 3:
-                            self.customPreset_3_Button.markCustom(3, clickedButton)
-                    if numOfPreset == 4:
-                            self.customPreset_4_Button.markCustom(4, clickedButton)
-                    if numOfPreset == 5:
-                            self.customPreset_5_Button.markCustom(5, clickedButton)
-                    if numOfPreset == 6:
-                            self.customPreset_6_Button.markCustom(6, clickedButton)
-                    if numOfPreset == 7:
-                            self.customPreset_7_Button.markCustom(7, clickedButton)
+                    saveDlg.addButton(" Cancel ", QMessageBox.ButtonRole.RejectRole)           
+                    saveDlg.setIcon(QMessageBox.Question)
+
+                    clickedButton = saveDlg.exec_()
+                    
+                    if clickedButton == 0: # save a "Global" preset
+                        saveCustomPreset("global", numOfPreset)
+                    elif clickedButton == 1: # save a "Snapshot" preset with all lights
+                        saveCustomPreset("snapshot", numOfPreset)
+                    elif clickedButton == 2: # save a "Snapshot" preset with only the selected lights
+                        saveCustomPreset("snapshot", numOfPreset, selectedLights)
+                        
+                    if clickedButton != (2 + selectedLightsQuestion): # if we didn't cancel out, then mark that button as being "custom"
+                        if numOfPreset == 0:
+                                self.customPreset_0_Button.markCustom(0, clickedButton)
+                        if numOfPreset == 1:
+                                self.customPreset_1_Button.markCustom(1, clickedButton)
+                        if numOfPreset == 2:
+                                self.customPreset_2_Button.markCustom(2, clickedButton)
+                        if numOfPreset == 3:
+                                self.customPreset_3_Button.markCustom(3, clickedButton)
+                        if numOfPreset == 4:
+                                self.customPreset_4_Button.markCustom(4, clickedButton)
+                        if numOfPreset == 5:
+                                self.customPreset_5_Button.markCustom(5, clickedButton)
+                        if numOfPreset == 6:
+                                self.customPreset_6_Button.markCustom(6, clickedButton)
+                        if numOfPreset == 7:
+                                self.customPreset_7_Button.markCustom(7, clickedButton)
 
         def highlightLightsForSnapshotPreset(self, numOfPreset, exited = False):
             global lastSelection
