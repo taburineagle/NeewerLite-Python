@@ -55,7 +55,7 @@ importError = 0 # whether or not there's an issue loading PySide2 or the GUI fil
 
 # IMPORT PYSIDE2 (the GUI libraries)
 try:
-    from PySide2.QtCore import Qt
+    from PySide2.QtCore import Qt, QItemSelectionModel
     from PySide2.QtGui import QLinearGradient, QColor, QKeySequence
     from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QShortcut, QMessageBox
 
@@ -76,12 +76,39 @@ except Exception as e:
     pass # if there are any HTTP errors, don't do anything yet
 
 CCTSlider = -1 # the current slider moved in the CCT window - 1 - Brightness / 2 - Hue / -1 - Both Brightness and Hue
-sendValue = [] # an array to hold the values to be sent to the light
+sendValue = [120, 135, 2, 20, 56, 157] # an array to hold the values to be sent to the light - the default is CCT / 5600K / 100%
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
+lastSelection = [] # the current light selection (this is for snapshot preset entering/leaving buttons)
 
 availableLights = [] # the list of Neewer lights currently available to control - format:
                      #  0                  1                 2            3            4                 5                           6             7
                      # [Bleak Scan Object, Bleak Connection, Custom Name, Last Params, Extend CCT Range, Send BRI/HUE independently, Light On/Off, Power/CH Data Returned]
+
+# The list of **default** light presets for restoring and checking against
+defaultLightPresets = [
+    [[-1, [5, 20, 56]]],
+    [[-1, [5, 20, 32]]],
+    [[-1, [5, 0, 56]]],
+    [[-1, [4, 20, 0, 100]]],
+    [[-1, [4, 20, 240, 100]]],
+    [[-1, [4, 20, 120, 100]]],
+    [[-1, [4, 20, 300, 100]]],
+    [[-1, [4, 20, 160, 100]]]    
+    ]
+
+# A list of preset mode settings - custom file will overwrite, but here are the default values
+# (0 - CCT - 5600K / 100%) / (1 - CCT - 3200K / 100%) / (2 - CCT - 5600K / 0%) / (3 - HSI - Red / all 100%)
+# (4 - HSI - Blue / all 100%) / (5 - HSI - Green / all 100%) / (6 - HSI - Purple / all 100%) / (7 - HSI - Cyan / all 100%)
+customLightPresets = [
+    [[-1, [5, 20, 56]]],
+    [[-1, [5, 20, 32]]],
+    [[-1, [5, 0, 56]]],
+    [[-1, [4, 20, 0, 100]]],
+    [[-1, [4, 20, 240, 100]]],
+    [[-1, [4, 20, 120, 100]]],
+    [[-1, [4, 20, 300, 100]]],
+    [[-1, [4, 20, 160, 100]]]    
+    ]
 
 threadAction = "" # the current action to take from the thread
 
@@ -96,6 +123,7 @@ autoConnectToLights = True # whether or not to auto-connect to lights after find
 printDebug = True # show debug messages in the console for all of the program's events
 maxNumOfAttempts = 6 # the maximum attempts the program will attempt an action before erroring out
 rememberLightsOnExit = False # whether or not to save the currently set light settings (mode/hue/brightness/etc.) when quitting out
+rememberPresetsOnExit = True # whether or not to save the custom preset list when quitting out
 acceptable_HTTP_IPs = [] # the acceptable IPs for the HTTP server, set on launch by prefs file
 customKeys = [] # custom keymappings for keyboard shortcuts, set on launch by the prefs file
 whiteListedMACs = [] # whitelisted list of MAC addresses to add to NeewerLite-Python
@@ -104,6 +132,7 @@ enableTabsOnLaunch = False # whether or not to enable tabs on startup (even with
 lockFile = tempfile.gettempdir() + os.sep + "NeewerLite-Python.lock"
 anotherInstance = False # whether or not we're using a new instance (for the Singleton check)
 globalPrefsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "NeewerLite-Python.prefs" # the global preferences file for saving/loading
+customLightPresetsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "customLights.prefs"
 
 # FILE LOCKING FOR SINGLE INSTANCE
 def singleInstanceLock():
@@ -155,6 +184,48 @@ try: # try to load the GUI
             if platform.system() == "Darwin": # if we're on MacOS, then change the column text for the 2nd column in the light table
                 self.lightTable.horizontalHeaderItem(1).setText("Light UUID")
 
+            # IF ANY OF THE CUSTOM PRESETS ARE ACTUALLY CUSTOM, THEN MARK THOSE BUTTONS AS CUSTOM
+            if customLightPresets[0] != defaultLightPresets[0]:
+                if customLightPresets[0][0][0] == -1: # if the current preset is custom, but a global, mark it that way
+                    self.customPreset_0_Button.markCustom(0)
+                else: # the current preset is a snapshot preset
+                    self.customPreset_0_Button.markCustom(0, 1)
+            if customLightPresets[1] != defaultLightPresets[1]:
+                if customLightPresets[1][0][0] == -1:
+                    self.customPreset_1_Button.markCustom(1)
+                else:
+                    self.customPreset_1_Button.markCustom(1, 1)
+            if customLightPresets[2] != defaultLightPresets[2]:
+                if customLightPresets[2][0][0] == -1:
+                    self.customPreset_2_Button.markCustom(2)
+                else:
+                    self.customPreset_2_Button.markCustom(2, 1)
+            if customLightPresets[3] != defaultLightPresets[3]:
+                if customLightPresets[3][0][0] == -1:
+                    self.customPreset_3_Button.markCustom(3)
+                else:
+                    self.customPreset_3_Button.markCustom(3, 1)
+            if customLightPresets[4] != defaultLightPresets[4]:
+                if customLightPresets[4][0][0] == -1:
+                    self.customPreset_4_Button.markCustom(4)
+                else:
+                    self.customPreset_4_Button.markCustom(4, 1)
+            if customLightPresets[5] != defaultLightPresets[5]:
+                if customLightPresets[5][0][0] == -1:
+                    self.customPreset_5_Button.markCustom(5)
+                else:
+                    self.customPreset_5_Button.markCustom(5, 1)
+            if customLightPresets[6] != defaultLightPresets[6]:
+                if customLightPresets[6][0][0] == -1:
+                    self.customPreset_6_Button.markCustom(6)
+                else:
+                    self.customPreset_6_Button.markCustom(6, 1)
+            if customLightPresets[7] != defaultLightPresets[7]:
+                if customLightPresets[7][0][0] == -1:
+                    self.customPreset_7_Button.markCustom(7)
+                else:
+                    self.customPreset_7_Button.markCustom(7, 1)
+                
             self.show
 
         def connectMe(self):
@@ -166,6 +237,40 @@ try: # try to load the GUI
 
             self.ColorModeTabWidget.currentChanged.connect(self.tabChanged)
             self.lightTable.itemSelectionChanged.connect(self.selectionChanged)
+
+            # COMMENTS ARE THE SAME THE ENTIRE WAY DOWN THIS CHAIN
+            self.customPreset_0_Button.clicked.connect(lambda: self.recallCustomPreset(0)) # when you click a preset
+            self.customPreset_0_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(0)) # when you right-click a preset
+            self.customPreset_0_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(0)) # when the mouse enters the widget
+            self.customPreset_0_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(0, True)) # when the mouse leaves the widget
+            self.customPreset_1_Button.clicked.connect(lambda: self.recallCustomPreset(1))
+            self.customPreset_1_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(1))
+            self.customPreset_1_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(1))
+            self.customPreset_1_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(1, True))
+            self.customPreset_2_Button.clicked.connect(lambda: self.recallCustomPreset(2))
+            self.customPreset_2_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(2))
+            self.customPreset_2_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(2))
+            self.customPreset_2_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(2, True))
+            self.customPreset_3_Button.clicked.connect(lambda: self.recallCustomPreset(3))
+            self.customPreset_3_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(3))
+            self.customPreset_3_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(3))
+            self.customPreset_3_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(3, True))
+            self.customPreset_4_Button.clicked.connect(lambda: self.recallCustomPreset(4))
+            self.customPreset_4_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(4))
+            self.customPreset_4_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(4))
+            self.customPreset_4_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(4, True))
+            self.customPreset_5_Button.clicked.connect(lambda: self.recallCustomPreset(5))
+            self.customPreset_5_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(5))
+            self.customPreset_5_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(5))
+            self.customPreset_5_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(5, True))
+            self.customPreset_6_Button.clicked.connect(lambda: self.recallCustomPreset(6))
+            self.customPreset_6_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(6))
+            self.customPreset_6_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(6))
+            self.customPreset_6_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(6, True))
+            self.customPreset_7_Button.clicked.connect(lambda: self.recallCustomPreset(7))
+            self.customPreset_7_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(7))
+            self.customPreset_7_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7))
+            self.customPreset_7_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7, True))
 
             self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
             self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
@@ -280,7 +385,7 @@ try: # try to load the GUI
             self.SC_Num8.activated.connect(lambda: self.numberShortcuts(8))
             self.SC_Num9 = QShortcut(QKeySequence("9"), self)
             self.SC_Num9.activated.connect(lambda: self.numberShortcuts(9))
-
+            
         def switchToTab(self, theTab): # SWITCH TO THE REQUESTED TAB **IF IT IS AVAILABLE**
             if self.ColorModeTabWidget.isTabEnabled(theTab) == True:
                 self.ColorModeTabWidget.setCurrentIndex(theTab)
@@ -411,8 +516,10 @@ try: # try to load the GUI
                 self.autoConnectToLights_check.setChecked(autoConnectToLights)
                 self.printDebug_check.setChecked(printDebug)
                 self.rememberLightsOnExit_check.setChecked(rememberLightsOnExit)
+                self.rememberPresetsOnExit_check.setChecked(rememberPresetsOnExit)
                 self.maxNumOfAttempts_field.setText(str(maxNumOfAttempts))
                 self.acceptable_HTTP_IPs_field.setText("\n".join(acceptable_HTTP_IPs))
+                self.whiteListedMACs_field.setText("\n".join(whiteListedMACs))
                 self.SC_turnOffButton_field.setKeySequence(customKeys[0])
                 self.SC_turnOnButton_field.setKeySequence(customKeys[1])
                 self.SC_scanCommandButton_field.setKeySequence(customKeys[2])
@@ -442,8 +549,10 @@ try: # try to load the GUI
                 self.autoConnectToLights_check.setChecked(True)
                 self.printDebug_check.setChecked(True)
                 self.rememberLightsOnExit_check.setChecked(False)
+                self.rememberPresetsOnExit_check.setChecked(True)
                 self.maxNumOfAttempts_field.setText("6")
                 self.acceptable_HTTP_IPs_field.setText("\n".join(["127.0.0.1", "192.168", "10.0.0"]))
+                self.whiteListedMACs_field.setText("")
                 self.SC_turnOffButton_field.setKeySequence("Ctrl+PgDown")
                 self.SC_turnOnButton_field.setKeySequence("Ctrl+PgUp")
                 self.SC_scanCommandButton_field.setKeySequence("Ctrl+Shift+S")
@@ -471,7 +580,7 @@ try: # try to load the GUI
 
         def saveGlobalPrefs(self):
             # change these global values to the new values in Prefs
-            global customKeys, autoConnectToLights, printDebug, rememberLightsOnExit, maxNumOfAttempts, acceptable_HTTP_IPs
+            global customKeys, autoConnectToLights, printDebug, rememberLightsOnExit, rememberPresetsOnExit, maxNumOfAttempts, acceptable_HTTP_IPs, whiteListedMACs
 
             finalPrefs = [] # list of final prefs to merge together at the end
 
@@ -495,6 +604,12 @@ try: # try to load the GUI
                 finalPrefs.append("rememberLightsOnExit=1")
             else:
                 rememberLightsOnExit = False
+
+            if not self.rememberPresetsOnExit_check.isChecked(): # this option is usually on, so only add if false
+                rememberPresetsOnExit = False
+                finalPrefs.append("rememberPresetsOnExit=0")
+            else:
+                rememberPresetsOnExit = True
             
             if self.maxNumOfAttempts_field.text() != "6": # the default for this option is 6 attempts
                 maxNumOfAttempts = int(self.maxNumOfAttempts_field.text())
@@ -510,6 +625,15 @@ try: # try to load the GUI
                 finalPrefs.append("acceptable_HTTP_IPs=" + ";".join(acceptable_HTTP_IPs)) # add the new ones to the preferences
             else:
                 acceptable_HTTP_IPs = ["127.0.0.1", "192.168", "10.0.0"] # if we reset the IPs, then re-reset the parameter
+
+            # ADD WHITELISTED LIGHTS TO PREFERENCES IF THEY EXIST
+            returnedList_whiteListedMACs = self.whiteListedMACs_field.toPlainText().replace(" ", "").split("\n") # remove spaces and split on newlines
+
+            if returnedList_whiteListedMACs[0] != "": # if we have any MAC addresses specified
+                whiteListedMACs = returnedList_whiteListedMACs # then set the list to the addresses specified
+                finalPrefs.append("whiteListedMACs=" + ";".join(whiteListedMACs)) # add the new addresses to the preferences
+            else:
+                whiteListedMACs = [] # or clear the list
             
             # SET THE NEW KEYBOARD SHORTCUTS TO THE VALUES IN PREFERENCES
             customKeys[0] = self.SC_turnOffButton_field.keySequence().toString()
@@ -780,11 +904,7 @@ try: # try to load the GUI
                 self.saveLightPrefs(selectedRows[0]) # save the light settings to a special file
 
         def saveLightPrefs(self, lightID): # save a sidecar file with the preferences for a specific light
-            #CREATE THE light_prefs FOLDER IF IT DOESN'T EXIST
-            try:
-                os.mkdir(os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs")
-            except FileExistsError:
-                pass # the folder already exists, so we don't need to create it
+            createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
 
             # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
             exportFileName = availableLights[lightID][0].address.split(":") # take the colons out of the MAC address
@@ -817,23 +937,27 @@ try: # try to load the GUI
             if rowToChange == -1:
                 currentRow = self.lightTable.rowCount()
                 self.lightTable.insertRow(currentRow) # if rowToChange is not specified, then we'll make a new row at the end
+                self.lightTable.setItem(currentRow, 0, QTableWidgetItem())
+                self.lightTable.setItem(currentRow, 1, QTableWidgetItem())
+                self.lightTable.setItem(currentRow, 2, QTableWidgetItem())
+                self.lightTable.setItem(currentRow, 3, QTableWidgetItem())
             else:
                 currentRow = rowToChange # change data for the specified row
 
             # THIS SECTION BELOW LIMITS UPDATING THE TABLE **ONLY** IF THE DATA SUPPLIED IS DIFFERENT THAN IT WAS ORIGINALLY
             if infoArray[0] != "": # the name of the light
                 if rowToChange == -1 or (rowToChange != -1 and infoArray[0] != self.returnTableInfo(rowToChange, 0)):
-                    self.lightTable.setItem(currentRow, 0, QTableWidgetItem(infoArray[0]))
+                    self.lightTable.item(currentRow, 0).setText(infoArray[0])
             if infoArray[1] != "": # the MAC address of the light
                 if rowToChange == -1 or (rowToChange != -1 and infoArray[1] != self.returnTableInfo(rowToChange, 1)):
-                    self.lightTable.setItem(currentRow, 1, QTableWidgetItem(infoArray[1]))
+                    self.lightTable.item(currentRow, 1).setText(infoArray[1])
             if infoArray[2] != "": # the Linked status of the light
                 if rowToChange == -1 or (rowToChange != -1 and infoArray[2] != self.returnTableInfo(rowToChange, 2)):
-                    self.lightTable.setItem(currentRow, 2, QTableWidgetItem(infoArray[2]))
+                    self.lightTable.item(currentRow, 2).setText(infoArray[2])
                     self.lightTable.item(currentRow, 2).setTextAlignment(Qt.AlignCenter) # align the light status info to be center-justified
             if infoArray[3] != "": # the current status message of the light
                 if rowToChange == -1 or (rowToChange != -1 and infoArray[2] != self.returnTableInfo(rowToChange, 3)):
-                    self.lightTable.setItem(currentRow, 3, QTableWidgetItem(infoArray[3]))
+                    self.lightTable.item(currentRow, 3).setText(infoArray[3])
 
             self.lightTable.resizeRowsToContents()
 
@@ -846,6 +970,11 @@ try: # try to load the GUI
                 self.lightTable.clearContents()
                 self.lightTable.setRowCount(0)
 
+        def selectRows(self, rowsToSelect):
+            self.lightTable.clearSelection()
+            indexes = [self.lightTable.model().index(r, 0) for r in rowsToSelect]
+            [self.lightTable.selectionModel().select(i, QItemSelectionModel.Select | QItemSelectionModel.Rows) for i in indexes]
+            
         # TELL THE BACKGROUND THREAD TO START LOOKING FOR LIGHTS
         def startSelfSearch(self):
             global threadAction
@@ -1035,6 +1164,39 @@ try: # try to load the GUI
                 threadAction = "quit" # make sure to tell the thread to quit again (if it missed it the first time)
                 time.sleep(2)
 
+            if rememberPresetsOnExit == True:
+                printDebugString("You asked NeewerLite-Python to save the custom parameters on exit, so we will do that now...")
+                customPresetsToWrite = [] # the list of custom presets to write to file
+
+                # CHECK EVERY SINGLE CUSTOM PRESET AGAINST THE "DEFAULT" LIST, AND IF IT'S DIFFERENT, THEN LOG THAT ONE
+                if customLightPresets[0] != defaultLightPresets[0]:
+                    customPresetsToWrite.append(customPresetToString(0))
+                if customLightPresets[1] != defaultLightPresets[1]:
+                    customPresetsToWrite.append(customPresetToString(1))
+                if customLightPresets[2] != defaultLightPresets[2]:
+                    customPresetsToWrite.append(customPresetToString(2))
+                if customLightPresets[3] != defaultLightPresets[3]:
+                    customPresetsToWrite.append(customPresetToString(3))
+                if customLightPresets[4] != defaultLightPresets[4]:
+                    customPresetsToWrite.append(customPresetToString(4))
+                if customLightPresets[5] != defaultLightPresets[5]:
+                    customPresetsToWrite.append(customPresetToString(5))
+                if customLightPresets[6] != defaultLightPresets[6]:
+                    customPresetsToWrite.append(customPresetToString(6))
+                if customLightPresets[7] != defaultLightPresets[7]:
+                    customPresetsToWrite.append(customPresetToString(7))
+
+                if customPresetsToWrite != []: # if there are any altered presets, then write them to the custom presets file
+                    createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
+
+                    # WRITE THE PREFERENCES FILE
+                    with open(customLightPresetsFile, "w") as prefsFileToWrite:
+                        prefsFileToWrite.write("\n".join(customPresetsToWrite))
+
+                    printDebugString("Exported custom presets to " + customLightPresetsFile)
+                else:
+                    printDebugString("There were no changed custom presets, so not saving a custom presets file!")
+
             # Keep in mind, this is broken into 2 separate "for" loops, so we save all the light params FIRST, then try to unlink from them
             if rememberLightsOnExit == True:
                 printDebugString("You asked NeewerLite-Python to save the last used light parameters on exit, so we will do that now...")
@@ -1052,6 +1214,177 @@ try: # try to load the GUI
             loop.run_until_complete(parallelAction("disconnect", [-1])) # disconnect from all lights in parallel
 
             printDebugString("Closing the program NOW")
+
+        def saveCustomPresetDialog(self, numOfPreset):
+            if (QApplication.keyboardModifiers() & Qt.AltModifier) == Qt.AltModifier: # if you have the ALT key held down
+                customLightPresets[numOfPreset] = defaultLightPresets[numOfPreset] # then restore the default for this preset
+
+                # And change the button display back to "PRESET GLOBAL"
+                if numOfPreset == 0:
+                    self.customPreset_0_Button.markCustom(0, -1)
+                if numOfPreset == 1:
+                    self.customPreset_1_Button.markCustom(1, -1)
+                if numOfPreset == 2:
+                    self.customPreset_2_Button.markCustom(2, -1)
+                if numOfPreset == 3:
+                    self.customPreset_3_Button.markCustom(3, -1)
+                if numOfPreset == 4:
+                    self.customPreset_4_Button.markCustom(4, -1)
+                if numOfPreset == 5:
+                    self.customPreset_5_Button.markCustom(5, -1)
+                if numOfPreset == 6:
+                    self.customPreset_6_Button.markCustom(6, -1)
+                if numOfPreset == 7:
+                    self.customPreset_7_Button.markCustom(7, -1)
+            else:
+                if len(availableLights) == 0: # if we don't have lights, then we can't save a preset!
+                    errDlg = QMessageBox(self)
+                    errDlg.setWindowTitle("Can't Save Preset!")
+                    errDlg.setText("You can't save a custom preset at the moment because you don't have any lights set up yet.  To save a custom preset, connect a light to NeewerLite-Python first.")
+                    errDlg.addButton("OK", QMessageBox.ButtonRole.AcceptRole)
+                    errDlg.setIcon(QMessageBox.Warning)
+                    errDlg.exec_()
+                else: # we have lights, we can do it!
+                    selectedLights = self.selectedLights() # get the currently selected lights
+
+                    saveDlg = QMessageBox(self)
+                    saveDlg.setWindowTitle("Save a Custom Preset")
+                    saveDlg.setTextFormat(Qt.TextFormat.RichText)
+                    saveDlg.setText("Would you like to save a <em>Global</em> or <em>Snapshot</em> preset for preset " + str(numOfPreset + 1) + "?" + "<hr>"
+                                    "A <em>Global Preset</em> saves only the currently set global parameters (mode, hue, color temperature, brightness, etc.) and applies that global preset to all the lights that are currently selected.<br><br>"
+                                    "A <em>Snapshot Preset</em> saves the currently set parameters for each light individually, allowing you to recall more complex lighting setups.  You can also either set a <em>snapshot preset</em> for a series of selected lights (you have to select 1 or more lights for this option), or all the currently available lights.  If you save a <em>snapshot preset</em> of a series of selected lights, it will only apply the settings for those specific lights.")
+                    saveDlg.addButton(" Global Preset ", QMessageBox.ButtonRole.YesRole)
+                    saveDlg.addButton(" Snapshot Preset - All Lights ", QMessageBox.ButtonRole.YesRole)
+
+                    selectedLightsQuestion = 0
+
+                    if selectedLights != []:
+                        saveDlg.addButton(" Snapshot Preset - Selected Lights ", QMessageBox.ButtonRole.YesRole)
+                        selectedLightsQuestion = 1
+                    
+                    saveDlg.addButton(" Cancel ", QMessageBox.ButtonRole.RejectRole)           
+                    saveDlg.setIcon(QMessageBox.Question)
+
+                    clickedButton = saveDlg.exec_()
+                    
+                    if clickedButton == 0: # save a "Global" preset
+                        saveCustomPreset("global", numOfPreset)
+                    elif clickedButton == 1: # save a "Snapshot" preset with all lights
+                        saveCustomPreset("snapshot", numOfPreset)
+                    elif clickedButton == 2: # save a "Snapshot" preset with only the selected lights
+                        saveCustomPreset("snapshot", numOfPreset, selectedLights)
+                        
+                    if clickedButton != (2 + selectedLightsQuestion): # if we didn't cancel out, then mark that button as being "custom"
+                        if numOfPreset == 0:
+                                self.customPreset_0_Button.markCustom(0, clickedButton)
+                        if numOfPreset == 1:
+                                self.customPreset_1_Button.markCustom(1, clickedButton)
+                        if numOfPreset == 2:
+                                self.customPreset_2_Button.markCustom(2, clickedButton)
+                        if numOfPreset == 3:
+                                self.customPreset_3_Button.markCustom(3, clickedButton)
+                        if numOfPreset == 4:
+                                self.customPreset_4_Button.markCustom(4, clickedButton)
+                        if numOfPreset == 5:
+                                self.customPreset_5_Button.markCustom(5, clickedButton)
+                        if numOfPreset == 6:
+                                self.customPreset_6_Button.markCustom(6, clickedButton)
+                        if numOfPreset == 7:
+                                self.customPreset_7_Button.markCustom(7, clickedButton)
+
+        def highlightLightsForSnapshotPreset(self, numOfPreset, exited = False):
+            global lastSelection
+
+            if exited == False: # if we're entering a snapshot preset, then highlight the affected lights in green
+                lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
+                
+                if lightsToHighlight != []:
+                    lastSelection = self.selectedLights() # store the current selection to restore it when leaving the control
+                    self.lightTable.clearSelection() # clear the current selection to allow the preset to shine
+
+                    for a in range(len(lightsToHighlight)):
+                        for b in range(4):
+                            self.lightTable.item(lightsToHighlight[a], b).setBackground(QColor(113, 233, 147)) # set the affected rows the same color as the snapshot button
+            else: # if we're exiting a snapshot preset, then reset the color of the affected lights back to white
+                lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
+                
+                if lightsToHighlight != []:
+                    self.selectRows(lastSelection) # re-highlight the last selected lights on exit
+
+                    for a in range(len(lightsToHighlight)):
+                        for b in range(4):
+                            self.lightTable.item(lightsToHighlight[a], b).setBackground(Qt.white) # clear formatting on the previously selected rows
+
+        def checkForSnapshotPreset(self, numOfPreset):
+            if customLightPresets[numOfPreset][0][0] != -1: # if the value is not -1, then we most likely have a snapshot preset
+                lightsToHighlight = []
+                
+                for a in range(len(customLightPresets[numOfPreset])): # check each entry in the preset for matching lights
+                    currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
+
+                    if currentLight != []: # if we have a match, add it to the list of lights to highlight
+                        lightsToHighlight.append(currentLight[0])
+
+                return lightsToHighlight
+            else:
+                return [] # if we don't have a snapshot preset, then just return an empty list (no lights directly affected)
+
+        def recallCustomPreset(self, numOfPreset):
+            global availableLights
+            global lastSelection
+
+            changedLights = [] # if a snapshot preset exists in this setting, log the lights that are to be changed here
+
+            for a in range(len(customLightPresets[numOfPreset])): # check all the entries stored in this preset
+                if customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset, so set the light(s) up accordingly
+                    
+                    # If no lights are selected for a Global preset, then automatically select all of the lights
+                    if self.selectedLights() == []:
+                        self.lightTable.selectAll()
+                        time.sleep(0.2)
+
+                    if customLightPresets[numOfPreset][0][1][0] == 5: # the preset is in CCT mode
+                        self.setUpGUI(colorMode="CCT",
+                                    brightness=customLightPresets[numOfPreset][0][1][1],
+                                    temp=customLightPresets[numOfPreset][0][1][2])
+                    elif customLightPresets[numOfPreset][0][1][0] == 4: # the preset is in HSI mode
+                        self.setUpGUI(colorMode="HSI",
+                                    brightness=customLightPresets[numOfPreset][0][1][1],
+                                    hue=customLightPresets[numOfPreset][0][1][2],
+                                    sat=customLightPresets[numOfPreset][0][1][3])
+                    elif customLightPresets[numOfPreset][0][1][0] == 6: # the preset is in ANM/SCENE mode
+                        self.setUpGUI(colorMode="ANM",
+                                    brightness=customLightPresets[numOfPreset][0][1][1],
+                                    scene=customLightPresets[numOfPreset][0][1][2])
+                else: # we're looking at a snapshot preset, so see if any of those lights are available to change
+                    currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
+
+                    if currentLight != []: # if we have a match
+                        # always refer to the light it found as currentLight[0]
+                        if customLightPresets[numOfPreset][a][1][0] == 5: # the preset is in CCT mode
+                            availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="CCT",\
+                                                                    brightness=customLightPresets[numOfPreset][a][1][1],\
+                                                                    temp=customLightPresets[numOfPreset][a][1][2])
+                        elif customLightPresets[numOfPreset][a][1][0] == 4: # the preset is in HSI mode
+                            availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="HSI",\
+                                                                    HSI_I=customLightPresets[numOfPreset][a][1][1],\
+                                                                    HSI_H=customLightPresets[numOfPreset][a][1][2],\
+                                                                    HSI_S=customLightPresets[numOfPreset][a][1][3])
+                        elif customLightPresets[numOfPreset][a][1][0] == 6: # the preset is in ANM/SCENE mode
+                            availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="ANM",\
+                                                                    brightness=customLightPresets[numOfPreset][a][1][1],\
+                                                                    animation=customLightPresets[numOfPreset][a][1][2])
+
+                        changedLights.append(currentLight[0])
+
+            if changedLights != []:
+                lastSelection = [] # clear the last selection if you've clicked on a snapshot preset (which, if we're here, you did)
+                
+                self.lightTable.setFocus() # set the focus to the light table, in order to show which rows are selected
+                self.selectRows(changedLights) # select those rows affected by the lights above
+
+                global threadAction
+                threadAction = "send|" + "|".join(map(str, changedLights)) # set the thread to write to all of the affected lights
 
         # SET UP THE GUI BASED ON COMMAND LINE ARGUMENTS
         def setUpGUI(self, **modeArgs):
@@ -1078,13 +1411,141 @@ try: # try to load the GUI
 except NameError:
     pass # could not load the GUI, but we have already logged an error message
 
+# WORKING WITH CUSTOM PRESETS
+def saveCustomPreset(presetType, numOfPreset, selectedLights = []):
+    global customLightPresets
+
+    if presetType == "global":
+        customLightPresets[numOfPreset] = [listBuilder(-1)]
+    elif presetType == "snapshot":
+        listConstructor = []
+        
+        if selectedLights == []: # add all the lights to the snapshot preset
+            for a in range(len(availableLights)): 
+                listConstructor.append(listBuilder(a))
+        else: # add only the selected lights to the snapshot preset
+            for a in range(len(selectedLights)):
+                listConstructor.append(listBuilder(selectedLights[a]))
+
+        customLightPresets[numOfPreset] = listConstructor
+
+def listBuilder(selectedLight):
+    paramsListBuilder = [] # the cut-down list of parameters to return to the main preset constructor
+
+    if selectedLight == -1: # then we get the value from sendValue
+        lightMACAddress = -1 # this is a global preset
+        listToWorkWith = sendValue # we're using the last sent parameter on any light for this
+    else: # we're recalling the params for a specific light
+        lightMACAddress = availableLights[selectedLight][0].address # this is a snapshot preset
+        listToWorkWith = availableLights[selectedLight][3] # we're specificially using the last parameter for the specified light for this
+
+    if listToWorkWith != []: # if we have elements in this list, then sort them out
+        paramsListBuilder.append(listToWorkWith[1] - 130) # the first value is the mode, but minus 130 to simplify it
+
+        if listToWorkWith[1] == 135: # we're in CCT mode
+            paramsListBuilder.append(listToWorkWith[3]) # the brightness
+            paramsListBuilder.append(listToWorkWith[4]) # the color temperature
+        elif listToWorkWith[1] == 134: # we're in HSI mode
+            paramsListBuilder.append(listToWorkWith[6]) # the brightness
+            paramsListBuilder.append(listToWorkWith[3] + (256 * listToWorkWith[4])) # the hue
+            paramsListBuilder.append(listToWorkWith[5]) # the saturation
+        elif listToWorkWith[1] == 136: # we're in ANM/SCENE
+            paramsListBuilder.append(listToWorkWith[3]) # the brightness
+            paramsListBuilder.append(listToWorkWith[4]) # the scene
+
+    return [lightMACAddress, paramsListBuilder]
+
+def customPresetToString(numOfPreset):
+    returnedString = "customPreset" + str(numOfPreset) + "=" # the string to return back to the saving mechanism
+    numOfLights = len(customLightPresets[numOfPreset]) # how many lights this custom preset holds values for
+
+    for a in range(numOfLights): # get all of the lights stored in this preset (or 1 if it's a global)
+        returnedString += str(customLightPresets[numOfPreset][a][0]) # get the MAC address/UUID of the nth light
+        returnedString += "|" + "|".join(map(str,customLightPresets[numOfPreset][a][1])) # get a string for the rest of this current array
+      
+        if numOfLights > 1 and a < (numOfLights - 1): # if there are more lights left, then add a semicolon to differentiate that
+            returnedString += ";"
+
+    return returnedString
+
+def stringToCustomPreset(presetString, numOfPreset):   
+    if presetString != "|": # if the string is a valid string, then process it
+        lightsToWorkWith = presetString.split(";") # split the current string into individual lights
+        presetToReturn = [] # a list containing all of the preset information
+
+        for a in range(len(lightsToWorkWith)):
+            presetList = lightsToWorkWith[a].split("|") # split the current light list into its individual items
+            presetPayload = [] # the actual preset list
+            
+            for b in range(1, len(presetList)):
+                presetPayload.append(int(presetList[b]))
+
+            if presetList[0] == "-1":
+                presetToReturn.append([-1, presetPayload]) # if the light ID is -1, keep that value as an integer
+            else:
+                presetToReturn.append([presetList[0], presetPayload]) # if it isn't, then the MAC address is a string, so keep it that way
+
+        return presetToReturn
+    else: # if it isn't, then just return the default parameters for this preset
+        return defaultLightPresets[numOfPreset]
+
+def loadCustomPresets():
+    global customLightPresets
+
+    # READ THE PREFERENCES FILE INTO A LIST
+    fileToOpen = open(customLightPresetsFile)
+    customPresets = fileToOpen.read().split("\n")
+    fileToOpen.close()
+
+    acceptable_arguments = ["customPreset0", "customPreset1", "customPreset2", "customPreset3", \
+                            "customPreset4", "customPreset5", "customPreset6", "customPreset7"]
+
+    for a in range(len(customPresets) - 1, -1, -1):
+            if not any(x in customPresets[a] for x in acceptable_arguments): # if the current argument is invalid
+                customPresets.pop(a) # delete the invalid argument from the list
+
+    # NOW THAT ANY STRAGGLERS ARE OUT, ADD DASHES TO WHAT REMAINS TO PROPERLY PARSE IN THE PARSER
+    for a in range(len(customPresets)):
+        customPresets[a] = "--" + customPresets[a]
+
+    customPresetParser = argparse.ArgumentParser()
+
+    customPresetParser.add_argument("--customPreset0", default=-1)
+    customPresetParser.add_argument("--customPreset1", default=-1)
+    customPresetParser.add_argument("--customPreset2", default=-1)
+    customPresetParser.add_argument("--customPreset3", default=-1)
+    customPresetParser.add_argument("--customPreset4", default=-1)
+    customPresetParser.add_argument("--customPreset5", default=-1)
+    customPresetParser.add_argument("--customPreset6", default=-1)
+    customPresetParser.add_argument("--customPreset7", default=-1)
+
+    customPresets = customPresetParser.parse_args(customPresets)
+
+    if customPresets.customPreset0 != -1:
+        customLightPresets[0] = stringToCustomPreset(customPresets.customPreset0, 0)
+    if customPresets.customPreset1 != -1:
+        customLightPresets[1] = stringToCustomPreset(customPresets.customPreset1, 1)
+    if customPresets.customPreset2 != -1:
+        customLightPresets[2] = stringToCustomPreset(customPresets.customPreset2, 2)
+    if customPresets.customPreset3 != -1:
+        customLightPresets[3] = stringToCustomPreset(customPresets.customPreset3, 3)
+    if customPresets.customPreset4 != -1:
+        customLightPresets[4] = stringToCustomPreset(customPresets.customPreset4, 4)
+    if customPresets.customPreset5 != -1:
+        customLightPresets[5] = stringToCustomPreset(customPresets.customPreset5, 5)
+    if customPresets.customPreset6 != -1:
+        customLightPresets[6] = stringToCustomPreset(customPresets.customPreset6, 6)
+    if customPresets.customPreset7 != -1:
+        customLightPresets[7] = stringToCustomPreset(customPresets.customPreset7, 7)
+    
+# RETURN THE CORRECT NAME FOR THE IDENTIFIER OF THE LIGHT (FOR DEBUG STRINGS)
 def returnMACname():
-    # RETURN THE CORRECT NAME FOR THE IDENTIFIER OF THE LIGHT (FOR DEBUG STRINGS)
     if platform.system() == "Darwin":
         return "UUID:"
     else:
         return "MAC Address:"
 
+# TEST TO MAKE SURE THE VALUE GIVEN TO THE FUNCTION IS VALID OR IN BOUNDS
 def testValid(theParam, theValue, defaultValue, startBounds, endBounds):
     if theParam == "temp":
         if len(theValue) > 1: # if the temp has at least 2 characters in it
@@ -1118,34 +1579,38 @@ def printDebugString(theString):
         print("[" + currentTime + "] - " + theString)
 
 # CALCULATE THE BYTESTRING TO SEND TO THE LIGHT
-def calculateByteString(**modeArgs):
-    global sendValue
-
+def calculateByteString(returnValue = False, **modeArgs):
     if modeArgs["colorMode"] == "CCT":
         # We're in CCT (color balance) mode
-        sendValue = [120, 135, 2, 0, 0, 0]
+        computedValue = [120, 135, 2, 0, 0, 0]
 
-        sendValue[3] = int(modeArgs["brightness"]) # the brightness value
-        sendValue[4] = int(modeArgs["temp"]) # the color temp value, ranging from 32(00K) to 85(00)K - some lights (like the SL-80) can go as high as 8500K
-        sendValue[5] = calculateChecksum(sendValue) # compute the checksum
+        computedValue[3] = int(modeArgs["brightness"]) # the brightness value
+        computedValue[4] = int(modeArgs["temp"]) # the color temp value, ranging from 32(00K) to 85(00)K - some lights (like the SL-80) can go as high as 8500K
+        computedValue[5] = calculateChecksum(computedValue) # compute the checksum
     elif modeArgs["colorMode"] == "HSI":
         # We're in HSI (any color of the spectrum) mode
-        sendValue = [120, 134, 4, 0, 0, 0, 0, 0]
+        computedValue = [120, 134, 4, 0, 0, 0, 0, 0]
 
-        sendValue[3] = int(modeArgs["HSI_H"]) & 255 # hue value, up to 255
-        sendValue[4] = (int(modeArgs["HSI_H"]) & 65280) >> 8 # offset value, computed from above value
-        sendValue[5] = int(modeArgs["HSI_S"]) # saturation value
-        sendValue[6] = int(modeArgs["HSI_I"]) # intensity value
-        sendValue[7] = calculateChecksum(sendValue) # compute the checksum
+        computedValue[3] = int(modeArgs["HSI_H"]) & 255 # hue value, up to 255
+        computedValue[4] = (int(modeArgs["HSI_H"]) & 65280) >> 8 # offset value, computed from above value
+        computedValue[5] = int(modeArgs["HSI_S"]) # saturation value
+        computedValue[6] = int(modeArgs["HSI_I"]) # intensity value
+        computedValue[7] = calculateChecksum(computedValue) # compute the checksum
     elif modeArgs["colorMode"] == "ANM":
         # We're in ANM (animation) mode
-        sendValue = [120, 136, 2, 0, 0, 0]
+        computedValue = [120, 136, 2, 0, 0, 0]
 
-        sendValue[3] = int(modeArgs["brightness"]) # brightness value
-        sendValue[4] = int(modeArgs["animation"]) # the number of animation you're going to run (check comments above)
-        sendValue[5] = calculateChecksum(sendValue) # compute the checksum
+        computedValue[3] = int(modeArgs["brightness"]) # brightness value
+        computedValue[4] = int(modeArgs["animation"]) # the number of animation you're going to run (check comments above)
+        computedValue[5] = calculateChecksum(computedValue) # compute the checksum
     else:
-        sendValue = [0]
+        computedValue = [0]
+
+    if returnValue == False: # if we aren't supposed to return a value, then just set sendValue to the value returned from computedValue
+        global sendValue
+        sendValue = computedValue
+    else:
+        return computedValue # return the computed value
 
 # RECALCULATE THE BYTESTRING FOR CCT-ONLY NEEWER LIGHTS INTO HUE AND BRIGHTNESS SEPARATELY
 def calculateSeparateBytestrings(sendValue):
@@ -1248,7 +1713,7 @@ async def findDevices():
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
 
             if len(customPrefs) == 3: # we need to rename the light and set up CCT and color temp range
-                availableLights.append([currentScan[a], "", customPrefs[0], [], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
+                availableLights.append([currentScan[a], "", customPrefs[0], [120, 135, 2, 20, 56, 157], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
             elif len(customPrefs) == 4: # same as above, but we have previously stored parameters, so add them in as well
                 availableLights.append([currentScan[a], "", customPrefs[0], customPrefs[3], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
 
@@ -1428,9 +1893,10 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
 
         try:
             if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
-                if updateGUI == False:
-                    returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
+                if updateGUI == True: # if we're using the GUI, update the display (if we're waiting)
                     mainWindow.setTheTable(["", "", "NOT\nLINKED", "Light disconnected!"], selectedLight) # show the new status in the table
+                else: # if we're not, then indicate that we're good
+                    returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
 
                 printDebugString("Successfully unlinked from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
         except AttributeError:
@@ -1439,7 +1905,7 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
     return returnValue
 
 # WRITE TO A LIGHT - optional arguments for the CLI version (GUI version doesn't use either of these)
-async def writeToLight(selectedLights=0, updateGUI=True):
+async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
     returnValue = "" # same as above, return value "" for GUI, or boolean for CLI
 
     startTimer = time.time() # the start of the triggering
@@ -1447,7 +1913,8 @@ async def writeToLight(selectedLights=0, updateGUI=True):
 
     try:
         if updateGUI == True:
-            selectedLights = mainWindow.selectedLights() # get the list of currently selected lights from the GUI table
+            if selectedLights == 0:
+                selectedLights = mainWindow.selectedLights() # get the list of currently selected lights from the GUI table
         else:
             if type(selectedLights) is int: # if we specify an integer-based index
                 selectedLights = [selectedLights] # convert asked-for light to list
@@ -1460,6 +1927,9 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                 currentSendValue = sendValue # get this value before sending to multiple lights, to ensure the same value is sent to each one
 
                 for a in range(len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
+                    if useGlobalValue == False: # if we're forcing the lights to use their stored parameters, then load that in here
+                        currentSendValue = availableLights[selectedLights[a]][3]
+
                     if availableLights[selectedLights[a]][1] != "": # if a Bleak connection is there
                         try:
                             if availableLights[(int(selectedLights[a]))][5] == True: # if we're using the old style of light
@@ -1492,7 +1962,7 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                                 # if we're not looking at an old light, or if we are, we're not in either HSI or ANM modes, then update the status of that light
                                 if not (availableLights[(int(selectedLights[a]))][5] == True and (currentSendValue[1] == 134 or currentSendValue[1] == 136)):
                                     if currentSendValue[1] != 129: # if we're not turning the light on or off
-                                        mainWindow.setTheTable(["", "", "", updateStatus(True)], int(selectedLights[a]))
+                                        mainWindow.setTheTable(["", "", "", updateStatus(True, currentSendValue)], int(selectedLights[a]))
                                     else: # we ARE turning the light on or off
                                         if currentSendValue[3] == 1: # we turned the light on
                                             availableLights[int(selectedLights[a])][6] = True # toggle the "light on" parameter of this light to ON
@@ -1519,7 +1989,8 @@ async def writeToLight(selectedLights=0, updateGUI=True):
                         else:
                             returnValue = 0 # the light is not linked, even though it *should* be if it gets to this point, so this is an odd error
 
-                startTimer = time.time() # if we sent a value, then reset the timer
+                if useGlobalValue == True:
+                    startTimer = time.time() # if we sent a value, then reset the timer
 
             await asyncio.sleep(0.05) # wait 1/20th of a second to give the Bluetooth bus a little time to recover
 
@@ -1611,6 +2082,16 @@ def workerThread(_loop):
             threadAction = ""                
         elif threadAction == "send":
             threadAction = _loop.run_until_complete(writeToLight()) # write a value to the light(s) - the selectedLights() section is in the write loop itself for responsiveness
+        elif threadAction != "":
+            currentThreadAction = threadAction.split("|")
+
+            if currentThreadAction[0] == "send": # this will come from loading a custom snapshot preset
+                lightsToSendTo = [] # the current lights to affect
+
+                for a in range (1, len(currentThreadAction)): # find the lights that need to be refreshed
+                    lightsToSendTo.append(int(currentThreadAction[a]))
+
+                threadAction = _loop.run_until_complete(writeToLight(lightsToSendTo, True, False)) # write the value stored in the lights to the light(s)
 
         time.sleep(0.25)
 
@@ -2017,7 +2498,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = footerLinks + "<A HREF=""doAction?list"">List Currently Available Lights</A>"
 
         self.wfile.write(bytes("<HR>" + footerLinks + "<br>", "utf-8"))
-        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.8</A> by Zach Glenwright<br>", "utf-8"))
+        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.9</A> by Zach Glenwright<br>", "utf-8"))
         self.wfile.write(bytes("</body></html>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -2031,10 +2512,17 @@ def formatStringForConsole(theString, maxLength):
         else: # truncate the string, it's too long
             return theString[0:maxLength - 4] + " ..."
 
+def createLightPrefsFolder():
+    #CREATE THE light_prefs FOLDER IF IT DOESN'T EXIST
+    try:
+        os.mkdir(os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs")
+    except FileExistsError:
+        pass # the folder already exists, so we don't need to create it
+
 def loadPrefsFile(globalPrefsFile = ""):
     global findLightsOnStartup, autoConnectToLights, printDebug, maxNumOfAttempts, \
            rememberLightsOnExit, acceptable_HTTP_IPs, customKeys, enableTabsOnLaunch, \
-           whiteListedMACs
+           whiteListedMACs, rememberPresetsOnExit
 
     if globalPrefsFile != "":
         printDebugString("Loading global preferences from file...")
@@ -2048,7 +2536,7 @@ def loadPrefsFile(globalPrefsFile = ""):
             "SC_Dec_Bri_Small", "SC_Inc_Bri_Small", "SC_Dec_Bri_Large", "SC_Inc_Bri_Large", \
             "SC_Dec_1_Small", "SC_Inc_1_Small", "SC_Dec_2_Small", "SC_Inc_2_Small", "SC_Dec_3_Small", "SC_Inc_3_Small", \
             "SC_Dec_1_Large", "SC_Inc_1_Large", "SC_Dec_2_Large", "SC_Inc_2_Large", "SC_Dec_3_Large", "SC_Inc_3_Large", \
-            "enableTabsOnLaunch", "whiteListedMACs"]
+            "enableTabsOnLaunch", "whiteListedMACs", "rememberPresetsOnExit"]
 
         # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST ABOVE
         # THIS SECTION OF CODE IS *SLIGHTLY* DIFFERENT THAN THE CLI KICK OUT CODE
@@ -2072,6 +2560,8 @@ def loadPrefsFile(globalPrefsFile = ""):
     prefsParser.add_argument("--maxNumOfAttempts", default=6)
     prefsParser.add_argument("--rememberLightsOnExit", default=0)
     prefsParser.add_argument("--acceptableIPs", default=["127.0.0.1", "192.168", "10.0.0"])
+    prefsParser.add_argument("--whiteListedMACs" , default=[])
+    prefsParser.add_argument("--rememberPresetsOnExit", default=1)
 
     # SHORTCUT KEY CUSTOMIZATIONS
     prefsParser.add_argument("--SC_turnOffButton", default="Ctrl+PgDown") # 0
@@ -2103,7 +2593,6 @@ def loadPrefsFile(globalPrefsFile = ""):
     # THESE ARE OPTIONS THAT HELP DEBUG THINGS, BUT AREN'T REALLY USEFUL FOR NORMAL OPERATION
     # enableTabsOnLaunch SHOWS ALL TABS ACTIVE (INSTEAD OF DISABLING THEM) ON LAUNCH SO EVEN WITHOUT A LIGHT, A BYTESTRING CAN BE CALCULATED
     prefsParser.add_argument("--enableTabsOnLaunch", default=0)
-    prefsParser.add_argument("--whiteListedMACs" , default=[])
 
     mainPrefs = prefsParser.parse_args(mainPrefs)
 
@@ -2113,6 +2602,7 @@ def loadPrefsFile(globalPrefsFile = ""):
     printDebug = bool(int(mainPrefs.printDebug)) # whether or not to display debug messages in the console
     maxNumOfAttempts = int(mainPrefs.maxNumOfAttempts) # maximum number of attempts before failing out
     rememberLightsOnExit = bool(int(mainPrefs.rememberLightsOnExit)) # whether or not to remember light mode/settings when quitting out
+    rememberPresetsOnExit = bool(int(mainPrefs.rememberPresetsOnExit)) # whether or not to remember the custom presets when quitting out
 
     if type(mainPrefs.acceptableIPs) is not list: # we have a string in the return, so we need to post-process it
         acceptable_HTTP_IPs = mainPrefs.acceptableIPs.replace(" ", "").split(";") # split the IP addresses into a list for acceptable IPs
@@ -2148,6 +2638,9 @@ if __name__ == '__main__':
         loadPrefsFile(globalPrefsFile) # if a preferences file exists, process it and load the preferences
     else:
         loadPrefsFile() # if it doesn't, then just load the defaults
+
+    if os.path.exists(customLightPresetsFile):
+        loadCustomPresets() # if there's a custom mapping for presets, then load that into memory
 
     loop = asyncio.get_event_loop() # get the current asyncio loop
     cmdReturn = [True] # initially set to show the GUI interface over the CLI interface
@@ -2187,7 +2680,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.8 by Zach Glenwright")
+            print("NeewerLite-Python 0.9 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             loop.run_until_complete(findDevices())
 

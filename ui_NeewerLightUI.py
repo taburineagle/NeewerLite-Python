@@ -1,7 +1,9 @@
-from PySide2.QtCore import QRect
+from PySide2.QtCore import QRect, Signal
 from PySide2.QtGui import QFont, QLinearGradient, QColor, Qt, QKeySequence
 from PySide2.QtWidgets import QFormLayout, QGridLayout, QKeySequenceEdit, QWidget, QPushButton, QTableWidget, QTableWidgetItem, QAbstractScrollArea, QAbstractItemView, \
                               QTabWidget, QGraphicsScene, QGraphicsView, QFrame, QSlider, QLabel, QLineEdit, QCheckBox, QStatusBar, QScrollArea, QTextEdit
+
+import platform # for selecting specific fonts for specific systems
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -10,8 +12,8 @@ class Ui_MainWindow(object):
         mainFont.setBold(True)
         mainFont.setWeight(75)
 
-        MainWindow.setFixedSize(590, 521) # the main window should be this size at launch, and no bigger
-        MainWindow.setWindowTitle("NeewerLite-Python 0.8 by Zach Glenwright")
+        MainWindow.setFixedSize(590, 606) # the main window should be this size at launch, and no bigger
+        MainWindow.setWindowTitle("NeewerLite-Python 0.9 by Zach Glenwright")
         
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
@@ -69,9 +71,33 @@ class Ui_MainWindow(object):
         self.lightTable.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.lightTable.verticalHeader().setStretchLastSection(False)
 
+        # ============ THE CUSTOM PRESET BUTTONS ============
+
+        self.customPresetButtonsCW = QWidget(self.centralwidget)
+        self.customPresetButtonsCW.setGeometry(QRect(10, 300, 571, 68))
+        self.customPresetButtonsLay = QGridLayout(self.customPresetButtonsCW)
+        self.customPresetButtonsLay.setContentsMargins(0, 0, 0, 0) # ensure this widget spans from the left to the right edge of the light table
+
+        self.customPreset_0_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>1</font></strong><br>PRESET<br>GLOBAL")
+        self.customPresetButtonsLay.addWidget(self.customPreset_0_Button, 1, 1)
+        self.customPreset_1_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>2</font></strong><br>PRESET<br>GLOBAL")
+        self.customPresetButtonsLay.addWidget(self.customPreset_1_Button, 1, 2)
+        self.customPreset_2_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>3</font></strong><br>PRESET<br>GLOBAL")
+        self.customPresetButtonsLay.addWidget(self.customPreset_2_Button, 1, 3)
+        self.customPreset_3_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>4</font></strong><br>PRESET<br>GLOBAL")
+        self.customPresetButtonsLay.addWidget(self.customPreset_3_Button, 1, 4)
+        self.customPreset_4_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>5</font></strong><br>PRESET<br>GLOBAL")
+        self.customPresetButtonsLay.addWidget(self.customPreset_4_Button, 1, 5)
+        self.customPreset_5_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>6</font></strong><br>PRESET<br>GLOBAL")
+        self.customPresetButtonsLay.addWidget(self.customPreset_5_Button, 1, 6)
+        self.customPreset_6_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>7</font></strong><br>PRESET<br>GLOBAL")
+        self.customPresetButtonsLay.addWidget(self.customPreset_6_Button, 1, 7)
+        self.customPreset_7_Button = customPresetButton(self.centralwidget, text="<strong><font size=+2>8</font></strong><br>PRESET<br>GLOBAL")
+        self.customPresetButtonsLay.addWidget(self.customPreset_7_Button, 1, 8)
+
         # ============ THE MODE TABS ============
         self.ColorModeTabWidget = QTabWidget(self.centralwidget)
-        self.ColorModeTabWidget.setGeometry(QRect(10, 300, 571, 201))
+        self.ColorModeTabWidget.setGeometry(QRect(10, 376, 571, 201))
 
         # === >> THE CCT TAB << ===
         self.CCT = QWidget()
@@ -302,11 +328,14 @@ class Ui_MainWindow(object):
         self.findLightsOnStartup_check = QCheckBox("Scan for Neewer lights on program launch")
         self.autoConnectToLights_check = QCheckBox("Automatically try to link to newly found lights")
         self.printDebug_check = QCheckBox("Print debug information to the console")
-        self.rememberLightsOnExit_check = QCheckBox("Remember the last parameters set for lights on exit")
+        self.rememberLightsOnExit_check = QCheckBox("Remember the last mode parameters set for lights on exit")
+        self.rememberPresetsOnExit_check = QCheckBox("Save configuration of custom presets on exit")
         self.maxNumOfAttempts_field = QLineEdit()
         self.maxNumOfAttempts_field.setFixedWidth(35)
         self.acceptable_HTTP_IPs_field = QTextEdit()
         self.acceptable_HTTP_IPs_field.setFixedHeight(70)
+        self.whiteListedMACs_field = QTextEdit()
+        self.whiteListedMACs_field.setFixedHeight(70)
         
         self.resetGlobalPrefsButton = QPushButton("Reset Preferences to Defaults")
         self.saveGlobalPrefsButton = QPushButton("Save Global Preferences")
@@ -418,9 +447,12 @@ class Ui_MainWindow(object):
         self.globalPrefsLay.addRow(self.autoConnectToLights_check)
         self.globalPrefsLay.addRow(self.printDebug_check)
         self.globalPrefsLay.addRow(self.rememberLightsOnExit_check)
+        self.globalPrefsLay.addRow(self.rememberPresetsOnExit_check)
         self.globalPrefsLay.addRow("Maximum Number of retries:", self.maxNumOfAttempts_field)
         self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Acceptable IPs to use for the HTTP Server:</strong></u><br><em>Each line below is an IP allows access to NeewerLite-Python's HTTP server.<br>Wildcards for IP addresses can be entered by just leaving that section blank.<br><u>For example:</u><br><strong>192.168.*.*</strong> would be entered as just <strong>192.168</strong><br><strong>10.0.1.*</strong> is <strong>10.0.1</strong>", alignment=Qt.AlignCenter))
         self.globalPrefsLay.addRow(self.acceptable_HTTP_IPs_field)
+        self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Whitelisted MAC Addresses/GUIDs</u></strong><br><em>Devices with whitelisted MAC Addresses/GUIDs are added to the<br>list of lights even if their name doesn't contain <strong>Neewer</strong> in it.<br><br>This preference is really only useful if you have compatible lights<br>that don't show up properly due to name mismatches.</em>", alignment=Qt.AlignCenter))
+        self.globalPrefsLay.addRow(self.whiteListedMACs_field)
         self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Custom GUI Keyboard Shortcut Mapping - GUI Buttons</strong></u><br><em>To switch a keyboard shortcut, click on the old shortcut and type a new one in.<br>To reset a shortcut to default, click the X button next to it.</em><br><br>These 4 keyboard shortcuts control the buttons on the top of the window.", alignment=Qt.AlignCenter))
         self.globalPrefsLay.addRow(self.windowButtonsCW)
         self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Custom GUI Keyboard Shortcut Mapping - Switching Mode Tabs</strong></u><br><em>To switch a keyboard shortcut, click on the old shortcut and type a new one in.<br>To reset a shortcut to default, click the X button next to it.</em><br><br>These 4 keyboard shortcuts switch between<br>the CCT, HSI, SCENE and LIGHT PREFS tabs.", alignment=Qt.AlignCenter))
@@ -452,6 +484,84 @@ class Ui_MainWindow(object):
         self.Slider_HSI_2_S.valueChanged.connect(self.TFV_HSI_2_S.setNum)
         self.Slider_HSI_3_L.valueChanged.connect(self.TFV_HSI_3_L.setNum)
         self.Slider_ANM_Brightness.valueChanged.connect(self.TFV_ANM_Brightness.setNum)
+
+class customPresetButton(QLabel):
+    clicked = Signal() # signal sent when you click on the button
+    rightclicked = Signal() # signal sent when you right-click on the button
+    enteredWidget = Signal() # signal sent when the mouse enters the button
+    leftWidget = Signal() # signal sent when the mouse leaves the button
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if platform.system() != "Windows": # if we're not on Windows, use the default font
+            customPresetFont = QFont()
+            customPresetFont.setPointSize(12)
+            self.setFont(customPresetFont)
+        else: # if we are on Windows, use a slightly less garish font than the default one
+            windowsCustomPresetFont = QFont("Segoe UI")
+            windowsCustomPresetFont.setPointSize(10.5)
+            self.setFont(windowsCustomPresetFont)
+
+        self.setAlignment(Qt.AlignCenter)
+        self.setTextFormat(Qt.TextFormat.RichText)
+        self.setText(kwargs['text'])
+
+        self.setStyleSheet("customPresetButton"
+                           "{"
+                           "border: 1px solid grey; background-color: #a5cbf7;"
+                           "}"
+                           "customPresetButton::hover"
+                           "{"
+                           "background-color: #a5e3f7;"
+                           "}")
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+        elif event.button() == Qt.RightButton:
+            self.rightclicked.emit()
+
+    def enterEvent(self, event):
+        self.enteredWidget.emit()
+
+    def leaveEvent(self, event):
+        self.leftWidget.emit()
+
+    def markCustom(self, presetNum, isSnap = 0):
+        if isSnap == 0: # we're using a global preset
+            self.setText("<strong><font size=+2>" + str(presetNum + 1) + "</font></strong><br>CUSTOM<br>GLOBAL")
+
+            self.setStyleSheet("customPresetButton"
+                           "{"
+                           "border: 1px solid black; background-color: #7188ff;"
+                           "}"
+                           "customPresetButton::hover"
+                           "{"
+                           "background-color: #70b0ff;"
+                           "}")
+        elif isSnap >= 1: # we're using a snapshot preset
+            self.setText("<strong><font size=+2>" + str(presetNum + 1) + "</font></strong><br>CUSTOM<br>SNAP")
+
+            self.setStyleSheet("customPresetButton"
+                           "{"
+                           "border: 1px solid black; background-color: #71e993;"
+                           "}"
+                           "customPresetButton::hover"
+                           "{"
+                           "background-color: #abe9ab;"
+                           "}")
+        else: # we're resetting back to a default preset
+            self.setText("<strong><font size=+2>" + str(presetNum + 1) + "</font></strong><br>PRESET<br>GLOBAL")
+
+            self.setStyleSheet("customPresetButton"
+                           "{"
+                           "border: 1px solid grey; background-color: #a5cbf7;"
+                           "}"
+                           "customPresetButton::hover"
+                           "{"
+                           "background-color: #a5e3f7;"
+                           "}")
 
 class singleKeySequenceEditCancel(QWidget):
     def __init__(self, defaultValue):
