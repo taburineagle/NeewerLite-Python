@@ -1292,10 +1292,69 @@ try: # try to load the GUI
                         if numOfPreset == 7:
                                 self.customPreset_7_Button.markCustom(7, clickedButton)
 
+        def customPresetToolTipBuilder(self, numOfPreset):
+            toolTipBuilder = [] # constructor for the tooltip
+            numOfLights = len(customLightPresets[numOfPreset]) # the number of lights in this specific preset
+
+            if numOfLights == 1 and customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset
+                toolTipBuilder.append("[GLOBAL PRESET]")
+            else: # we're looking at a snapshot preset
+                toolTipBuilder.append("[SNAPSHOT PRESET]")
+
+            toolTipBuilder.append("")
+
+            for a in range(numOfLights): # write out a little description of each part of this preset
+                if customLightPresets[numOfPreset][a][0] == -1:
+                    toolTipBuilder.append(" FOR: ALL SELECTED LIGHTS") # this is a global preset, and it affects all lights
+                else:
+                    currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0]) # find the light in the current list
+
+                    if currentLight != []: # if we have a match, add it to the list of lights to highlight
+                        if availableLights[currentLight[0]][2] != "": # if the custom name is filled in
+                            toolTipBuilder.append(" FOR: " + availableLights[currentLight[0]][2] + " [" + availableLights[currentLight[0]][0].name + "]")
+                        else:
+                            toolTipBuilder.append(" FOR: " + availableLights[currentLight[0]][0].name)
+                    else:
+                        toolTipBuilder.append("FOR: ---LIGHT NOT AVAILABLE AT THE MOMENT---") # if the light is not found (yet), display that
+
+                    toolTipBuilder.append(" <" + customLightPresets[numOfPreset][a][0] + ">") # this is a snapshot preset, and this specific preset controls this light
+                    
+                if customLightPresets[numOfPreset][a][1][0] == 5:
+                    toolTipBuilder.append(" > MODE: CCT / TEMP: " + str(customLightPresets[numOfPreset][a][1][2]) + "00K / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+                elif customLightPresets[numOfPreset][a][1][0] == 4:
+                    toolTipBuilder.append(" > MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "º / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+                elif customLightPresets[numOfPreset][a][1][0] == 6:
+                    toolTipBuilder.append(" > MODE: SCENE / ANIMATION: " + str(customLightPresets[numOfPreset][a][1][2]) + " / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+                    
+                if numOfLights > 1 and a < (numOfLights - 1): # if we have any more lights, then separate each one
+                    toolTipBuilder.append("----------------------------")
+
+            return "\n".join(toolTipBuilder)
+
         def highlightLightsForSnapshotPreset(self, numOfPreset, exited = False):
             global lastSelection
 
             if exited == False: # if we're entering a snapshot preset, then highlight the affected lights in green
+                toolTip = self.customPresetToolTipBuilder(numOfPreset)
+
+                # LOAD A NEWLY GENERATED TOOLTIP FOR EVERY HOVER
+                if numOfPreset == 0:
+                    self.customPreset_0_Button.setToolTip(toolTip)
+                elif numOfPreset == 1:
+                    self.customPreset_1_Button.setToolTip(toolTip)
+                elif numOfPreset == 2:
+                    self.customPreset_2_Button.setToolTip(toolTip)
+                elif numOfPreset == 3:
+                    self.customPreset_3_Button.setToolTip(toolTip)
+                elif numOfPreset == 4:
+                    self.customPreset_4_Button.setToolTip(toolTip)
+                elif numOfPreset == 5:
+                    self.customPreset_5_Button.setToolTip(toolTip)
+                elif numOfPreset == 6:
+                    self.customPreset_6_Button.setToolTip(toolTip)
+                elif numOfPreset == 7:
+                    self.customPreset_7_Button.setToolTip(toolTip)
+
                 lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
                 
                 if lightsToHighlight != []:
