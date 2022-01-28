@@ -1,5 +1,5 @@
 from PySide2.QtCore import QRect, Signal
-from PySide2.QtGui import QFont, QLinearGradient, QColor, Qt, QKeySequence, QPalette
+from PySide2.QtGui import QFont, QLinearGradient, QColor, Qt, QKeySequence
 from PySide2.QtWidgets import QFormLayout, QGridLayout, QKeySequenceEdit, QWidget, QPushButton, QTableWidget, QTableWidgetItem, QAbstractScrollArea, QAbstractItemView, \
                               QTabWidget, QGraphicsScene, QGraphicsView, QFrame, QSlider, QLabel, QLineEdit, QCheckBox, QStatusBar, QScrollArea, QTextEdit
 
