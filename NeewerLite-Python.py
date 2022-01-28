@@ -1295,7 +1295,7 @@ try: # try to load the GUI
         def highlightLightsForSnapshotPreset(self, numOfPreset, exited = False):
             global lastSelection
 
-            if exited == False:
+            if exited == False: # if we're entering a snapshot preset, then highlight the affected lights in green
                 lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
                 
                 if lightsToHighlight != []:
@@ -1305,7 +1305,7 @@ try: # try to load the GUI
                     for a in range(len(lightsToHighlight)):
                         for b in range(4):
                             self.lightTable.item(lightsToHighlight[a], b).setBackground(QColor(113, 233, 147)) # set the affected rows the same color as the snapshot button
-            else:
+            else: # if we're exiting a snapshot preset, then reset the color of the affected lights back to white
                 lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
                 
                 if lightsToHighlight != []:
@@ -1380,11 +1380,11 @@ try: # try to load the GUI
             if changedLights != []:
                 lastSelection = [] # clear the last selection if you've clicked on a snapshot preset (which, if we're here, you did)
                 
-                self.lightTable.setFocus()
-                self.selectRows(changedLights)
+                self.lightTable.setFocus() # set the focus to the light table, in order to show which rows are selected
+                self.selectRows(changedLights) # select those rows affected by the lights above
 
                 global threadAction
-                threadAction = "send|" + "|".join(map(str, changedLights))
+                threadAction = "send|" + "|".join(map(str, changedLights)) # set the thread to write to all of the affected lights
 
         # SET UP THE GUI BASED ON COMMAND LINE ARGUMENTS
         def setUpGUI(self, **modeArgs):
@@ -1468,23 +1468,26 @@ def customPresetToString(numOfPreset):
 
     return returnedString
 
-def stringToCustomPreset(presetString):
-    lightsToWorkWith = presetString.split(";") # split the current string into individual lights
-    presetToReturn = [] # a list containing all of the preset information
+def stringToCustomPreset(presetString, numOfPreset):   
+    if presetString != "|": # if the string is a valid string, then process it
+        lightsToWorkWith = presetString.split(";") # split the current string into individual lights
+        presetToReturn = [] # a list containing all of the preset information
 
-    for a in range(len(lightsToWorkWith)):
-        presetList = lightsToWorkWith[a].split("|") # split the current light list into its individual items
-        presetPayload = [] # the actual preset list
-        
-        for b in range(1, len(presetList)):
-            presetPayload.append(int(presetList[b]))
+        for a in range(len(lightsToWorkWith)):
+            presetList = lightsToWorkWith[a].split("|") # split the current light list into its individual items
+            presetPayload = [] # the actual preset list
+            
+            for b in range(1, len(presetList)):
+                presetPayload.append(int(presetList[b]))
 
-        if presetList[0] == "-1":
-            presetToReturn.append([-1, presetPayload]) # if the light ID is -1, keep that value as an integer
-        else:
-            presetToReturn.append([presetList[0], presetPayload]) # if it isn't, then the MAC address is a string, so keep it that way
+            if presetList[0] == "-1":
+                presetToReturn.append([-1, presetPayload]) # if the light ID is -1, keep that value as an integer
+            else:
+                presetToReturn.append([presetList[0], presetPayload]) # if it isn't, then the MAC address is a string, so keep it that way
 
-    return presetToReturn
+        return presetToReturn
+    else: # if it isn't, then just return the default parameters for this preset
+        return defaultLightPresets[numOfPreset]
 
 def loadCustomPresets():
     global customLightPresets
@@ -1519,21 +1522,21 @@ def loadCustomPresets():
     customPresets = customPresetParser.parse_args(customPresets)
 
     if customPresets.customPreset0 != -1:
-        customLightPresets[0] = stringToCustomPreset(customPresets.customPreset0)
+        customLightPresets[0] = stringToCustomPreset(customPresets.customPreset0, 0)
     if customPresets.customPreset1 != -1:
-        customLightPresets[1] = stringToCustomPreset(customPresets.customPreset1)
+        customLightPresets[1] = stringToCustomPreset(customPresets.customPreset1, 1)
     if customPresets.customPreset2 != -1:
-        customLightPresets[2] = stringToCustomPreset(customPresets.customPreset2)
+        customLightPresets[2] = stringToCustomPreset(customPresets.customPreset2, 2)
     if customPresets.customPreset3 != -1:
-        customLightPresets[3] = stringToCustomPreset(customPresets.customPreset3)
+        customLightPresets[3] = stringToCustomPreset(customPresets.customPreset3, 3)
     if customPresets.customPreset4 != -1:
-        customLightPresets[4] = stringToCustomPreset(customPresets.customPreset4)
+        customLightPresets[4] = stringToCustomPreset(customPresets.customPreset4, 4)
     if customPresets.customPreset5 != -1:
-        customLightPresets[5] = stringToCustomPreset(customPresets.customPreset5)
+        customLightPresets[5] = stringToCustomPreset(customPresets.customPreset5, 5)
     if customPresets.customPreset6 != -1:
-        customLightPresets[6] = stringToCustomPreset(customPresets.customPreset6)
+        customLightPresets[6] = stringToCustomPreset(customPresets.customPreset6, 6)
     if customPresets.customPreset7 != -1:
-        customLightPresets[7] = stringToCustomPreset(customPresets.customPreset7)
+        customLightPresets[7] = stringToCustomPreset(customPresets.customPreset7, 7)
     
 # RETURN THE CORRECT NAME FOR THE IDENTIFIER OF THE LIGHT (FOR DEBUG STRINGS)
 def returnMACname():
