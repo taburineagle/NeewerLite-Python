@@ -2499,9 +2499,9 @@ class NLPythonServer(BaseHTTPRequestHandler):
                                 if availableLights[a][1].is_connected:
                                     self.wfile.write(bytes("<TD>" + "Yes" + "</TD>", "utf-8")) # is the light linked?
                                 else:
-                                    self.wfile.write(bytes("<TD>" + "<A HREF=link=" + str(a + 1) + ">No</A></TD>", "utf-8")) # is the light linked?
+                                    self.wfile.write(bytes("<TD>" + "<A HREF=""doAction?link=""" + str(a + 1) + ">No</A></TD>", "utf-8")) # is the light linked?
                             except Exception as e:
-                                self.wfile.write(bytes("<TD>" + "<A HREF=link=" + str(a + 1) + ">Nope!</A></TD>", "utf-8")) # is the light linked?
+                                self.wfile.write(bytes("<TD>" + "<A HREF=""doAction?link=""" + str(a + 1) + ">Nope!</A></TD>", "utf-8")) # is the light linked?
 
                             self.wfile.write(bytes("<TD>" + updateStatus(False, availableLights[a][3]) + "</TD>", "utf-8")) # the last sent value to the light
                             self.wfile.write(bytes("</TR>", "utf-8"))

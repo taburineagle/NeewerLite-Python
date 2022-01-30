@@ -499,7 +499,7 @@ class customPresetButton(QLabel):
             customPresetFont.setPointSize(12)
             self.setFont(customPresetFont)
         else: # if we are on Windows, use a slightly less garish font than the default one
-            windowsCustomPresetFont = QFont("Segoe UI")
+            windowsCustomPresetFont = QFont("Calibri")
             windowsCustomPresetFont.setPointSize(10.5)
             self.setFont(windowsCustomPresetFont)
 
@@ -534,7 +534,7 @@ class customPresetButton(QLabel):
 
             self.setStyleSheet("customPresetButton"
                            "{"
-                           "border: 1px solid black; background-color: #7188ff;"
+                           "border: 1px solid grey; background-color: #7188ff;"
                            "}"
                            "customPresetButton::hover"
                            "{"
@@ -545,7 +545,7 @@ class customPresetButton(QLabel):
 
             self.setStyleSheet("customPresetButton"
                            "{"
-                           "border: 1px solid black; background-color: #71e993;"
+                           "border: 1px solid grey; background-color: #71e993;"
                            "}"
                            "customPresetButton::hover"
                            "{"
