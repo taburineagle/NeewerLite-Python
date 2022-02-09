@@ -1325,7 +1325,9 @@ try: # try to load the GUI
                     toolTipBuilder.append(" > MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "º / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
                 elif customLightPresets[numOfPreset][a][1][0] == 6:
                     toolTipBuilder.append(" > MODE: SCENE / ANIMATION: " + str(customLightPresets[numOfPreset][a][1][2]) + " / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
-                    
+                else: # if we're set to turn the light off, show that here
+                    toolTipBuilder.append(" > TURN THIS LIGHT OFF <")
+
                 if numOfLights > 1 and a < (numOfLights - 1): # if we have any more lights, then separate each one
                     toolTipBuilder.append("----------------------------")
 
@@ -1420,20 +1422,29 @@ try: # try to load the GUI
 
                     if currentLight != []: # if we have a match
                         # always refer to the light it found as currentLight[0]
-                        if customLightPresets[numOfPreset][a][1][0] == 5: # the preset is in CCT mode
+                        if customLightPresets[numOfPreset][a][1][0] == 5 or customLightPresets[numOfPreset][a][1][0] == 8: # the preset is in CCT mode
                             availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="CCT",\
                                                                     brightness=customLightPresets[numOfPreset][a][1][1],\
                                                                     temp=customLightPresets[numOfPreset][a][1][2])
-                        elif customLightPresets[numOfPreset][a][1][0] == 4: # the preset is in HSI mode
+
+                            if customLightPresets[numOfPreset][a][1][0] == 8: # if we want to turn the light off, let the send system know this
+                                availableLights[currentLight[0]][3][0] = 0
+                        elif customLightPresets[numOfPreset][a][1][0] == 4 or customLightPresets[numOfPreset][a][1][0] == 7: # the preset is in HSI mode
                             availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="HSI",\
                                                                     HSI_I=customLightPresets[numOfPreset][a][1][1],\
                                                                     HSI_H=customLightPresets[numOfPreset][a][1][2],\
                                                                     HSI_S=customLightPresets[numOfPreset][a][1][3])
-                        elif customLightPresets[numOfPreset][a][1][0] == 6: # the preset is in ANM/SCENE mode
+
+                            if customLightPresets[numOfPreset][a][1][0] == 7: # if we want to turn the light off, let the send system know this
+                                availableLights[currentLight[0]][3][0] = 0
+                        elif customLightPresets[numOfPreset][a][1][0] == 6 or customLightPresets[numOfPreset][a][1][0] == 9: # the preset is in ANM/SCENE mode
                             availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="ANM",\
                                                                     brightness=customLightPresets[numOfPreset][a][1][1],\
                                                                     animation=customLightPresets[numOfPreset][a][1][2])
-
+                            
+                            if customLightPresets[numOfPreset][a][1][0] == 9: # if we want to turn the light off, let the send system know this
+                                availableLights[currentLight[0]][3][0] = 0
+                        
                         changedLights.append(currentLight[0])
 
             if changedLights != []:
@@ -1499,7 +1510,12 @@ def listBuilder(selectedLight):
         listToWorkWith = availableLights[selectedLight][3] # we're specificially using the last parameter for the specified light for this
 
     if listToWorkWith != []: # if we have elements in this list, then sort them out
-        paramsListBuilder.append(listToWorkWith[1] - 130) # the first value is the mode, but minus 130 to simplify it
+        if availableLights[selectedLight][6] == False:
+            paramsListBuilder.append(listToWorkWith[1] - 127) # the first value is the mode, but -127 to simplify it (and mark it as being OFF)
+        else:
+            paramsListBuilder.append(listToWorkWith[1] - 130) # the first value is the mode, but -125 to simplify it (and mark it as being ON)
+
+        print(paramsListBuilder[0])
 
         if listToWorkWith[1] == 135: # we're in CCT mode
             paramsListBuilder.append(listToWorkWith[3]) # the brightness
@@ -1986,8 +2002,16 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                 currentSendValue = sendValue # get this value before sending to multiple lights, to ensure the same value is sent to each one
 
                 for a in range(len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
+                    # THIS SECTION IS FOR LOADING SNAPSHOT PRESET POWER STATES
                     if useGlobalValue == False: # if we're forcing the lights to use their stored parameters, then load that in here
-                        currentSendValue = availableLights[selectedLights[a]][3]
+                        if availableLights[selectedLights[a]][3][0] == 0: # we want to turn the light off
+                            availableLights[selectedLights[a]][3][0] = 120 # reset the light's value to the normal value
+                            currentSendValue = [120, 129, 1, 2, 252] # set the send value to turn the light off downstream
+                        else: # we want to turn the light on and run a snapshot preset
+                            await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
+                            await asyncio.sleep(0.05)
+
+                            currentSendValue = availableLights[selectedLights[a]][3] # set the send value to set the preset downstream
 
                     if availableLights[selectedLights[a]][1] != "": # if a Bleak connection is there
                         try:
@@ -2050,6 +2074,8 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
 
                 if useGlobalValue == True:
                     startTimer = time.time() # if we sent a value, then reset the timer
+                else:
+                    break # don't do the loop again (as we just want to send the commands once instead of look for newly selected lights)
 
             await asyncio.sleep(0.05) # wait 1/20th of a second to give the Bluetooth bus a little time to recover
 
