@@ -1513,9 +1513,7 @@ def listBuilder(selectedLight):
         if availableLights[selectedLight][6] == False:
             paramsListBuilder.append(listToWorkWith[1] - 127) # the first value is the mode, but -127 to simplify it (and mark it as being OFF)
         else:
-            paramsListBuilder.append(listToWorkWith[1] - 130) # the first value is the mode, but -125 to simplify it (and mark it as being ON)
-
-        print(paramsListBuilder[0])
+            paramsListBuilder.append(listToWorkWith[1] - 130) # the first value is the mode, but -130 to simplify it (and mark it as being ON)
 
         if listToWorkWith[1] == 135: # we're in CCT mode
             paramsListBuilder.append(listToWorkWith[3]) # the brightness
