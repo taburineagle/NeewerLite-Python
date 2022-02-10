@@ -738,20 +738,22 @@ try: # try to load the GUI
             # CARRY "HIDDEN" DEBUGGING OPTIONS TO PREFERENCES FILE
             if enableTabsOnLaunch == True:
                 finalPrefs.append("enableTabsOnLaunch=1")
-      
-            # WRITE THE GLOBAL PREFERENCES FILE
-            with open(globalPrefsFile, "w") as prefsFileToWrite:
-                prefsFileToWrite.write(("\n").join(finalPrefs))
+               
+            if len(finalPrefs) > 0: # if we actually have preferences to save...
+                with open(globalPrefsFile, "w") as prefsFileToWrite:
+                    prefsFileToWrite.write(("\n").join(finalPrefs)) # then write them to the prefs file
 
-            if len(finalPrefs) > 0:
                 # PRINT THIS INFORMATION WHETHER DEBUG OUTPUT IS TURNED ON OR NOT
                 print("New global preferences saved in " + globalPrefsFile + " - here is the list:")
 
                 for a in range(len(finalPrefs)):
-                    print(" > " + finalPrefs[a])
-            else:
-                print("There are no new preferences to save (all preferences are set to their default values).")
-                print("The NeewerLite-Python.prefs file has been cleared out - you can delete the file if you'd like to.")
+                    print(" > " + finalPrefs[a]) # iterate through the list of preferences and show the new value(s) you set
+            else: # there are no preferences to save, so clean up the file (if it exists)
+                print("There are no preferences to save (all preferences are currently set to their default values).")
+                
+                if os.path.exists(globalPrefsFile): # if a previous preferences file exists
+                    print("Since all preferences are set to their defaults, we are deleting the NeewerLite-Python.prefs file.")
+                    os.remove(globalPrefsFile) # ...delete it!
 
         def setupShortcutKeys(self):
             self.SC_turnOffButton.setKey(QKeySequence(customKeys[0]))
@@ -1195,8 +1197,10 @@ try: # try to load the GUI
 
                     printDebugString("Exported custom presets to " + customLightPresetsFile)
                 else:
-                    printDebugString("There were no changed custom presets, so not saving a custom presets file!")
-
+                    if os.path.exists(customLightPresetsFile):
+                        printDebugString("There were no changed custom presets, so we're deleting the custom presets file!")
+                        os.remove(customLightPresetsFile) # if there are no presets to save, then delete the custom presets file
+                      
             # Keep in mind, this is broken into 2 separate "for" loops, so we save all the light params FIRST, then try to unlink from them
             if rememberLightsOnExit == True:
                 printDebugString("You asked NeewerLite-Python to save the last used light parameters on exit, so we will do that now...")
@@ -2805,7 +2809,7 @@ if __name__ == '__main__':
             else:
                 print("We did not find any Neewer lights on the last search.")
 
-            sys.exit(0) # we shouldn't need to do anything with the lock file here, so just quit out
+            singleInstanceUnlockandQuit(0) # delete the lock file and quit out
 
         printDebugString(" > Launch GUI: " + str(cmdReturn[0]))
         printDebugString(" > Show Debug Strings on Console: " + str(cmdReturn[1]))
