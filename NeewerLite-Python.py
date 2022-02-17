@@ -1761,14 +1761,12 @@ async def findDevices():
     devices = await BleakScanner.discover() # scan all available Bluetooth devices nearby
 
     for d in devices: # go through all of the devices Bleak just found
-        try:
-            d.name.index("NEEWER") # try to see if the current device has the name "NEEWER" in it
-        except ValueError: # if the name doesn't have "NEEWER" in it, then check to see if it's whitelisted
-            if d.address in whiteListedMACs: # if the MAC address is in the list of whitelisted addresses, add this device anyway
-                printDebugString("Matching whitelisted address found - " + returnMACname() + " " + d.address + ", adding to the list")
-                currentScan.append(d)
-        else:
-            currentScan.append(d) # and if it finds the phrase, add it to this session's available lights
+        if d.address in whiteListedMACs: # if the MAC address is in the list of whitelisted addresses, add this device
+            printDebugString("Matching whitelisted address found - " + returnMACname() + " " + d.address + ", adding to the list")
+            currentScan.append(d)
+        else: # if this device is not whitelisted, check to see if it's valid (contains "NEEWER" in the name)
+            if d.name != None and "NEEWER" in d.name: # if Bleak returned a proper string, and the string has "NEEWER" in the name
+                currentScan.append(d) # add this light to this session's available lights            
 
     for a in range(len(currentScan)): # scan the newly found NEEWER devices
         newLight = True # initially mark this light as a "new light"
