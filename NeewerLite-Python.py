@@ -2385,23 +2385,29 @@ def returnLightIndexesFromMacAddress(addresses):
     addressesToCheck = addresses.split(";")
     foundIndexes = [] # the list of indexes for the lights you specified
 
-    for a in range(len(addressesToCheck)):
-        try: # if the specified light is just an index, then return the light you asked for
-            currentLight = int(addressesToCheck[a]) - 1 # check to see if the current light can be converted to an integer
+    if addresses == "*": # if we ask for every light available, then return that
+        for a in range(len(availableLights)):
+            foundIndexes.append(a)
+    else: # break down what we're asking for into indexes
+        addressesToCheck = addresses.split(";")
 
-            # if the above succeeds, make sure that the index returned is a valid light index
-            if currentLight < 0 or currentLight > len(availableLights):
-                currentLight = -1 # if the index is less than 0, or higher than the last available light, then... nada
-        except ValueError: # we're most likely asking for a MAC address instead of an integer index
-            currentLight = -1
+        for a in range(len(addressesToCheck)):
+            try: # if the specified light is just an index, then return the light you asked for
+                currentLight = int(addressesToCheck[a]) - 1 # check to see if the current light can be converted to an integer
 
-            for b in range(len(availableLights)):
-                if addressesToCheck[a].upper() == availableLights[b][0].address.upper(): # if the MAC address specified matches the current light
-                    currentLight = b
-                    break
+                # if the above succeeds, make sure that the index returned is a valid light index
+                if currentLight < 0 or currentLight > len(availableLights):
+                    currentLight = -1 # if the index is less than 0, or higher than the last available light, then... nada
+            except ValueError: # we're most likely asking for a MAC address instead of an integer index
+                currentLight = -1
 
-        if currentLight != -1: # the found light index is valid
-            foundIndexes.append(currentLight) # add the found index to the list of indexes
+                for b in range(len(availableLights)):
+                    if addressesToCheck[a].upper() == availableLights[b][0].address.upper(): # if the MAC address specified matches the current light
+                        currentLight = b
+                        break
+
+            if currentLight != -1: # the found light index is valid
+                foundIndexes.append(currentLight) # add the found index to the list of indexes
 
     return foundIndexes
 
