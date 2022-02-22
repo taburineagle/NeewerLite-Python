@@ -420,7 +420,6 @@ try: # try to load the GUI
                     if checkForCustomNames == False: # if we don't need to check which kind of sorting to do, we only have one kind
                         sortingField = 8
                     else:
-                        pass # we'll ask here whether to sort by custom name, or light type
                         sortingField = 2
                 elif theHeader == 1: # sort by MAC Address/GUID
                     sortingField = 9
@@ -1208,18 +1207,12 @@ try: # try to load the GUI
                 else: # the light does have a Bleak object connected to it
                     if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
                         if availableLights[a][1].is_connected: # we have a connection to the light
-                            if availableLights[a][7] == ["---", "---"]: # we don't have any power or channel info yet
-                                self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED", "Waiting to send..."])
-                            else: # we do have power and channel info
-                                self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED\n" + availableLights[a][7][0] + " / ᴄʜ. " + str(availableLights[a][7][1]), "Waiting to send..."])
+                            self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED", "Waiting to send..."])
                         else: # we're still trying to connect, or haven't started trying yet
                             self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "Waiting", "Waiting to connect..."])
                     else: # the light does not have a custom name, so just use the model # of the light
                         if availableLights[a][1].is_connected:
-                            if availableLights[a][7] == ["---", "---"]: # we don't have any power or channel info yet
-                                self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED", "Waiting to send..."])
-                            else: # we do have power and channel info
-                                self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED\n" + availableLights[a][7][0] + " / ᴄʜ. " + str(availableLights[a][7][1]), "Waiting to send..."])
+                            self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED", "Waiting to send..."])
                         else:
                             self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "Waiting", "Waiting to connect..."])
 
@@ -1927,7 +1920,9 @@ async def connectToLight(selectedLight, updateGUI=True):
                 printDebugString("Error linking to light [" + lightName + "] " + returnMACname() + " " + lightMAC)
               
                 if updateGUI == True:
-                    mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], returnLightIndexesFromMacAddress(lightMAC)[0]) # there was an issue connecting this specific light to Bluetooh, so show that                else:
+                    if currentAttempt < maxNumOfAttempts:
+                        mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], returnLightIndexesFromMacAddress(lightMAC)[0]) # there was an issue connecting this specific light to Bluetooth, so show that
+                else:
                     returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
 
                 currentAttempt = currentAttempt + 1
@@ -1961,7 +1956,12 @@ async def readNotifyCharacteristic(selectedLight, diagCommand, typeOfData):
     try:
         await availableLights[selectedLight][1].start_notify(notifyLightUUID, notifyCallback) # start reading notifications from the light
     except Exception as e:
-        return "" # if there is an error starting the characteristic scan, just quit out of this routine
+        try: # if we've resorted the list, there is a possibility of a hanging callback, so this will raise an exception
+            await availableLights[selectedLight][1].stop_notify(notifyLightUUID) # so we need to try disconnecting first
+            await asyncio.sleep(0.5) # wait a little bit of time before re-connecting to the callback
+            await availableLights[selectedLight][1].start_notify(notifyLightUUID, notifyCallback) # try again to start reading notifications from the light
+        except Exception as e: # if we truly can't connect to the callback, return a blank string
+            return "" # if there is an error starting the characteristic scan, just quit out of this routine
 
     for a in range(maxNumOfAttempts): # attempt maxNumOfAttempts times to read the characteristics
         try:
@@ -2050,6 +2050,7 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
 
 # WRITE TO A LIGHT - optional arguments for the CLI version (GUI version doesn't use either of these)
 async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
+    global availableLights
     returnValue = "" # same as above, return value "" for GUI, or boolean for CLI
 
     startTimer = time.time() # the start of the triggering
@@ -2078,6 +2079,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                             currentSendValue = [120, 129, 1, 2, 252] # set the send value to turn the light off downstream
                         else: # we want to turn the light on and run a snapshot preset
                             await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
+                            availableLights[int(selectedLights[a])][6] = True # set the ON flag of this light to True
                             await asyncio.sleep(0.05)
 
                             currentSendValue = availableLights[selectedLights[a]][3] # set the send value to set the preset downstream
@@ -2246,7 +2248,6 @@ def workerThread(_loop):
                     lightsToSendTo.append(int(currentThreadAction[a]))
 
                 threadAction = _loop.run_until_complete(writeToLight(lightsToSendTo, True, False)) # write the value stored in the lights to the light(s)
-
         time.sleep(0.25)
 
 async def parallelAction(theAction, theLights, updateGUI = True):
