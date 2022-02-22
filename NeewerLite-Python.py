@@ -238,6 +238,11 @@ try: # try to load the GUI
             self.ColorModeTabWidget.currentChanged.connect(self.tabChanged)
             self.lightTable.itemSelectionChanged.connect(self.selectionChanged)
 
+            # Allow clicking on the headers for sorting purposes
+            horizHeaders = self.lightTable.horizontalHeader()
+            horizHeaders.setSectionsClickable(True)
+            horizHeaders.sectionClicked.connect(self.sortByHeader)
+
             # COMMENTS ARE THE SAME THE ENTIRE WAY DOWN THIS CHAIN
             self.customPreset_0_Button.clicked.connect(lambda: self.recallCustomPreset(0)) # when you click a preset
             self.customPreset_0_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(0)) # when you right-click a preset
@@ -385,7 +390,56 @@ try: # try to load the GUI
             self.SC_Num8.activated.connect(lambda: self.numberShortcuts(8))
             self.SC_Num9 = QShortcut(QKeySequence("9"), self)
             self.SC_Num9.activated.connect(lambda: self.numberShortcuts(9))
-            
+
+        def sortByHeader(self, theHeader):
+            global availableLights
+
+            if theHeader != 3:
+                # SWITCH ORDER OF SORT DEPENDING ON THE LAST SELECTED ORDER
+                currentSortOrder = self.lightTable.horizontalHeader().sortIndicatorOrder()
+
+                self.lightTable.setSortingEnabled(False)
+
+                if currentSortOrder == Qt.SortOrder.DescendingOrder:
+                    doReverseSort = True
+                elif currentSortOrder == Qt.SortOrder.AscendingOrder:
+                    doReverseSort = False
+
+                sortingList = [] # a list to hold information about the main list and the table
+                checkForCustomNames = False # the count of light(s) in the currently available light list with custom names
+
+                for a in range(len(availableLights)): # fill the temporary list with information also taken from the table (color selection)
+                    if theHeader == 0 and availableLights[a][2] != "": # if the current light has a custom name (and we clicked on Name)
+                        checkForCustomNames = True # then we need to ask what kind of sorting when we sort
+
+                    sortingList.append([availableLights[a][0], availableLights[a][1], availableLights[a][2], availableLights[a][3], \
+                                       availableLights[a][4], availableLights[a][5], availableLights[a][6], availableLights[a][7], \
+                                       availableLights[a][0].name, availableLights[a][0].address, availableLights[a][1].is_connected])
+
+                if theHeader == 0: # sort by either custom name (if there are any) or light type
+                    if checkForCustomNames == False: # if we don't need to check which kind of sorting to do, we only have one kind
+                        sortingField = 8
+                    else:
+                        pass # we'll ask here whether to sort by custom name, or light type
+                        sortingField = 2
+                elif theHeader == 1: # sort by MAC Address/GUID
+                    sortingField = 9
+                elif theHeader == 2: # sort by connection status
+                    sortingField = 10
+
+                sortedList = sorted(sortingList, key = lambda x: x[sortingField], reverse = doReverseSort)
+
+                availableLights.clear() # clear the list of available lights
+
+                for a in range(len(sortedList)): # rebuild the available lights list from the sorted list
+                    availableLights.append([sortedList[a][0], sortedList[a][1], sortedList[a][2], sortedList[a][3], \
+                                            sortedList[a][4], sortedList[a][5], sortedList[a][6], sortedList[a][7]])
+                                        
+                self.updateLights(False) # redraw the table with the new light list
+                self.lightTable.setSortingEnabled(True)
+            else:
+                self.lightTable.setSortingEnabled(False) # if we click the "Status" header, don't do anything
+
         def switchToTab(self, theTab): # SWITCH TO THE REQUESTED TAB **IF IT IS AVAILABLE**
             if self.ColorModeTabWidget.isTabEnabled(theTab) == True:
                 self.ColorModeTabWidget.setCurrentIndex(theTab)
@@ -1130,31 +1184,44 @@ try: # try to load the GUI
             return selectionList # return the row IDs that are currently selected, or an empty array ([]) otherwise
 
         # UPDATE THE TABLE WITH THE CURRENT INFORMATION FROM availableLights
-        def updateLights(self):
+        def updateLights(self, updateTaskbar = True):
             self.clearTheTable()
 
-            if len(availableLights) != 0: # if we found lights on the last scan
-                if self.scanCommandButton.text() == "Scan":
-                    self.scanCommandButton.setText("Re-scan") # change the "Scan" button to "Re-scan"
+            if updateTaskbar == True: # if we're scanning for lights, then update the taskbar - if we're just sorting, then don't
+                if len(availableLights) != 0: # if we found lights on the last scan
+                    if self.scanCommandButton.text() == "Scan":
+                        self.scanCommandButton.setText("Re-scan") # change the "Scan" button to "Re-scan"
 
-                if len(availableLights) == 1: # we found 1 light
-                    self.statusBar.showMessage("We located 1 Neewer light on the last search")
-                elif len(availableLights) > 1: # we found more than 1 light
-                    self.statusBar.showMessage("We located " + str(len(availableLights)) + " Neewer lights on the last search")
-            else: # if we didn't find any (additional) lights on the last scan
-                self.statusBar.showMessage("We didn't locate any Neewer lights on the last search")
+                    if len(availableLights) == 1: # we found 1 light
+                        self.statusBar.showMessage("We located 1 Neewer light on the last search")
+                    elif len(availableLights) > 1: # we found more than 1 light
+                        self.statusBar.showMessage("We located " + str(len(availableLights)) + " Neewer lights on the last search")
+                else: # if we didn't find any (additional) lights on the last scan
+                    self.statusBar.showMessage("We didn't locate any Neewer lights on the last search")
 
             for a in range(len(availableLights)):
-                if availableLights[a][1] == "": # the light is not currently linked, so put "waiting to connect" as status
+                if availableLights[a][1] == "": # the light does not currently have a Bleak object connected to it
                     if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
                         self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "Waiting", "Waiting to connect..."])
                     else: # the light does not have a custom name, so just use the model # of the light
                         self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "Waiting", "Waiting to connect..."])
-                else: # we have previously tried to connect, so we have a Bleak object - so put "waiting to send" as status
+                else: # the light does have a Bleak object connected to it
                     if availableLights[a][2] != "": # the light has a custom name, so add the custom name to the light
-                        self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED", "Waiting to send..."])
+                        if availableLights[a][1].is_connected: # we have a connection to the light
+                            if availableLights[a][7] == ["---", "---"]: # we don't have any power or channel info yet
+                                self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED", "Waiting to send..."])
+                            else: # we do have power and channel info
+                                self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED\n" + availableLights[a][7][0] + " / ᴄʜ. " + str(availableLights[a][7][1]), "Waiting to send..."])
+                        else: # we're still trying to connect, or haven't started trying yet
+                            self.setTheTable([availableLights[a][2] + " (" + availableLights[a][0].name + ")" + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "Waiting", "Waiting to connect..."])
                     else: # the light does not have a custom name, so just use the model # of the light
-                        self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED", "Waiting to send..."])
+                        if availableLights[a][1].is_connected:
+                            if availableLights[a][7] == ["---", "---"]: # we don't have any power or channel info yet
+                                self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED", "Waiting to send..."])
+                            else: # we do have power and channel info
+                                self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "LINKED\n" + availableLights[a][7][0] + " / ᴄʜ. " + str(availableLights[a][7][1]), "Waiting to send..."])
+                        else:
+                            self.setTheTable([availableLights[a][0].name + "\n  [ʀssɪ: " + str(availableLights[a][0].rssi) + " dBm]", availableLights[a][0].address, "Waiting", "Waiting to connect..."])
 
         # THE FINAL FUNCTION TO UNLINK ALL LIGHTS WHEN QUITTING THE PROGRAM
         def closeEvent(self, event):
@@ -1837,9 +1904,12 @@ async def connectToLight(selectedLight, updateGUI=True):
     isConnected = False # whether or not the light is connected
     returnValue = "" # the value to return to the thread (in GUI mode, a string) or True/False (in CLI mode, a boolean value)
 
+    lightName = availableLights[selectedLight][0].name # the Name of the light (for status updates)
+    lightMAC = availableLights[selectedLight][0].address # the MAC address of the light (to keep track of the light even if the index number changes)
+
     # FILL THE [1] ELEMENT OF THE availableLights ARRAY WITH THE BLEAK CONNECTION
-    if availableLights[selectedLight][1] == "":
-        availableLights[selectedLight][1] = BleakClient(availableLights[selectedLight][0])
+    if availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1] == "":
+        availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1] = BleakClient(availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][0])
         await asyncio.sleep(0.25) # wait just a short time before trying to connect
 
     # TRY TO CONNECT TO THE LIGHT SEVERAL TIMES BEFORE GIVING UP THE LINK
@@ -1848,17 +1918,16 @@ async def connectToLight(selectedLight, updateGUI=True):
     while isConnected == False and currentAttempt <= maxNumOfAttempts:
         if threadAction != "quit":
             try:
-                if not availableLights[selectedLight][1].is_connected: # if the current device isn't linked to Bluetooth
-                    printDebugString("Attempting to link to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
-                    isConnected = await availableLights[selectedLight][1].connect() # try connecting it (and return the connection status)
+                if not availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1].is_connected: # if the current device isn't linked to Bluetooth
+                    printDebugString("Attempting to link to light [" + lightName + "] " + returnMACname() + " " + lightMAC + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
+                    isConnected = await availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1].connect() # try connecting it (and return the connection status)
                 else:
                     isConnected = True # the light is already connected, so mark it as being connected
             except Exception as e:
-                printDebugString("Error linking to light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
+                printDebugString("Error linking to light [" + lightName + "] " + returnMACname() + " " + lightMAC)
               
                 if updateGUI == True:
-                    mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
-                else:
+                    mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], returnLightIndexesFromMacAddress(lightMAC)[0]) # there was an issue connecting this specific light to Bluetooh, so show that                else:
                     returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
 
                 currentAttempt = currentAttempt + 1
@@ -1870,15 +1939,15 @@ async def connectToLight(selectedLight, updateGUI=True):
         return "quit"
     else:
         if isConnected == True:
-            printDebugString("Successful link on light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
+            printDebugString("Successful link on light [" + lightName + "] " + returnMACname() + " " + lightMAC)
 
             if updateGUI == True:
-                mainWindow.setTheTable(["", "", "LINKED", "Waiting to send..."], selectedLight) # if it's successful, show that in the table
+                mainWindow.setTheTable(["", "", "LINKED", "Waiting to send..."], returnLightIndexesFromMacAddress(lightMAC)[0]) # if it's successful, show that in the table
             else:
                 returnValue = True  # if we're in CLI mode, and there is no error connecting to the light, return True
         else:
             if updateGUI == True:
-                mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light"], selectedLight) # there was an issue connecting this specific light to Bluetooh, so show that
+                mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light"], returnLightIndexesFromMacAddress(lightMAC)[0]) # there was an issue connecting this specific light to Bluetooh, so show that
 
             returnValue = False # the light is not connected
 
@@ -2382,7 +2451,6 @@ def processHTMLCommands(paramsList, loop):
         printDebugString("The HTTP Server requested an action, but we're already working on one.  Please wait...")
 
 def returnLightIndexesFromMacAddress(addresses):
-    addressesToCheck = addresses.split(";")
     foundIndexes = [] # the list of indexes for the lights you specified
 
     if addresses == "*": # if we ask for every light available, then return that
