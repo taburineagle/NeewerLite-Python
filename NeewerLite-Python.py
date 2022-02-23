@@ -79,6 +79,7 @@ CCTSlider = -1 # the current slider moved in the CCT window - 1 - Brightness / 2
 sendValue = [120, 135, 2, 20, 56, 157] # an array to hold the values to be sent to the light - the default is CCT / 5600K / 100%
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
 lastSelection = [] # the current light selection (this is for snapshot preset entering/leaving buttons)
+lastSortingField = -1 # the last field used for sorting purposes
 
 availableLights = [] # the list of Neewer lights currently available to control - format:
                      #  0                  1                 2            3            4                 5                           6             7
@@ -393,63 +394,74 @@ try: # try to load the GUI
 
         def sortByHeader(self, theHeader):
             global availableLights
+            global lastSortingField
 
-            if theHeader != 3:
-                # SWITCH ORDER OF SORT DEPENDING ON THE LAST SELECTED ORDER
-                currentSortOrder = self.lightTable.horizontalHeader().sortIndicatorOrder()
+            if theHeader < 2: # if we didn't click on the "Linked" or "Status" headers, start processing the sort
+                sortingList = [] # a copy of the availableLights array
+                checkForCustomNames = False # whether or not to ask to sort by custom names (if there aren't any custom names, then don't allow)
 
-                self.lightTable.setSortingEnabled(False)
-
-                if currentSortOrder == Qt.SortOrder.DescendingOrder:
-                    doReverseSort = True
-                elif currentSortOrder == Qt.SortOrder.AscendingOrder:
-                    doReverseSort = False
-
-                sortingList = [] # a list to hold information about the main list and the table
-                checkForCustomNames = False # the count of light(s) in the currently available light list with custom names
-
-                for a in range(len(availableLights)): # fill the temporary list with information also taken from the table (color selection)
+                for a in range(len(availableLights)): # copy the entire availableLights array into a temporary array to process it
                     if theHeader == 0 and availableLights[a][2] != "": # if the current light has a custom name (and we clicked on Name)
                         checkForCustomNames = True # then we need to ask what kind of sorting when we sort
 
                     sortingList.append([availableLights[a][0], availableLights[a][1], availableLights[a][2], availableLights[a][3], \
-                                       availableLights[a][4], availableLights[a][5], availableLights[a][6], availableLights[a][7], \
-                                       availableLights[a][0].name, availableLights[a][0].address, availableLights[a][1].is_connected, availableLights[a][0].rssi])
+                                        availableLights[a][4], availableLights[a][5], availableLights[a][6], availableLights[a][7], \
+                                        availableLights[a][0].name, availableLights[a][0].address, availableLights[a][0].rssi])
+            else: # we clicked on the "Linked" or "Status" headers, which do not allow sorting
+                sortingField = -1
 
-                if theHeader == 0: # sort by either custom name (if there are any) or light type
-                    sortDlg = QMessageBox(self)
-                    sortDlg.setIcon(QMessageBox.Question)
-                    sortDlg.setWindowTitle("Sort by...")
-                    sortDlg.setText("Which do you want to sort by?")
+            if theHeader == 0:
+                sortDlg = QMessageBox(self)
+                sortDlg.setIcon(QMessageBox.Question)
+                sortDlg.setWindowTitle("Sort by...")
+                sortDlg.setText("Which do you want to sort by?")
                    
-                    sortDlg.addButton(" RSSI (Signal Level) ", QMessageBox.ButtonRole.AcceptRole)
-                    sortDlg.addButton(" Type of Light ", QMessageBox.ButtonRole.AcceptRole)
+                sortDlg.addButton(" RSSI (Signal Level) ", QMessageBox.ButtonRole.AcceptRole)
+                sortDlg.addButton(" Type of Light ", QMessageBox.ButtonRole.AcceptRole)
 
-                    if checkForCustomNames == True: # if we have custom names available, then add that as an option
-                        sortDlg.addButton("Custom Name", QMessageBox.ButtonRole.AcceptRole)    
+                if checkForCustomNames == True: # if we have custom names available, then add that as an option
+                    sortDlg.addButton("Custom Name", QMessageBox.ButtonRole.AcceptRole)    
                     
-                    sortDlg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
-                    sortDlg.setIcon(QMessageBox.Warning)
-                    clickedButton = sortDlg.exec_()
+                sortDlg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                sortDlg.setIcon(QMessageBox.Warning)
+                clickedButton = sortDlg.exec_()
 
-                    if clickedButton == 0:
-                        sortingField = 11 # sort by RSSI
-                    elif clickedButton == 1:
-                        sortingField = 8 # sort by type of light
-                    elif clickedButton == 2:
-                        if checkForCustomNames == True: # if the option was available for custom names, this is "custom name"
-                            sortingField = 2 
-                        else: # if the option wasn't available, then this is "cancel"
-                            sortingField = -1 # cancel out of sorting - write this!
-                    elif clickedButton == 3: # this option is only available if custom names is accessible - if so, this is "cancel"
-                            sortingField = -1 # cancel out of sorting - write this!
-                elif theHeader == 1: # sort by MAC Address/GUID
-                    sortingField = 9
-                elif theHeader == 2: # sort by connection status
-                    sortingField = 10
+                if clickedButton == 0:
+                    sortingField = 10 # sort by RSSI
+                elif clickedButton == 1:
+                    sortingField = 8 # sort by type of light
+                elif clickedButton == 2:
+                    if checkForCustomNames == True: # if the option was available for custom names, this is "custom name"
+                        sortingField = 2 
+                    else: # if the option wasn't available, then this is "cancel"
+                        sortingField = -1 # cancel out of sorting - write this!
+                elif clickedButton == 3: # this option is only available if custom names is accessible - if so, this is "cancel"
+                        sortingField = -1 # cancel out of sorting - write this!
+            elif theHeader == 1: # sort by MAC Address/GUID
+                sortingField = 9
 
-                sortedList = sorted(sortingList, key = lambda x: x[sortingField], reverse = doReverseSort)
+            if sortingField != -1: # we want to sort
+                self.lightTable.horizontalHeader().setSortIndicatorShown(True) # show the sorting indicator
 
+                if lastSortingField != sortingField: # if we're doing a different kind of sort than the last one
+                    self.lightTable.horizontalHeader().setSortIndicator(theHeader, Qt.SortOrder.AscendingOrder) # force the header to "Ascending" order
+                    if sortingField != 10: # if we're not looking at RSSI
+                        doReverseSort = False # we need an ascending order search
+                    else: # we ARE looking at RSSI
+                        doReverseSort = True # if we're looking at RSSI, then the search order is reversed (as the smaller # is actually the higher value)
+                else: # if it's the same as before, then take the cue from the last order
+                    if self.lightTable.horizontalHeader().sortIndicatorOrder() == Qt.SortOrder.DescendingOrder:
+                        if sortingField != 10:
+                            doReverseSort = True
+                        else:
+                            doReverseSort = False
+                    elif self.lightTable.horizontalHeader().sortIndicatorOrder() == Qt.SortOrder.AscendingOrder:
+                        if sortingField != 10:
+                            doReverseSort = False
+                        else:
+                            doReverseSort = True
+
+                sortedList = sorted(sortingList, key = lambda x: x[sortingField], reverse = doReverseSort) # sort the list
                 availableLights.clear() # clear the list of available lights
 
                 for a in range(len(sortedList)): # rebuild the available lights list from the sorted list
@@ -457,9 +469,9 @@ try: # try to load the GUI
                                             sortedList[a][4], sortedList[a][5], sortedList[a][6], sortedList[a][7]])
                                         
                 self.updateLights(False) # redraw the table with the new light list
-                self.lightTable.setSortingEnabled(True)
+                lastSortingField = sortingField # keep track of the last field used for sorting, so we know whether or not to switch to ascending
             else:
-                self.lightTable.setSortingEnabled(False) # if we click the "Status" header, don't do anything
+                self.lightTable.horizontalHeader().setSortIndicatorShown(False) # hide the sorting indicator
 
         def switchToTab(self, theTab): # SWITCH TO THE REQUESTED TAB **IF IT IS AVAILABLE**
             if self.ColorModeTabWidget.isTabEnabled(theTab) == True:
@@ -976,6 +988,9 @@ try: # try to load the GUI
                 # IF A CUSTOM NAME IS SET UP FOR THIS LIGHT, THEN CHANGE THE TABLE TO REFLECT THAT
                 if availableLights[selectedRows[0]][2] != "":
                     self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")" "\n  [ʀssɪ: " + str(availableLights[selectedRows[0]][0].rssi) + " dBm]",
+                                    "", "", ""], selectedRows[0])
+                else: # if there is no custom name, then reset the table to show that
+                    self.setTheTable([availableLights[selectedRows[0]][0].name + "\n  [ʀssɪ: " + str(availableLights[selectedRows[0]][0].rssi) + " dBm]",
                                     "", "", ""], selectedRows[0])
 
                 self.saveLightPrefs(selectedRows[0]) # save the light settings to a special file
