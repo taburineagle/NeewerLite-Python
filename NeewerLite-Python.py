@@ -76,14 +76,32 @@ except Exception as e:
     pass # if there are any HTTP errors, don't do anything yet
 
 CCTSlider = -1 # the current slider moved in the CCT window - 1 - Brightness / 2 - Hue / -1 - Both Brightness and Hue
-sendValue = [120, 135, 2, 20, 56, 157] # an array to hold the values to be sent to the light - the default is CCT / 5600K / 100%
+sendValue = [120, 135, 2, 20, 56, 157] # an array to hold the values to be sent to the light - the default is CCT / 5600K / 20%
 lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
 lastSelection = [] # the current light selection (this is for snapshot preset entering/leaving buttons)
 lastSortingField = -1 # the last field used for sorting purposes
 
-availableLights = [] # the list of Neewer lights currently available to control - format:
-                     #  0                  1                 2            3            4                 5                           6             7
-                     # [Bleak Scan Object, Bleak Connection, Custom Name, Last Params, Extend CCT Range, Send BRI/HUE independently, Light On/Off, Power/CH Data Returned]
+availableLights = [] # the list of Neewer lights currently available to control
+# List Subitems (for ^^^^^^):
+# [0] - Bleak Scan Object (can use .name / .rssi / .address to get specifics)
+# [1] - Bleak Connection (the actual Bluetooth connection to the light itself)
+# [2] - Custom Name for Light (string)
+# [3] - Last Used Parameters (list)
+# [4] - Whether or not to use an Extended CCT Range (boolean)
+# [5] - Whether or not to send Brightness and Hue independently for old lights (boolean)
+# [6] - Whether or not this light has been manually turned ON/OFF (boolean)
+# [7] - The Power and Channel data returned for this light (list)
+
+# Light Preset ***Default*** Settings (for sections below):
+# NOTE: The list is 0-based, so the preset itself is +1 from the subitem
+# [0] - [CCT mode] - 5600K / 20%
+# [1] - [CCT mode] - 3200K / 20%
+# [2] - [CCT mode] - 5600K / 0% (lights are on, but set to 0% brightness)
+# [3] - [HSI mode] - 0° hue / 100% saturation / 20% intensity (RED)
+# [4] - [HSI mode] - 240° hue / 100% saturation / 20% intensity (BLUE)
+# [5] - [HSI mode] - 120° hue / 100% saturation / 20% intensity (GREEN)
+# [6] - [HSI mode] - 300° hue / 100% saturation / 20% intensity (PURPLE)
+# [7] - [HSI mode] - 160° hue / 100% saturation / 20% intensity (CYAN)
 
 # The list of **default** light presets for restoring and checking against
 defaultLightPresets = [
@@ -97,9 +115,7 @@ defaultLightPresets = [
     [[-1, [4, 20, 160, 100]]]    
     ]
 
-# A list of preset mode settings - custom file will overwrite, but here are the default values
-# (0 - CCT - 5600K / 100%) / (1 - CCT - 3200K / 100%) / (2 - CCT - 5600K / 0%) / (3 - HSI - Red / all 100%)
-# (4 - HSI - Blue / all 100%) / (5 - HSI - Green / all 100%) / (6 - HSI - Purple / all 100%) / (7 - HSI - Cyan / all 100%)
+# A list of preset mode settings - custom file will overwrite
 customLightPresets = [
     [[-1, [5, 20, 56]]],
     [[-1, [5, 20, 32]]],
@@ -2695,7 +2711,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = footerLinks + "<A HREF=""doAction?list"">List Currently Available Lights</A>"
 
         self.wfile.write(bytes("<HR>" + footerLinks + "<br>", "utf-8"))
-        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.9</A> by Zach Glenwright<br>", "utf-8"))
+        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.10</A> by Zach Glenwright<br>", "utf-8"))
         self.wfile.write(bytes("</body></html>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -2877,7 +2893,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.9 by Zach Glenwright")
+            print("NeewerLite-Python 0.10 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             loop.run_until_complete(findDevices())
 
