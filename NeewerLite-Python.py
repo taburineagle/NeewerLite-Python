@@ -414,13 +414,35 @@ try: # try to load the GUI
 
                     sortingList.append([availableLights[a][0], availableLights[a][1], availableLights[a][2], availableLights[a][3], \
                                        availableLights[a][4], availableLights[a][5], availableLights[a][6], availableLights[a][7], \
-                                       availableLights[a][0].name, availableLights[a][0].address, availableLights[a][1].is_connected])
+                                       availableLights[a][0].name, availableLights[a][0].address, availableLights[a][1].is_connected, availableLights[a][0].rssi])
 
                 if theHeader == 0: # sort by either custom name (if there are any) or light type
-                    if checkForCustomNames == False: # if we don't need to check which kind of sorting to do, we only have one kind
-                        sortingField = 8
-                    else:
-                        sortingField = 2
+                    sortDlg = QMessageBox(self)
+                    sortDlg.setIcon(QMessageBox.Question)
+                    sortDlg.setWindowTitle("Sort by...")
+                    sortDlg.setText("Which do you want to sort by?")
+                   
+                    sortDlg.addButton(" RSSI (Signal Level) ", QMessageBox.ButtonRole.AcceptRole)
+                    sortDlg.addButton(" Type of Light ", QMessageBox.ButtonRole.AcceptRole)
+
+                    if checkForCustomNames == True: # if we have custom names available, then add that as an option
+                        sortDlg.addButton("Custom Name", QMessageBox.ButtonRole.AcceptRole)    
+                    
+                    sortDlg.addButton("Cancel", QMessageBox.ButtonRole.RejectRole)
+                    sortDlg.setIcon(QMessageBox.Warning)
+                    clickedButton = sortDlg.exec_()
+
+                    if clickedButton == 0:
+                        sortingField = 11 # sort by RSSI
+                    elif clickedButton == 1:
+                        sortingField = 8 # sort by type of light
+                    elif clickedButton == 2:
+                        if checkForCustomNames == True: # if the option was available for custom names, this is "custom name"
+                            sortingField = 2 
+                        else: # if the option wasn't available, then this is "cancel"
+                            sortingField = -1 # cancel out of sorting - write this!
+                    elif clickedButton == 3: # this option is only available if custom names is accessible - if so, this is "cancel"
+                            sortingField = -1 # cancel out of sorting - write this!
                 elif theHeader == 1: # sort by MAC Address/GUID
                     sortingField = 9
                 elif theHeader == 2: # sort by connection status
