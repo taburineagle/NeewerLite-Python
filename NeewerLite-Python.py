@@ -261,35 +261,35 @@ try: # try to load the GUI
             horizHeaders.sectionClicked.connect(self.sortByHeader)
 
             # COMMENTS ARE THE SAME THE ENTIRE WAY DOWN THIS CHAIN
-            self.customPreset_0_Button.clicked.connect(lambda: self.recallCustomPreset(0)) # when you click a preset
+            self.customPreset_0_Button.clicked.connect(lambda: recallCustomPreset(0)) # when you click a preset
             self.customPreset_0_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(0)) # when you right-click a preset
             self.customPreset_0_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(0)) # when the mouse enters the widget
             self.customPreset_0_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(0, True)) # when the mouse leaves the widget
-            self.customPreset_1_Button.clicked.connect(lambda: self.recallCustomPreset(1))
+            self.customPreset_1_Button.clicked.connect(lambda: recallCustomPreset(1))
             self.customPreset_1_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(1))
             self.customPreset_1_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(1))
             self.customPreset_1_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(1, True))
-            self.customPreset_2_Button.clicked.connect(lambda: self.recallCustomPreset(2))
+            self.customPreset_2_Button.clicked.connect(lambda: recallCustomPreset(2))
             self.customPreset_2_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(2))
             self.customPreset_2_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(2))
             self.customPreset_2_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(2, True))
-            self.customPreset_3_Button.clicked.connect(lambda: self.recallCustomPreset(3))
+            self.customPreset_3_Button.clicked.connect(lambda: recallCustomPreset(3))
             self.customPreset_3_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(3))
             self.customPreset_3_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(3))
             self.customPreset_3_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(3, True))
-            self.customPreset_4_Button.clicked.connect(lambda: self.recallCustomPreset(4))
+            self.customPreset_4_Button.clicked.connect(lambda: recallCustomPreset(4))
             self.customPreset_4_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(4))
             self.customPreset_4_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(4))
             self.customPreset_4_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(4, True))
-            self.customPreset_5_Button.clicked.connect(lambda: self.recallCustomPreset(5))
+            self.customPreset_5_Button.clicked.connect(lambda: recallCustomPreset(5))
             self.customPreset_5_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(5))
             self.customPreset_5_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(5))
             self.customPreset_5_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(5, True))
-            self.customPreset_6_Button.clicked.connect(lambda: self.recallCustomPreset(6))
+            self.customPreset_6_Button.clicked.connect(lambda: recallCustomPreset(6))
             self.customPreset_6_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(6))
             self.customPreset_6_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(6))
             self.customPreset_6_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(6, True))
-            self.customPreset_7_Button.clicked.connect(lambda: self.recallCustomPreset(7))
+            self.customPreset_7_Button.clicked.connect(lambda: recallCustomPreset(7))
             self.customPreset_7_Button.rightclicked.connect(lambda: self.saveCustomPresetDialog(7))
             self.customPreset_7_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7))
             self.customPreset_7_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7, True))
@@ -1409,52 +1409,11 @@ try: # try to load the GUI
                         if numOfPreset == 7:
                                 self.customPreset_7_Button.markCustom(7, clickedButton)
 
-        def customPresetToolTipBuilder(self, numOfPreset):
-            toolTipBuilder = [] # constructor for the tooltip
-            numOfLights = len(customLightPresets[numOfPreset]) # the number of lights in this specific preset
-
-            if numOfLights == 1 and customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset
-                toolTipBuilder.append("[GLOBAL PRESET]")
-            else: # we're looking at a snapshot preset
-                toolTipBuilder.append("[SNAPSHOT PRESET]")
-
-            toolTipBuilder.append("")
-
-            for a in range(numOfLights): # write out a little description of each part of this preset
-                if customLightPresets[numOfPreset][a][0] == -1:
-                    toolTipBuilder.append(" FOR: ALL SELECTED LIGHTS") # this is a global preset, and it affects all lights
-                else:
-                    currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0]) # find the light in the current list
-
-                    if currentLight != []: # if we have a match, add it to the list of lights to highlight
-                        if availableLights[currentLight[0]][2] != "": # if the custom name is filled in
-                            toolTipBuilder.append(" FOR: " + availableLights[currentLight[0]][2] + " [" + availableLights[currentLight[0]][0].name + "]")
-                        else:
-                            toolTipBuilder.append(" FOR: " + availableLights[currentLight[0]][0].name)
-                    else:
-                        toolTipBuilder.append("FOR: ---LIGHT NOT AVAILABLE AT THE MOMENT---") # if the light is not found (yet), display that
-
-                    toolTipBuilder.append(" <" + customLightPresets[numOfPreset][a][0] + ">") # this is a snapshot preset, and this specific preset controls this light
-                    
-                if customLightPresets[numOfPreset][a][1][0] == 5:
-                    toolTipBuilder.append(" > MODE: CCT / TEMP: " + str(customLightPresets[numOfPreset][a][1][2]) + "00K / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
-                elif customLightPresets[numOfPreset][a][1][0] == 4:
-                    toolTipBuilder.append(" > MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "º / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
-                elif customLightPresets[numOfPreset][a][1][0] == 6:
-                    toolTipBuilder.append(" > MODE: SCENE / ANIMATION: " + str(customLightPresets[numOfPreset][a][1][2]) + " / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
-                else: # if we're set to turn the light off, show that here
-                    toolTipBuilder.append(" > TURN THIS LIGHT OFF <")
-
-                if numOfLights > 1 and a < (numOfLights - 1): # if we have any more lights, then separate each one
-                    toolTipBuilder.append("----------------------------")
-
-            return "\n".join(toolTipBuilder)
-
         def highlightLightsForSnapshotPreset(self, numOfPreset, exited = False):
             global lastSelection
 
             if exited == False: # if we're entering a snapshot preset, then highlight the affected lights in green
-                toolTip = self.customPresetToolTipBuilder(numOfPreset)
+                toolTip = customPresetInfoBuilder(numOfPreset)
 
                 # LOAD A NEWLY GENERATED TOOLTIP FOR EVERY HOVER
                 if numOfPreset == 0:
@@ -1507,72 +1466,6 @@ try: # try to load the GUI
             else:
                 return [] # if we don't have a snapshot preset, then just return an empty list (no lights directly affected)
 
-        def recallCustomPreset(self, numOfPreset):
-            global availableLights
-            global lastSelection
-
-            changedLights = [] # if a snapshot preset exists in this setting, log the lights that are to be changed here
-
-            for a in range(len(customLightPresets[numOfPreset])): # check all the entries stored in this preset
-                if customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset, so set the light(s) up accordingly
-                    
-                    # If no lights are selected for a Global preset, then automatically select all of the lights
-                    if self.selectedLights() == []:
-                        self.lightTable.selectAll()
-                        time.sleep(0.2)
-
-                    if customLightPresets[numOfPreset][0][1][0] == 5: # the preset is in CCT mode
-                        self.setUpGUI(colorMode="CCT",
-                                    brightness=customLightPresets[numOfPreset][0][1][1],
-                                    temp=customLightPresets[numOfPreset][0][1][2])
-                    elif customLightPresets[numOfPreset][0][1][0] == 4: # the preset is in HSI mode
-                        self.setUpGUI(colorMode="HSI",
-                                    brightness=customLightPresets[numOfPreset][0][1][1],
-                                    hue=customLightPresets[numOfPreset][0][1][2],
-                                    sat=customLightPresets[numOfPreset][0][1][3])
-                    elif customLightPresets[numOfPreset][0][1][0] == 6: # the preset is in ANM/SCENE mode
-                        self.setUpGUI(colorMode="ANM",
-                                    brightness=customLightPresets[numOfPreset][0][1][1],
-                                    scene=customLightPresets[numOfPreset][0][1][2])
-                else: # we're looking at a snapshot preset, so see if any of those lights are available to change
-                    currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
-
-                    if currentLight != []: # if we have a match
-                        # always refer to the light it found as currentLight[0]
-                        if customLightPresets[numOfPreset][a][1][0] == 5 or customLightPresets[numOfPreset][a][1][0] == 8: # the preset is in CCT mode
-                            availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="CCT",\
-                                                                    brightness=customLightPresets[numOfPreset][a][1][1],\
-                                                                    temp=customLightPresets[numOfPreset][a][1][2])
-
-                            if customLightPresets[numOfPreset][a][1][0] == 8: # if we want to turn the light off, let the send system know this
-                                availableLights[currentLight[0]][3][0] = 0
-                        elif customLightPresets[numOfPreset][a][1][0] == 4 or customLightPresets[numOfPreset][a][1][0] == 7: # the preset is in HSI mode
-                            availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="HSI",\
-                                                                    HSI_I=customLightPresets[numOfPreset][a][1][1],\
-                                                                    HSI_H=customLightPresets[numOfPreset][a][1][2],\
-                                                                    HSI_S=customLightPresets[numOfPreset][a][1][3])
-
-                            if customLightPresets[numOfPreset][a][1][0] == 7: # if we want to turn the light off, let the send system know this
-                                availableLights[currentLight[0]][3][0] = 0
-                        elif customLightPresets[numOfPreset][a][1][0] == 6 or customLightPresets[numOfPreset][a][1][0] == 9: # the preset is in ANM/SCENE mode
-                            availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="ANM",\
-                                                                    brightness=customLightPresets[numOfPreset][a][1][1],\
-                                                                    animation=customLightPresets[numOfPreset][a][1][2])
-                            
-                            if customLightPresets[numOfPreset][a][1][0] == 9: # if we want to turn the light off, let the send system know this
-                                availableLights[currentLight[0]][3][0] = 0
-                        
-                        changedLights.append(currentLight[0])
-
-            if changedLights != []:
-                lastSelection = [] # clear the last selection if you've clicked on a snapshot preset (which, if we're here, you did)
-                
-                self.lightTable.setFocus() # set the focus to the light table, in order to show which rows are selected
-                self.selectRows(changedLights) # select those rows affected by the lights above
-
-                global threadAction
-                threadAction = "send|" + "|".join(map(str, changedLights)) # set the thread to write to all of the affected lights
-
         # SET UP THE GUI BASED ON COMMAND LINE ARGUMENTS
         def setUpGUI(self, **modeArgs):
             if modeArgs["colorMode"] == "CCT":
@@ -1599,6 +1492,146 @@ except NameError:
     pass # could not load the GUI, but we have already logged an error message
 
 # WORKING WITH CUSTOM PRESETS
+def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):
+    toolTipBuilder = [] # constructor for the tooltip
+    numOfLights = len(customLightPresets[numOfPreset]) # the number of lights in this specific preset
+
+    if numOfLights == 1 and customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset
+        toolTipBuilder.append("[GLOBAL PRESET]")
+    else: # we're looking at a snapshot preset
+        toolTipBuilder.append("[SNAPSHOT PRESET]")
+
+    toolTipBuilder.append("")
+
+    for a in range(numOfLights): # write out a little description of each part of this preset
+        if customLightPresets[numOfPreset][a][0] == -1:
+            if formatForHTTP == False:
+                toolTipBuilder.append(" FOR: ALL SELECTED LIGHTS") # this is a global preset, and it affects all lights
+            else:
+                toolTipBuilder.append(" FOR: ALL LIGHTS AVAILABLE") # this is a global preset, and it affects all lights
+        else:
+            currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0]) # find the light in the current list
+
+            if currentLight != []: # if we have a match, add it to the list of lights to highlight
+                if availableLights[currentLight[0]][2] != "": # if the custom name is filled in
+                    toolTipBuilder.append(" FOR: " + availableLights[currentLight[0]][2] + " [" + availableLights[currentLight[0]][0].name + "]")
+                else:
+                    toolTipBuilder.append(" FOR: " + availableLights[currentLight[0]][0].name)
+            else:
+                toolTipBuilder.append("FOR: ---LIGHT NOT AVAILABLE AT THE MOMENT---") # if the light is not found (yet), display that
+
+            toolTipBuilder.append(" " + customLightPresets[numOfPreset][a][0] + "") # this is a snapshot preset, and this specific preset controls this light
+                    
+        if customLightPresets[numOfPreset][a][1][0] == 5:
+            toolTipBuilder.append(" > MODE: CCT / TEMP: " + str(customLightPresets[numOfPreset][a][1][2]) + "00K / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+        elif customLightPresets[numOfPreset][a][1][0] == 4:
+            if formatForHTTP == False:
+                toolTipBuilder.append(" > MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "º / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+            else: # if we're sending this string back for the HTTP server, then replace the degree with the HTML version
+                toolTipBuilder.append(" > MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "&#176; / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+        elif customLightPresets[numOfPreset][a][1][0] == 6:
+            toolTipBuilder.append(" > MODE: SCENE / ANIMATION: " + str(customLightPresets[numOfPreset][a][1][2]) + " / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+        else: # if we're set to turn the light off, show that here
+            toolTipBuilder.append(" > TURN THIS LIGHT OFF <")
+
+        if numOfLights > 1 and a < (numOfLights - 1): # if we have any more lights, then separate each one
+            toolTipBuilder.append("----------------------------")
+    
+    if formatForHTTP == False:
+        return "\n".join(toolTipBuilder)
+    else:
+        return "<BR>".join(toolTipBuilder)
+
+def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
+    global availableLights
+    global lastSelection
+
+    changedLights = [] # if a snapshot preset exists in this setting, log the lights that are to be changed here
+
+    for a in range(len(customLightPresets[numOfPreset])): # check all the entries stored in this preset
+        if customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset, so set the light(s) up accordingly
+            
+            if updateGUI == True: # if we are in the GUI
+                if mainWindow.selectedLights() == []: # and no lights are selected in the light selector
+                    mainWindow.lightTable.selectAll() # select all of the lights available
+                    time.sleep(0.2)
+            
+            if customLightPresets[numOfPreset][0][1][0] == 5: # the preset is in CCT mode
+                p_colorMode = "CCT"
+                p_brightness = customLightPresets[numOfPreset][0][1][1]
+                p_temp = customLightPresets[numOfPreset][0][1][2]
+
+                if updateGUI == True:
+                    mainWindow.setUpGUI(colorMode=p_colorMode, brightness=p_brightness, temp=p_temp)
+                else:
+                    computedValue = calculateByteString(True, colorMode=p_colorMode, brightness=p_brightness, temp=p_temp)
+            elif customLightPresets[numOfPreset][0][1][0] == 4: # the preset is in HSI mode
+                p_colorMode = "HSI"
+                p_brightness = customLightPresets[numOfPreset][0][1][1]
+                p_hue = customLightPresets[numOfPreset][0][1][2]
+                p_sat = customLightPresets[numOfPreset][0][1][3]
+
+                if updateGUI == True:
+                    mainWindow.setUpGUI(colorMode=p_colorMode, brightness=p_brightness, hue=p_hue, sat=p_sat)
+                else:
+                    computedValue = calculateByteString(True, colorMode=p_colorMode, brightness=p_brightness, hue=p_hue, sat=p_sat)
+            elif customLightPresets[numOfPreset][0][1][0] == 6: # the preset is in ANM/SCENE mode
+                p_colorMode = "ANM"
+                p_brightness = customLightPresets[numOfPreset][0][1][1]
+                p_scene = customLightPresets[numOfPreset][0][1][2]
+
+                if updateGUI == True:
+                    mainWindow.setUpGUI(colorMode=p_colorMode, brightness=p_brightness, scene=p_scene)
+                else:
+                    computedValue = calculateByteString(True, colorMode=p_colorMode, brightness=p_brightness, scene=p_scene)
+
+            if updateGUI == False:
+                for b in range(len(availableLights)):
+                    changedLights.append(b) # add each light to changedLights
+                    availableLights[b][3] = computedValue # set each light's "last" parameter to the computed value above
+
+        else: # we're looking at a snapshot preset, so see if any of those lights are available to change
+            currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
+
+            if currentLight != []: # if we have a match
+                # always refer to the light it found as currentLight[0]
+                if customLightPresets[numOfPreset][a][1][0] == 5 or customLightPresets[numOfPreset][a][1][0] == 8: # the preset is in CCT mode
+                    availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="CCT",\
+                                                            brightness=customLightPresets[numOfPreset][a][1][1],\
+                                                            temp=customLightPresets[numOfPreset][a][1][2])
+
+                    if customLightPresets[numOfPreset][a][1][0] == 8: # if we want to turn the light off, let the send system know this
+                        availableLights[currentLight[0]][3][0] = 0
+                elif customLightPresets[numOfPreset][a][1][0] == 4 or customLightPresets[numOfPreset][a][1][0] == 7: # the preset is in HSI mode
+                    availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="HSI",\
+                                                            HSI_I=customLightPresets[numOfPreset][a][1][1],\
+                                                            HSI_H=customLightPresets[numOfPreset][a][1][2],\
+                                                            HSI_S=customLightPresets[numOfPreset][a][1][3])
+
+                    if customLightPresets[numOfPreset][a][1][0] == 7: # if we want to turn the light off, let the send system know this
+                        availableLights[currentLight[0]][3][0] = 0
+                elif customLightPresets[numOfPreset][a][1][0] == 6 or customLightPresets[numOfPreset][a][1][0] == 9: # the preset is in ANM/SCENE mode
+                    availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="ANM",\
+                                                            brightness=customLightPresets[numOfPreset][a][1][1],\
+                                                            animation=customLightPresets[numOfPreset][a][1][2])
+                    
+                    if customLightPresets[numOfPreset][a][1][0] == 9: # if we want to turn the light off, let the send system know this
+                        availableLights[currentLight[0]][3][0] = 0
+                
+                changedLights.append(currentLight[0])
+
+    if changedLights != []:
+        lastSelection = [] # clear the last selection if you've clicked on a snapshot preset (which, if we're here, you did)
+        
+        if updateGUI == True:
+            mainWindow.lightTable.setFocus() # set the focus to the light table, in order to show which rows are selected
+            mainWindow.selectRows(changedLights) # select those rows affected by the lights above
+
+            global threadAction
+            threadAction = "send|" + "|".join(map(str, changedLights)) # set the thread to write to all of the affected lights
+        else:
+            processMultipleSends(loop, "send|" + "|".join(map(str, changedLights)), updateGUI)
+
 def saveCustomPreset(presetType, numOfPreset, selectedLights = []):
     global customLightPresets
 
@@ -2292,16 +2325,21 @@ def workerThread(_loop):
         elif threadAction == "send":
             threadAction = _loop.run_until_complete(writeToLight()) # write a value to the light(s) - the selectedLights() section is in the write loop itself for responsiveness
         elif threadAction != "":
-            currentThreadAction = threadAction.split("|")
-
-            if currentThreadAction[0] == "send": # this will come from loading a custom snapshot preset
-                lightsToSendTo = [] # the current lights to affect
-
-                for a in range (1, len(currentThreadAction)): # find the lights that need to be refreshed
-                    lightsToSendTo.append(int(currentThreadAction[a]))
-
-                threadAction = _loop.run_until_complete(writeToLight(lightsToSendTo, True, False)) # write the value stored in the lights to the light(s)
+            threadAction = processMultipleSends(_loop, threadAction)
+        
         time.sleep(0.25)
+
+def processMultipleSends(_loop, threadAction, updateGUI = True):
+    currentThreadAction = threadAction.split("|")
+
+    if currentThreadAction[0] == "send": # this will come from loading a custom snapshot preset
+        lightsToSendTo = [] # the current lights to affect
+
+        for a in range (1, len(currentThreadAction)): # find the lights that need to be refreshed
+            lightsToSendTo.append(int(currentThreadAction[a]))
+
+        threadAction = _loop.run_until_complete(writeToLight(lightsToSendTo, updateGUI, False)) # write the value stored in the lights to the light(s)
+        return threadAction
 
 async def parallelAction(theAction, theLights, updateGUI = True):
     # SUBMIT A SERIES OF PARALLEL ASYNCIO FUNCTIONS TO RUN ALL IN PARALLEL
@@ -2341,14 +2379,15 @@ def processCommands(listToProcess=[]):
         else: # if the dashes are already in the current item
             listToProcess[a] = listToProcess[a].lower() # we don't need to add dashes, so just switch to lowercase
 
-    # DELETE ANY INVALID ARGUMENTS FROM THE COMMAND LINE BEFORE RUNNING THE ARGUMENT PARSER
-    # TO CLEAN UP THE ARGUMENT LIST AND ENSURE THE PARSER CAN STILL RUN WHEN INVALID ARGUMENTS ARE PRESENT
-    if inStartupMode == True:
-        acceptable_arguments = ["--http", "--cli", "--silent", "--light", "--mode", "--temp", "--hue",
-        "--sat", "--bri", "--intensity", "--scene", "--animation", "--help", "--off", "--on", "--list", "--force_instance"]
-    else: # if we're doing HTTP processing, we don't need the http, cli, silent and help flags, so toss 'em
-        acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity",
-        "--scene", "--animation", "--list", "--discover", "--link", "--off", "--on"]
+    # ARGUMENTS EACH MODE HAS ACCESS TO
+    acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity",
+                            "--scene", "--animation", "--list", "--on", "--off", "--force_instance"]
+
+    # MODE-SPECIFIC ARGUMENTS
+    if inStartupMode == True: # if we're using the GUI or CLI, then add these arguments to the list
+        acceptable_arguments.extend(["--http", "--cli", "--silent", "--help"])
+    else: # if we're using the HTTP server, then add these arguments to the list
+        acceptable_arguments.extend(["--discover", "--list_presets", "--use_preset", "--save_preset"])
 
     # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST
     for a in range(len(listToProcess) - 1, -1, -1):
@@ -2372,8 +2411,6 @@ def processCommands(listToProcess=[]):
             listToProcess[a] = "--cli"
         elif listToProcess[a].find("--html") != -1:
             listToProcess[a] = "--html"
-        elif listToProcess[a].find("--list") != -1:
-            listToProcess[a] = "--list"
         elif listToProcess[a].find("--discover") != -1:
             listToProcess[a] = "--discover"
         elif listToProcess[a].find("--off") != -1:
@@ -2382,6 +2419,10 @@ def processCommands(listToProcess=[]):
             listToProcess[a] = "--on"
         elif listToProcess[a] == "--link":
             listToProcess[a] = "--link=-1"
+        elif listToProcess[a] == "--use_preset":
+            listToProcess[a] = "--use_preset=-1"
+        elif listToProcess[a] == "--save_preset":
+            listToProcess[a] = "--save_preset=-1"
 
     # PARSE THE ARGUMENT LIST FOR CUSTOM PARAMETERS
     parser = argparse.ArgumentParser()
@@ -2396,7 +2437,9 @@ def processCommands(listToProcess=[]):
     if inStartupMode == False:
         parser.add_argument("--discover", action="store_true") # tell the HTTP server to search for newly added lights
         parser.add_argument("--link", default=-1) # link a specific light to NeewerPython-Lite
-
+        parser.add_argument("--list_presets", action="store_true") # list the custom presets available via the HTTP interface
+        parser.add_argument("--use_preset", default=-1) # number of custom preset to use via the HTTP interface
+        parser.add_argument("--save_preset", default=-1) # option to save a custom snapshot preset via the HTTP interface
 
     parser.add_argument("--on", action="store_true", help="Turn the light on")
     parser.add_argument("--off", action="store_true", help="Turn the light off")
@@ -2407,6 +2450,7 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--sat", "--saturation", default="100", help="[DEFAULT: 100] (HSI mode) The saturation (how vibrant the color is) to set the light to")
     parser.add_argument("--bri", "--brightness", "--intensity", default="100", help="[DEFAULT: 100] (CCT/HSI/ANM mode) The brightness (intensity) to set the light to")
     parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation (1-9) to use in Scene mode")
+
     args = parser.parse_args(listToProcess)
 
     if args.force_instance == False: # if this value is True, then don't do anything
@@ -2427,14 +2471,17 @@ def processCommands(listToProcess=[]):
 
     if inStartupMode == False:
         # HTTP specific parameter returns!
-        if args.list == True:
-            return["list"] # list the currently available lights
-
         if args.discover == True:
             return["discover"] # discover new lights
 
         if args.link != -1:
             return["link", args.link] # return the value defined by the parameter
+
+        if args.list == True or args.list_presets == True:
+            return ["list", args.list, args.list_presets] # if we are asked to list lights and/or presets
+
+        if args.use_preset != -1:
+            return["use_preset", int(args.use_preset)]
     else:
         # If we request "LIST" from the CLI, then return a CLI list of lights available
         if args.list == True:
@@ -2483,6 +2530,10 @@ def processHTMLCommands(paramsList, loop):
 
                 if len(selectedLights) > 0:
                     loop.run_until_complete(parallelAction("connect", selectedLights, False)) # try to connect to all *selected* lights in parallel
+            elif paramsList[0] == "use_preset":
+                recallCustomPreset(paramsList[1] - 1, False, loop)
+            elif paramsList[0] == "save_preset":
+                pass
             else: # we want to write a value to a specific light
                 if paramsList[3] == "CCT": # calculate CCT bytestring
                     calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
@@ -2623,43 +2674,68 @@ class NLPythonServer(BaseHTTPRequestHandler):
                     # PROCESS THE HTML COMMANDS IN ANOTHER THREAD
                     htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(paramsList, loop), name="htmlProcessThread")
                     htmlProcessThread.start()
-                else: # build the list of lights to display in the browser
-                    totalLights = len(availableLights)
+                else: # build the list of lights/presets to display in the browser
+                    if paramsList[1] == True: # if we've been asked to list the currently available lights, do that now
+                        totalLights = len(availableLights)
 
-                    if totalLights == 0: # there are no lights available to you at the moment!
-                        self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <a href=""doAction?discover"">click here</a>.<br>", "utf-8"))
-                    else:
-                        self.wfile.write(bytes("List of available Neewer lights:<HR>", "utf-8"))
-                        self.wfile.write(bytes("<TABLE WIDTH=""98%"" BORDER=""1"">", "utf-8"))
-                        self.wfile.write(bytes("<TR>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:2%;text-align:left"">ID #", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:20%;text-align:left"">Custom Name</TH>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:20%;text-align:left"">Light Type</TH>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:15%;text-align:left"">MAC Address/GUID</TH>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">RSSI</TH>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">Linked</TH>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:33%;text-align:left"">Last Sent Value</TH>", "utf-8"))
-                        self.wfile.write(bytes("</TR>", "utf-8"))
-
-                        for a in range(totalLights):
+                        if totalLights == 0: # there are no lights available to you at the moment!
+                            self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <a href=""doAction?discover"">click here</a>.<br>", "utf-8"))
+                        else:
+                            self.wfile.write(bytes("List of available Neewer lights:<BR><BR>", "utf-8"))
+                            self.wfile.write(bytes("<TABLE WIDTH=""98%"" BORDER=""1"">", "utf-8"))
                             self.wfile.write(bytes("<TR>", "utf-8"))
-                            self.wfile.write(bytes("<TD>" + str(a + 1) + "</TD>", "utf-8")) # light ID #
-                            self.wfile.write(bytes("<TD>" + availableLights[a][2] + "</TD>", "utf-8")) # light custom name
-                            self.wfile.write(bytes("<TD>" + availableLights[a][0].name + "</TD>", "utf-8")) # light type
-                            self.wfile.write(bytes("<TD>" + availableLights[a][0].address + "</TD>", "utf-8")) # light MAC address
-                            self.wfile.write(bytes("<TD>" + str(availableLights[a][0].rssi) + " dbM</TD>", "utf-8")) # light RSSI (signal quality)
-
-                            try:
-                                if availableLights[a][1].is_connected:
-                                    self.wfile.write(bytes("<TD>" + "Yes" + "</TD>", "utf-8")) # is the light linked?
-                                else:
-                                    self.wfile.write(bytes("<TD>" + "<A HREF=""doAction?link=""" + str(a + 1) + ">No</A></TD>", "utf-8")) # is the light linked?
-                            except Exception as e:
-                                self.wfile.write(bytes("<TD>" + "<A HREF=""doAction?link=""" + str(a + 1) + ">Nope!</A></TD>", "utf-8")) # is the light linked?
-
-                            self.wfile.write(bytes("<TD>" + updateStatus(False, availableLights[a][3]) + "</TD>", "utf-8")) # the last sent value to the light
+                            self.wfile.write(bytes("<TH STYLE=""width:2%;text-align:left"">ID #", "utf-8"))
+                            self.wfile.write(bytes("<TH STYLE=""width:18%;text-align:left"">Custom Name</TH>", "utf-8"))
+                            self.wfile.write(bytes("<TH STYLE=""width:18%;text-align:left"">Light Type</TH>", "utf-8"))
+                            self.wfile.write(bytes("<TH STYLE=""width:30%;text-align:left"">MAC Address/GUID</TH>", "utf-8"))
+                            self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">RSSI</TH>", "utf-8"))
+                            self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">Linked</TH>", "utf-8"))
+                            self.wfile.write(bytes("<TH STYLE=""width:22%;text-align:left"">Last Sent Value</TH>", "utf-8"))
                             self.wfile.write(bytes("</TR>", "utf-8"))
 
+                            for a in range(totalLights):
+                                self.wfile.write(bytes("<TR>", "utf-8"))
+                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(173,255,47)>" + str(a + 1) + "</TD>", "utf-8")) # light ID #
+                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + availableLights[a][2] + "</TD>", "utf-8")) # light custom name
+                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + availableLights[a][0].name + "</TD>", "utf-8")) # light type
+                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + availableLights[a][0].address + "</TD>", "utf-8")) # light MAC address
+                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + str(availableLights[a][0].rssi) + " dbM</TD>", "utf-8")) # light RSSI (signal quality)
+
+                                try:
+                                    if availableLights[a][1].is_connected:
+                                        self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + "Yes" + "</TD>", "utf-8")) # is the light linked?
+                                    else:
+                                        self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + "<A HREF=""doAction?link=""" + str(a + 1) + ">No</A></TD>", "utf-8")) # is the light linked?
+                                except Exception as e:
+                                    self.wfile.write(bytes("<TD> STYLE=""background-color:rgb(240,248,255)""" + "<A HREF=""doAction?link=""" + str(a + 1) + ">Nope!</A></TD>", "utf-8")) # is the light linked?
+
+                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + updateStatus(False, availableLights[a][3]) + "</TD>", "utf-8")) # the last sent value to the light
+                                self.wfile.write(bytes("</TR>", "utf-8"))
+
+                            self.wfile.write(bytes("</TABLE>", "utf-8"))
+
+                        if paramsList[2] == True: # if we want to list both the available lights and presets, but a <HR> here
+                            self.wfile.write(bytes("<BR><HR><BR>", "utf-8"))
+
+                    if paramsList[2] == True: # if we've been asked to show the preset list, then do that now
+                        self.wfile.write(bytes("List of available custom presets to use:<BR><BR>", "utf-8"))
+                        self.wfile.write(bytes("<TABLE WIDTH=""98%"" BORDER=""1"">", "utf-8"))
+                        self.wfile.write(bytes("<TR>", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:4%;text-align:left"">Preset", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:46%;text-align:left"">Preset Parameters</TH>", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:4%;text-align:left"">Preset", "utf-8"))
+                        self.wfile.write(bytes("<TH STYLE=""width:46%;text-align:left"">Preset Parameters</TH>", "utf-8"))
+                        self.wfile.write(bytes("</TR>", "utf-8"))
+                        
+                        for a in range(3): # build the list itself, showing 2 presets next to each other
+                            currentPreset = (2 * a)
+                            self.wfile.write(bytes("<TR>", "utf-8"))
+                            self.wfile.write(bytes("<TD STYLE=""background-color:rgb(255,215,0)"">" + str(currentPreset + 1) + "</TD>", "utf-8"))
+                            self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + customPresetInfoBuilder(currentPreset, True) + "</TD>", "utf-8"))
+                            self.wfile.write(bytes("<TD STYLE=""background-color:rgb(255,215,0)>" + str(currentPreset + 2) + "</TD>", "utf-8"))
+                            self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + customPresetInfoBuilder(currentPreset + 1, True) + "</TD>", "utf-8"))
+                            self.wfile.write(bytes("</TR>", "utf-8"))
+                        
                         self.wfile.write(bytes("</TABLE>", "utf-8"))
 
             writeHTMLSections(self, "footer") # add the footer to the bottom of the page
@@ -2708,10 +2784,12 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "footer":
         footerLinks = "Shortcut links: "
         footerLinks = footerLinks + "<A HREF=""doAction?discover"">Scan for New Lights</A> | "
-        footerLinks = footerLinks + "<A HREF=""doAction?list"">List Currently Available Lights</A>"
+        footerLinks = footerLinks + "<A HREF=""doAction?list"">List Currently Available Lights</A> | "
+        footerLinks = footerLinks + "<A HREF=""doAction?list_presets"">List Custom Presets</A> | "
+        footerLinks = footerLinks + "<A HREF=""doAction?list&list_presets"">List Currently Available Lights and Custom Presets</A>"
 
-        self.wfile.write(bytes("<HR>" + footerLinks + "<br>", "utf-8"))
-        self.wfile.write(bytes("<A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.10</A> by Zach Glenwright<br>", "utf-8"))
+        self.wfile.write(bytes("<HR>" + footerLinks + "<HR>", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.10</A> / HTTP Server / by Zach Glenwright<br></CENTER>", "utf-8"))
         self.wfile.write(bytes("</body></html>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
