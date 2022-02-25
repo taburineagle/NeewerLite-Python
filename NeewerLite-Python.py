@@ -1497,9 +1497,15 @@ def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):
     numOfLights = len(customLightPresets[numOfPreset]) # the number of lights in this specific preset
 
     if numOfLights == 1 and customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset
-        toolTipBuilder.append("[GLOBAL PRESET]")
+        if formatForHTTP == False:
+            toolTipBuilder.append("[GLOBAL PRESET]")
+        else:
+            toolTipBuilder.append("<STRONG>[GLOBAL PRESET]</STRONG>")
     else: # we're looking at a snapshot preset
-        toolTipBuilder.append("[SNAPSHOT PRESET]")
+        if formatForHTTP == False:
+            toolTipBuilder.append("[SNAPSHOT PRESET]")
+        else:
+            toolTipBuilder.append("<STRONG>[SNAPSHOT PRESET]</STRONG>")
 
     toolTipBuilder.append("")
 
@@ -1523,20 +1529,32 @@ def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):
             toolTipBuilder.append(" " + customLightPresets[numOfPreset][a][0] + "") # this is a snapshot preset, and this specific preset controls this light
                     
         if customLightPresets[numOfPreset][a][1][0] == 5:
-            toolTipBuilder.append(" > MODE: CCT / TEMP: " + str(customLightPresets[numOfPreset][a][1][2]) + "00K / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+            if formatForHTTP == False:
+                toolTipBuilder.append(" > MODE: CCT / TEMP: " + str(customLightPresets[numOfPreset][a][1][2]) + "00K / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% < ")
+            else:
+                toolTipBuilder.append(" &gt; MODE: CCT / TEMP: " + str(customLightPresets[numOfPreset][a][1][2]) + "00K / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% &lt; ")
         elif customLightPresets[numOfPreset][a][1][0] == 4:
             if formatForHTTP == False:
-                toolTipBuilder.append(" > MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "º / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+                toolTipBuilder.append(" > MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "º / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% < ")
             else: # if we're sending this string back for the HTTP server, then replace the degree with the HTML version
-                toolTipBuilder.append(" > MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "&#176; / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+                toolTipBuilder.append(" &gt; MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "&#176; / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% &lt; ")
         elif customLightPresets[numOfPreset][a][1][0] == 6:
-            toolTipBuilder.append(" > MODE: SCENE / ANIMATION: " + str(customLightPresets[numOfPreset][a][1][2]) + " / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% <")
+            if formatForHTTP == False:
+                toolTipBuilder.append(" > MODE: SCENE / ANIMATION: " + str(customLightPresets[numOfPreset][a][1][2]) + " / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% < ")
+            else:
+                toolTipBuilder.append(" &gt; MODE: SCENE / ANIMATION: " + str(customLightPresets[numOfPreset][a][1][2]) + " / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% &lt; ")
         else: # if we're set to turn the light off, show that here
-            toolTipBuilder.append(" > TURN THIS LIGHT OFF <")
+            if formatForHTTP == False:
+                toolTipBuilder.append(" > TURN THIS LIGHT OFF < ")
+            else:
+                toolTipBuilder.append(" &gt; TURN THIS LIGHT OFF &lt; ")
 
         if numOfLights > 1 and a < (numOfLights - 1): # if we have any more lights, then separate each one
-            toolTipBuilder.append("----------------------------")
-    
+            if formatForHTTP == False:
+                toolTipBuilder.append("----------------------------")
+            else:
+                toolTipBuilder.append("")
+            
     if formatForHTTP == False:
         return "\n".join(toolTipBuilder)
     else:
@@ -2646,30 +2664,30 @@ class NLPythonServer(BaseHTTPRequestHandler):
             if len(paramsList) == 0: # if we have no valid parameters, then say that in the error report
                 writeHTMLSections(self, "errorHelp", "You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a & character.")
             else:
-                self.wfile.write(bytes("<h1>Request Successful!</h1>", "utf-8"))
-                self.wfile.write(bytes("Last Request: <em>" + self.path + "</em><br>", "utf-8"))
-                self.wfile.write(bytes("From IP: <em>" + clientIP + "</em><br><br>", "utf-8"))
+                self.wfile.write(bytes("<H1>Request Successful!</H1>\n", "utf-8"))
+                self.wfile.write(bytes("Last Request: <EM>" + self.path + "</EM><BR>\n", "utf-8"))
+                self.wfile.write(bytes("From IP: <EM>" + clientIP + "</EM><BR><BR>\n", "utf-8"))
 
                 if paramsList[0] != "list":
-                    self.wfile.write(bytes("Provided Parameters:<br>", "utf-8"))
+                    self.wfile.write(bytes("Provided Parameters:<BR>\n", "utf-8"))
 
                     if len(paramsList) <= 2:
                         for a in range(len(paramsList)):
-                            self.wfile.write(bytes("&nbsp;&nbsp;" + str(paramsList[a]) + "<br>", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;" + str(paramsList[a]) + "<BR>\n", "utf-8"))
                     else:
-                        self.wfile.write(bytes("&nbsp;&nbsp;Light(s) to connect to: " + str(paramsList[2]) + "<br>", "utf-8"))
-                        self.wfile.write(bytes("&nbsp;&nbsp;Mode: " + str(paramsList[3]) + "<br>", "utf-8"))
+                        self.wfile.write(bytes("&nbsp;&nbsp;Light(s) to connect to: " + str(paramsList[2]) + "<BR>\n", "utf-8"))
+                        self.wfile.write(bytes("&nbsp;&nbsp;Mode: " + str(paramsList[3]) + "<BR>\n", "utf-8"))
 
                         if paramsList[3] == "CCT":
-                            self.wfile.write(bytes("&nbsp;&nbsp;Color Temperature: " + str(paramsList[4]) + "00K<br>", "utf-8"))
-                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<br>", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Color Temperature: " + str(paramsList[4]) + "00K<BR>\n", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<BR>\n", "utf-8"))
                         elif paramsList[3] == "HSI":
-                            self.wfile.write(bytes("&nbsp;&nbsp;Hue: " + str(paramsList[4]) + "<br>", "utf-8"))
-                            self.wfile.write(bytes("&nbsp;&nbsp;Saturation: " + str(paramsList[5]) + "<br>", "utf-8"))
-                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[6]) + "<br>", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Hue: " + str(paramsList[4]) + "<BR>\n", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Saturation: " + str(paramsList[5]) + "<BR>\n", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[6]) + "<BR>\n", "utf-8"))
                         elif paramsList[3] == "ANM" or paramsList[3] == "SCENE":
-                            self.wfile.write(bytes("&nbsp;&nbsp;Animation Scene: " + str(paramsList[4]) + "<br>", "utf-8"))
-                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<br>", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Animation Scene: " + str(paramsList[4]) + "<BR>\n", "utf-8"))
+                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<BR>\n", "utf-8"))
 
                     # PROCESS THE HTML COMMANDS IN ANOTHER THREAD
                     htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(paramsList, loop), name="htmlProcessThread")
@@ -2679,64 +2697,64 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         totalLights = len(availableLights)
 
                         if totalLights == 0: # there are no lights available to you at the moment!
-                            self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <a href=""doAction?discover"">click here</a>.<br>", "utf-8"))
+                            self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <A HREF='doAction?discover'>click here</a>.<BR>\n", "utf-8"))
                         else:
-                            self.wfile.write(bytes("List of available Neewer lights:<BR><BR>", "utf-8"))
-                            self.wfile.write(bytes("<TABLE WIDTH=""98%"" BORDER=""1"">", "utf-8"))
-                            self.wfile.write(bytes("<TR>", "utf-8"))
-                            self.wfile.write(bytes("<TH STYLE=""width:2%;text-align:left"">ID #", "utf-8"))
-                            self.wfile.write(bytes("<TH STYLE=""width:18%;text-align:left"">Custom Name</TH>", "utf-8"))
-                            self.wfile.write(bytes("<TH STYLE=""width:18%;text-align:left"">Light Type</TH>", "utf-8"))
-                            self.wfile.write(bytes("<TH STYLE=""width:30%;text-align:left"">MAC Address/GUID</TH>", "utf-8"))
-                            self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">RSSI</TH>", "utf-8"))
-                            self.wfile.write(bytes("<TH STYLE=""width:5%;text-align:left"">Linked</TH>", "utf-8"))
-                            self.wfile.write(bytes("<TH STYLE=""width:22%;text-align:left"">Last Sent Value</TH>", "utf-8"))
-                            self.wfile.write(bytes("</TR>", "utf-8"))
+                            self.wfile.write(bytes("List of available Neewer lights:<BR><BR>\n", "utf-8"))
+                            self.wfile.write(bytes("<TABLE WIDTH='98%' BORDER='1'>\n", "utf-8"))
+                            self.wfile.write(bytes("  <TR>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TH STYLE='width:2%; text-align:left'>ID #\n", "utf-8"))
+                            self.wfile.write(bytes("     <TH STYLE='width:18%; text-align:left'>Custom Name</TH>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TH STYLE='width:18%; text-align:left'>Light Type</TH>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TH STYLE='width:30%; text-align:left'>MAC Address/GUID</TH>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TH STYLE='width:5%; text-align:left'>RSSI</TH>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TH STYLE='width:5%; text-align:left'>Linked</TH>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TH STYLE='width:22%; text-align:left'>Last Sent Value</TH>\n", "utf-8"))
+                            self.wfile.write(bytes("  </TR>\n", "utf-8"))
 
                             for a in range(totalLights):
-                                self.wfile.write(bytes("<TR>", "utf-8"))
-                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(173,255,47)>" + str(a + 1) + "</TD>", "utf-8")) # light ID #
-                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + availableLights[a][2] + "</TD>", "utf-8")) # light custom name
-                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + availableLights[a][0].name + "</TD>", "utf-8")) # light type
-                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + availableLights[a][0].address + "</TD>", "utf-8")) # light MAC address
-                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + str(availableLights[a][0].rssi) + " dbM</TD>", "utf-8")) # light RSSI (signal quality)
+                                self.wfile.write(bytes("  <TR>\n", "utf-8"))
+                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(173,255,47)'>" + str(a + 1) + "</TD>\n", "utf-8")) # light ID #
+                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][2] + "</TD>\n", "utf-8")) # light custom name
+                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][0].name + "</TD>\n", "utf-8")) # light type
+                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][0].address + "</TD>\n", "utf-8")) # light MAC address
+                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + str(availableLights[a][0].rssi) + " dbM</TD>\n", "utf-8")) # light RSSI (signal quality)
 
                                 try:
                                     if availableLights[a][1].is_connected:
-                                        self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + "Yes" + "</TD>", "utf-8")) # is the light linked?
+                                        self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + "Yes" + "</TD>\n", "utf-8")) # is the light linked?
                                     else:
-                                        self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + "<A HREF=""doAction?link=""" + str(a + 1) + ">No</A></TD>", "utf-8")) # is the light linked?
+                                        self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + "<A HREF='doAction?link=" + str(a + 1) + "'>No</A></TD>\n", "utf-8")) # is the light linked?
                                 except Exception as e:
-                                    self.wfile.write(bytes("<TD> STYLE=""background-color:rgb(240,248,255)""" + "<A HREF=""doAction?link=""" + str(a + 1) + ">Nope!</A></TD>", "utf-8")) # is the light linked?
+                                    self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'" + "<A HREF='doAction?link=" + str(a + 1) + "'>Nope!</A></TD>\n", "utf-8")) # is the light linked?
 
-                                self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + updateStatus(False, availableLights[a][3]) + "</TD>", "utf-8")) # the last sent value to the light
-                                self.wfile.write(bytes("</TR>", "utf-8"))
+                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + updateStatus(False, availableLights[a][3]) + "</TD>\n", "utf-8")) # the last sent value to the light
+                                self.wfile.write(bytes("  </TR>\n", "utf-8"))
 
-                            self.wfile.write(bytes("</TABLE>", "utf-8"))
+                            self.wfile.write(bytes("</TABLE>\n", "utf-8"))
 
                         if paramsList[2] == True: # if we want to list both the available lights and presets, but a <HR> here
-                            self.wfile.write(bytes("<BR><HR><BR>", "utf-8"))
+                            self.wfile.write(bytes("<BR><HR><BR>\n", "utf-8"))
 
                     if paramsList[2] == True: # if we've been asked to show the preset list, then do that now
-                        self.wfile.write(bytes("List of available custom presets to use:<BR><BR>", "utf-8"))
-                        self.wfile.write(bytes("<TABLE WIDTH=""98%"" BORDER=""1"">", "utf-8"))
-                        self.wfile.write(bytes("<TR>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:4%;text-align:left"">Preset", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:46%;text-align:left"">Preset Parameters</TH>", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:4%;text-align:left"">Preset", "utf-8"))
-                        self.wfile.write(bytes("<TH STYLE=""width:46%;text-align:left"">Preset Parameters</TH>", "utf-8"))
-                        self.wfile.write(bytes("</TR>", "utf-8"))
+                        self.wfile.write(bytes("List of available custom presets to use:<BR><BR>\n", "utf-8"))
+                        self.wfile.write(bytes("<TABLE WIDTH='98%' BORDER='1'>\n", "utf-8"))
+                        self.wfile.write(bytes("  <TR>\n", "utf-8"))
+                        self.wfile.write(bytes("     <TH STYLE='width:4%; text-align:left'>Preset\n", "utf-8"))
+                        self.wfile.write(bytes("     <TH STYLE='width:46%; text-align:left'>Preset Parameters</TH>\n", "utf-8"))
+                        self.wfile.write(bytes("     <TH STYLE='width:4%; text-align:left'>Preset\n", "utf-8"))
+                        self.wfile.write(bytes("     <TH STYLE='width:46%; text-align:left'>Preset Parameters</TH>\n", "utf-8"))
+                        self.wfile.write(bytes("  </TR>\n", "utf-8"))
                         
                         for a in range(3): # build the list itself, showing 2 presets next to each other
                             currentPreset = (2 * a)
-                            self.wfile.write(bytes("<TR>", "utf-8"))
-                            self.wfile.write(bytes("<TD STYLE=""background-color:rgb(255,215,0)"">" + str(currentPreset + 1) + "</TD>", "utf-8"))
-                            self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + customPresetInfoBuilder(currentPreset, True) + "</TD>", "utf-8"))
-                            self.wfile.write(bytes("<TD STYLE=""background-color:rgb(255,215,0)>" + str(currentPreset + 2) + "</TD>", "utf-8"))
-                            self.wfile.write(bytes("<TD STYLE=""background-color:rgb(240,248,255)"">" + customPresetInfoBuilder(currentPreset + 1, True) + "</TD>", "utf-8"))
-                            self.wfile.write(bytes("</TR>", "utf-8"))
+                            self.wfile.write(bytes("  <TR>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(255,215,0)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 1) + "'>" + str(currentPreset + 1) + "</A></FONT></TD>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TD VALIGN='TOP' STYLE='background-color:rgb(240,248,255)'>" + customPresetInfoBuilder(currentPreset, True) + "</TD>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(255,215,0)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 2) + "'>" + str(currentPreset + 2) + "</A></FONT></TD>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TD VALIGN='TOP' STYLE='background-color:rgb(240,248,255)'>" + customPresetInfoBuilder(currentPreset + 1, True) + "</TD>\n", "utf-8"))
+                            self.wfile.write(bytes("  </TR>\n", "utf-8"))
                         
-                        self.wfile.write(bytes("</TABLE>", "utf-8"))
+                        self.wfile.write(bytes("</TABLE>\n", "utf-8"))
 
             writeHTMLSections(self, "footer") # add the footer to the bottom of the page
 
@@ -2747,50 +2765,52 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         self.send_header("Content-type", "text/html")
         self.end_headers()
 
-        self.wfile.write(bytes("<html><head><title>NeewerLite-Python HTTP Server</title></head>", "utf-8"))
-        self.wfile.write(bytes("<body>", "utf-8"))
+        self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
+        self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python HTTP Server</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
-        self.wfile.write(bytes("<h1>Invalid request!</h1>", "utf-8"))
-        self.wfile.write(bytes("Last Request: <em>" + self.path + "</em><br>", "utf-8"))
-        self.wfile.write(bytes(errorMsg + "<br><br>", "utf-8"))
-        self.wfile.write(bytes("Valid parameters to use -<br>", "utf-8"))
-        self.wfile.write(bytes("<strong>list</strong> - list the current lights NeewerPython-Lite has available to it<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?list</em><br>", "utf-8"))
-        self.wfile.write(bytes("<strong>discover</strong> - tell NeewerLite-Python to scan for new lights<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?discover</em><br>", "utf-8"))
-        self.wfile.write(bytes("<strong>link=</strong> - (value: <em>index of light to link to</em>) manually link to a specific light - you can specify multiple lights with semicolons (so link=1;2 would try to link to both lights 1 and 2)<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?link=1</em><br>", "utf-8"))
-        self.wfile.write(bytes("<strong>light=</strong> - the MAC address (or current index of the light) you want to send a command to - you can specify multiple lights with semicolons (so light=1;2 would send a command to both lights 1 and 2)<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66</em><br>", "utf-8"))
-        self.wfile.write(bytes("<strong>mode=</strong> - the mode (value: <em>HSI, CCT, and either ANM or SCENE</em>) - the color mode to switch the light to<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?mode=CCT</em><br>", "utf-8"))
-        self.wfile.write(bytes("(CCT mode only) <strong>temp=</strong> or <strong>temperature=</strong> - (value: <em>3200 to 8500</em>) the color temperature in CCT mode to set the light to<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?temp=5200</em><br>", "utf-8"))
-        self.wfile.write(bytes("(HSI mode only) <strong>hue=</strong> - (value: <em>0 to 360</em>) the hue value in HSI mode to set the light to<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?hue=240</em><br>", "utf-8"))
-        self.wfile.write(bytes("(HSI mode only) <strong>sat=</strong> or <strong>saturation=</strong> - (value: <em>0 to 100</em>) the color saturation value in HSI mode to set the light to<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?sat=65</em><br>", "utf-8"))
-        self.wfile.write(bytes("(ANM/SCENE mode only) <strong>scene=</strong> - (value: <em>1 to 9</em>) which animation (scene) to switch the light to<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?scene=3</em><br>", "utf-8"))
-        self.wfile.write(bytes("(CCT/HSI/ANM modes) <strong>bri=</strong>, <strong>brightness=</strong> or <strong>intensity=</strong> - (value: <em>0 to 100</em>) how bright you want the light<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <em>http://(server address)/NeewerLite-Python/doAction?brightness=80</em><br>", "utf-8"))
-        self.wfile.write(bytes("<br><br>More examples -<br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>CCT</em> mode, with a color temperature of <em>5200</em> and brightness of <em>40</em><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66&mode=CCT&temp=5200&bri=40</em><br><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <em>11:22:33:44:55:66</em> to <em>HSI</em> mode, with a hue of <em>70</em>, saturation of <em>50</em> and brightness of <em>10</em><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66&mode=HSI&hue=70&sat=50&bri=10</em><br><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;Set the first light available to <em>SCENE</em> mode, using the <em>first</em> animation and brightness of <em>55</em><br>", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<em>http://(server address)/NeewerLite-Python/doAction?light=1&mode=SCENE&scene=1&bri=55</em><br>", "utf-8"))
+        self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
+        self.wfile.write(bytes("Last Request: <EM>" + self.path + "</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes(errorMsg + "<BR><BR>\n", "utf-8"))
+        self.wfile.write(bytes("Valid parameters to use -<BR>\n", "utf-8"))
+        self.wfile.write(bytes("<STRONG>list</STRONG> - list the current lights NeewerPython-Lite has available to it<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?list</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("<STRONG>discover</STRONG> - tell NeewerLite-Python to scan for new lights<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?discover</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("<STRONG>link=</STRONG> - (value: <EM>index of light to link to</EM>) manually link to a specific light - you can specify multiple lights with semicolons (so link=1;2 would try to link to both lights 1 and 2)<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?link=1</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("<STRONG>light=</STRONG> - the MAC address (or current index of the light) you want to send a command to - you can specify multiple lights with semicolons (so light=1;2 would send a command to both lights 1 and 2)<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("<STRONG>mode=</STRONG> - the mode (value: <EM>HSI, CCT, and either ANM or SCENE</EM>) - the color mode to switch the light to<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?mode=CCT</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("(CCT mode only) <STRONG>temp=</STRONG> or <STRONG>temperature=</STRONG> - (value: <EM>3200 to 8500</EM>) the color temperature in CCT mode to set the light to<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?temp=5200</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("(HSI mode only) <STRONG>hue=</STRONG> - (value: <EM>0 to 360</EM>) the hue value in HSI mode to set the light to<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?hue=240</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("(HSI mode only) <STRONG>sat=</STRONG> or <STRONG>saturation=</STRONG> - (value: <EM>0 to 100</EM>) the color saturation value in HSI mode to set the light to<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?sat=65</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("(ANM/SCENE mode only) <STRONG>scene=</STRONG> - (value: <EM>1 to 9</EM>) which animation (scene) to switch the light to<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?scene=3</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("(CCT/HSI/ANM modes) <STRONG>bri=</STRONG>, <STRONG>brightness=</STRONG> or <STRONG>intensity=</STRONG> - (value: <EM>0 to 100</EM>) how bright you want the light<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?brightness=80</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("<BR><BR>More examples -<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <EM>11:22:33:44:55:66</EM> to <EM>CCT</EM> mode, with a color temperature of <EM>5200</EM> and brightness of <EM>40</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66&mode=CCT&temp=5200&bri=40</EM><BR><BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <EM>11:22:33:44:55:66</EM> to <EM>HSI</EM> mode, with a hue of <EM>70</EM>, saturation of <EM>50</EM> and brightness of <EM>10</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66&mode=HSI&hue=70&sat=50&bri=10</EM><BR><BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;Set the first light available to <EM>SCENE</EM> mode, using the <EM>first</EM> animation and brightness of <EM>55</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?light=1&mode=SCENE&scene=1&bri=55</EM><BR>\n", "utf-8"))
     elif theSection == "footer":
         footerLinks = "Shortcut links: "
-        footerLinks = footerLinks + "<A HREF=""doAction?discover"">Scan for New Lights</A> | "
-        footerLinks = footerLinks + "<A HREF=""doAction?list"">List Currently Available Lights</A> | "
-        footerLinks = footerLinks + "<A HREF=""doAction?list_presets"">List Custom Presets</A> | "
-        footerLinks = footerLinks + "<A HREF=""doAction?list&list_presets"">List Currently Available Lights and Custom Presets</A>"
+        footerLinks = footerLinks + "<A HREF='doAction?discover'>Scan for New Lights</A> | "
+        footerLinks = footerLinks + "<A HREF='doAction?list'>List Currently Available Lights</A> | "
+        footerLinks = footerLinks + "<A HREF='doAction?list_presets'>List Custom Presets</A> | "
+        footerLinks = footerLinks + "<A HREF='doAction?list&list_presets'>List Currently Available Lights and Custom Presets</A>"
 
-        self.wfile.write(bytes("<HR>" + footerLinks + "<HR>", "utf-8"))
-        self.wfile.write(bytes("<CENTER><A HREF=""https://github.com/taburineagle/NeewerLite-Python/"">NeewerLite-Python 0.10</A> / HTTP Server / by Zach Glenwright<br></CENTER>", "utf-8"))
-        self.wfile.write(bytes("</body></html>", "utf-8"))
+        self.wfile.write(bytes("<HR>" + footerLinks + "<HR>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.10</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
     if theString == "-": # return a header divider if the string is "="
