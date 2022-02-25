@@ -1585,14 +1585,16 @@ def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
                     computedValue = calculateByteString(True, colorMode=p_colorMode, brightness=p_brightness, temp=p_temp)
             elif customLightPresets[numOfPreset][0][1][0] == 4: # the preset is in HSI mode
                 p_colorMode = "HSI"
-                p_brightness = customLightPresets[numOfPreset][0][1][1]
+                # Due to the way the custom presets store information (brightness is always first),
+                # this section is broken up into H, S and I portions for readability
                 p_hue = customLightPresets[numOfPreset][0][1][2]
                 p_sat = customLightPresets[numOfPreset][0][1][3]
+                p_int = customLightPresets[numOfPreset][0][1][1]
 
                 if updateGUI == True:
-                    mainWindow.setUpGUI(colorMode=p_colorMode, brightness=p_brightness, hue=p_hue, sat=p_sat)
+                    mainWindow.setUpGUI(colorMode=p_colorMode, hue=p_hue, sat=p_sat, brightness=p_int)
                 else:
-                    computedValue = calculateByteString(True, colorMode=p_colorMode, brightness=p_brightness, hue=p_hue, sat=p_sat)
+                    computedValue = calculateByteString(True, colorMode=p_colorMode, HSI_H=p_hue, HSI_S=p_sat, HSI_I=p_int)
             elif customLightPresets[numOfPreset][0][1][0] == 6: # the preset is in ANM/SCENE mode
                 p_colorMode = "ANM"
                 p_brightness = customLightPresets[numOfPreset][0][1][1]
@@ -2692,6 +2694,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                     # PROCESS THE HTML COMMANDS IN ANOTHER THREAD
                     htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(paramsList, loop), name="htmlProcessThread")
                     htmlProcessThread.start()
+                
                 else: # build the list of lights/presets to display in the browser
                     if paramsList[1] == True: # if we've been asked to list the currently available lights, do that now
                         totalLights = len(availableLights)
@@ -2745,7 +2748,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         self.wfile.write(bytes("     <TH STYLE='width:46%; text-align:left'>Preset Parameters</TH>\n", "utf-8"))
                         self.wfile.write(bytes("  </TR>\n", "utf-8"))
                         
-                        for a in range(3): # build the list itself, showing 2 presets next to each other
+                        for a in range(4): # build the list itself, showing 2 presets next to each other
                             currentPreset = (2 * a)
                             self.wfile.write(bytes("  <TR>\n", "utf-8"))
                             self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(255,215,0)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 1) + "'>" + str(currentPreset + 1) + "</A></FONT></TD>\n", "utf-8"))
