@@ -1,0 +1,17 @@
+[Unit]
+Description=Run NeewerLite-Python HTTP Daemon as a service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+ExecStart=python3 /opt/NeewerLite-Python/NeewerLite-Python.py --http
+TimeoutStartSec=0
+KillSignal=SIGINT
+StandardOutput=null
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
