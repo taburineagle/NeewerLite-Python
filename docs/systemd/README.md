@@ -50,12 +50,12 @@ In order to enable the application as a service on a Linux systemd enabled syste
 
 ## Enable the application as a systemd service
 
-1. Edit the systemd template file `/opt/NeewerLite-Python/systemd/neewerlite-python.service` with the editor of your choice and modify the user and group name if you intend to run the application under another user and group than `pi`. 
+1. Edit the systemd template file `/opt/NeewerLite-Python/docs/systemd/neewerlite-python.service` with the editor of your choice and modify the user and group name if you intend to run the application under another user and group than `pi`. 
 
-1. Copy the file `/opt/NeewerLite-Python/systemd/neewerlite-python.service` to `/etc/systemd/system/` . 
+1. Copy the file `/opt/NeewerLite-Python/docs/systemd/neewerlite-python.service` to `/etc/systemd/system/` . 
 
     ```bash
-    sudo cp /opt/NeewerLite-Python/systemd/neewerlite-python.service /etc/systemd/system/
+    sudo cp /opt/NeewerLite-Python/docs/systemd/neewerlite-python.service /etc/systemd/system/
     ```
 
 1. Reload systemd manager configuration. 
