@@ -42,23 +42,37 @@ In order to enable the application as a service on a Linux systemd enabled syste
     chmod +x /opt/NeewerLite-Python/*.py
     ```
 
-7. Test the execution of the application by running the following command then by hitting CTRL+C to stop the test. 
+7. Test the execution of the application by running the following command then by hitting CTRL+C to stop the test.  
 
     ```bash
     python3 /opt/NeewerLite-Python/NeewerLite-Python.py --http
     ```
+    
+## If you have issues linking to lights using NeewerLite-Python, take these steps
 
-8. Add the executing user to the bluetooth group if you encounter any issues with connecting a device to the bluetooth radio of the system.
+1. Add the executing user to the bluetooth group.
 
     ```bash
     sudo usermod -G bluetooth -a pi
     ```
 
-9. Confirm that the user has been added to the group.
+2. Confirm that the user has been added to the group.
 
     ```bash
     cat /etc/group | grep bluetooth
     ```  
+
+3. Restart the Pi
+
+    ```bash
+    sudo reboot
+    ```
+
+4. Again, test the execution of NeewerLite-Python by running the following command then by hitting CTRL+C to stop the test.
+
+    ```bash
+    python3 /opt/NeewerLite-Python/NeewerLite-Python.py --http
+    ```
 
 ## Enable the application as a systemd service
 
