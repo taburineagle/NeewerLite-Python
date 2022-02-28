@@ -2407,7 +2407,7 @@ def processCommands(listToProcess=[]):
     if inStartupMode == True: # if we're using the GUI or CLI, then add these arguments to the list
         acceptable_arguments.extend(["--http", "--cli", "--silent", "--help"])
     else: # if we're using the HTTP server, then add these arguments to the list
-        acceptable_arguments.extend(["--discover", "--list_presets", "--use_preset", "--save_preset"])
+        acceptable_arguments.extend(["--discover", "--nopage", "--use_preset", "--save_preset"])
 
     # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST
     for a in range(len(listToProcess) - 1, -1, -1):
@@ -2457,7 +2457,7 @@ def processCommands(listToProcess=[]):
     if inStartupMode == False:
         parser.add_argument("--discover", action="store_true") # tell the HTTP server to search for newly added lights
         parser.add_argument("--link", default=-1) # link a specific light to NeewerPython-Lite
-        parser.add_argument("--list_presets", action="store_true") # list the custom presets available via the HTTP interface
+        parser.add_argument("--nopage", action="store_false") # don't render an HTML page
         parser.add_argument("--use_preset", default=-1) # number of custom preset to use via the HTTP interface
         parser.add_argument("--save_preset", default=-1) # option to save a custom snapshot preset via the HTTP interface
 
@@ -2492,16 +2492,16 @@ def processCommands(listToProcess=[]):
     if inStartupMode == False:
         # HTTP specific parameter returns!
         if args.discover == True:
-            return["discover"] # discover new lights
+            return[None, args.nopage, None, "discover"] # discover new lights
 
         if args.link != -1:
-            return["link", args.link] # return the value defined by the parameter
+            return[None, args.nopage, args.link, "link"] # return the value defined by the parameter
 
-        if args.list == True or args.list_presets == True:
-            return ["list", args.list, args.list_presets] # if we are asked to list lights and/or presets
+        if args.list == True:
+            return [None, args.nopage, None, "list"]
 
         if args.use_preset != -1:
-            return["use_preset", int(args.use_preset)]
+            return[None, args.nopage, int(args.use_preset), "use_preset"]
     else:
         # If we request "LIST" from the CLI, then return a CLI list of lights available
         if args.list == True:
@@ -2539,20 +2539,20 @@ def processHTMLCommands(paramsList, loop):
     if threadAction == "": # if we're not already processing info in another thread
         threadAction = "HTTP"
         if len(paramsList) != 0:
-            if paramsList[0] == "discover": # we asked to discover new lights
+            if paramsList[3] == "discover": # we asked to discover new lights
                 loop.run_until_complete(findDevices()) # find the lights available to control
 
                 # try to connect to each light
                 if autoConnectToLights == True:
                     loop.run_until_complete(parallelAction("connect", [-1], False)) # try to connect to *all* lights in parallel
-            elif paramsList[0] == "link": # we asked to connect to a specific light
-                selectedLights = returnLightIndexesFromMacAddress(paramsList[1])
+            elif paramsList[3] == "link": # we asked to connect to a specific light
+                selectedLights = returnLightIndexesFromMacAddress(paramsList[2])
 
                 if len(selectedLights) > 0:
                     loop.run_until_complete(parallelAction("connect", selectedLights, False)) # try to connect to all *selected* lights in parallel
-            elif paramsList[0] == "use_preset":
-                recallCustomPreset(paramsList[1] - 1, False, loop)
-            elif paramsList[0] == "save_preset":
+            elif paramsList[3] == "use_preset":
+                recallCustomPreset(paramsList[2] - 1, False, loop)
+            elif paramsList[3] == "save_preset":
                 pass
             else: # we want to write a value to a specific light
                 if paramsList[3] == "CCT": # calculate CCT bytestring
@@ -2628,9 +2628,11 @@ class NLPythonServer(BaseHTTPRequestHandler):
             # CHECK THE LENGTH OF THE URL REQUEST AND SEE IF IT'S TOO LONG
             if len(self.path) > 159: # INCREASED LENGTH DUE TO ADDITION OF doAction IN THE URL
                 # THE LAST REQUEST WAS WAY TOO LONG, SO QUICKLY RENDER AN ERROR PAGE AND RETURN FROM THE HTTP RENDERER
-                writeHTMLSections(self, "header")
+                writeHTMLSections(self, "httpheaders")
+                writeHTMLSections(self, "htmlheaders")
+                writeHTMLSections(self, "quicklinks")
                 writeHTMLSections(self, "errorHelp", "The last request you provided was too long!  The NeewerLite-Python HTTP server can only accept URL commands less than 132 characters long after /NeewerLite-Python/doAction?.")
-                writeHTMLSections(self, "footer")
+                writeHTMLSections(self, "quicklinks")
 
                 return
 
@@ -2657,45 +2659,53 @@ class NLPythonServer(BaseHTTPRequestHandler):
 
                 return
             else: # if the URL contains "/NeewerLite-Python/doAction?" then it's a valid URL
-                writeHTMLSections(self, "header")
+                writeHTMLSections(self, "httpheaders")
 
                 # BREAK THE URL INTO USABLE PARAMTERS
                 paramsList = self.path.replace(acceptableURL, "").split("&") # split the included params into a list
                 paramsList = processCommands(paramsList) # process the commands returned from the HTTP parameters
 
-            if len(paramsList) == 0: # if we have no valid parameters, then say that in the error report
-                writeHTMLSections(self, "errorHelp", "You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a & character.")
-            else:
-                self.wfile.write(bytes("<H1>Request Successful!</H1>\n", "utf-8"))
-                self.wfile.write(bytes("Last Request: <EM>" + self.path + "</EM><BR>\n", "utf-8"))
-                self.wfile.write(bytes("From IP: <EM>" + clientIP + "</EM><BR><BR>\n", "utf-8"))
-
-                if paramsList[0] != "list":
-                    self.wfile.write(bytes("Provided Parameters:<BR>\n", "utf-8"))
-
-                    if len(paramsList) <= 2:
-                        for a in range(len(paramsList)):
-                            self.wfile.write(bytes("&nbsp;&nbsp;" + str(paramsList[a]) + "<BR>\n", "utf-8"))
-                    else:
-                        self.wfile.write(bytes("&nbsp;&nbsp;Light(s) to connect to: " + str(paramsList[2]) + "<BR>\n", "utf-8"))
-                        self.wfile.write(bytes("&nbsp;&nbsp;Mode: " + str(paramsList[3]) + "<BR>\n", "utf-8"))
-
-                        if paramsList[3] == "CCT":
-                            self.wfile.write(bytes("&nbsp;&nbsp;Color Temperature: " + str(paramsList[4]) + "00K<BR>\n", "utf-8"))
-                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<BR>\n", "utf-8"))
-                        elif paramsList[3] == "HSI":
-                            self.wfile.write(bytes("&nbsp;&nbsp;Hue: " + str(paramsList[4]) + "<BR>\n", "utf-8"))
-                            self.wfile.write(bytes("&nbsp;&nbsp;Saturation: " + str(paramsList[5]) + "<BR>\n", "utf-8"))
-                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[6]) + "<BR>\n", "utf-8"))
-                        elif paramsList[3] == "ANM" or paramsList[3] == "SCENE":
-                            self.wfile.write(bytes("&nbsp;&nbsp;Animation Scene: " + str(paramsList[4]) + "<BR>\n", "utf-8"))
-                            self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<BR>\n", "utf-8"))
-
-                    # PROCESS THE HTML COMMANDS IN ANOTHER THREAD
-                    htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(paramsList, loop), name="htmlProcessThread")
-                    htmlProcessThread.start()
+                if len(paramsList) == 0: # we have no valid parameters, so show the error page
+                    writeHTMLSections(self, "quicklinks")
+                    writeHTMLSections(self, "errorHelp", "You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a & character.")
+                    writeHTMLSections(self, "quicklinks")
+                    return
+                else:
+                    if paramsList[1] == True:
+                        writeHTMLSections(self, "htmlheaders") # write the HTML header section
                 
-                else: # build the list of lights/presets to display in the browser
+                        self.wfile.write(bytes("<H1>Request Successful!</H1>\n", "utf-8"))
+                        self.wfile.write(bytes("Last Request: <EM>" + self.path + "</EM><BR>\n", "utf-8"))
+                        self.wfile.write(bytes("From IP: <EM>" + clientIP + "</EM><BR><BR>\n", "utf-8"))
+
+                    if paramsList[3] != "list":
+                        if paramsList[1] == True:
+                            self.wfile.write(bytes("Provided Parameters:<BR>\n", "utf-8"))
+
+                            if len(paramsList) <= 2:
+                                for a in range(len(paramsList)):
+                                    self.wfile.write(bytes("&nbsp;&nbsp;" + str(paramsList[a]) + "<BR>\n", "utf-8"))
+                            else:
+                                self.wfile.write(bytes("&nbsp;&nbsp;Light(s) to connect to: " + str(paramsList[2]) + "<BR>\n", "utf-8"))
+                                self.wfile.write(bytes("&nbsp;&nbsp;Mode: " + str(paramsList[3]) + "<BR>\n", "utf-8"))
+
+                                if paramsList[3] == "CCT":
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Color Temperature: " + str(paramsList[4]) + "00K<BR>\n", "utf-8"))
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<BR>\n", "utf-8"))
+                                elif paramsList[3] == "HSI":
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Hue: " + str(paramsList[4]) + "<BR>\n", "utf-8"))
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Saturation: " + str(paramsList[5]) + "<BR>\n", "utf-8"))
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[6]) + "<BR>\n", "utf-8"))
+                                elif paramsList[3] == "ANM" or paramsList[3] == "SCENE":
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Animation Scene: " + str(paramsList[4]) + "<BR>\n", "utf-8"))
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Brightness: " + str(paramsList[5]) + "<BR>\n", "utf-8"))
+                            
+                            self.wfile.write(bytes("<BR><HR><BR>\n", "utf-8"))
+
+                        # PROCESS THE HTML COMMANDS IN ANOTHER THREAD
+                        htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(paramsList, loop), name="htmlProcessThread")
+                        htmlProcessThread.start()
+
                     if paramsList[1] == True: # if we've been asked to list the currently available lights, do that now
                         totalLights = len(availableLights)
 
@@ -2735,11 +2745,8 @@ class NLPythonServer(BaseHTTPRequestHandler):
 
                             self.wfile.write(bytes("</TABLE>\n", "utf-8"))
 
-                        if paramsList[2] == True: # if we want to list both the available lights and presets, but a <HR> here
-                            self.wfile.write(bytes("<BR><HR><BR>\n", "utf-8"))
-
-                    if paramsList[2] == True: # if we've been asked to show the preset list, then do that now
-                        self.wfile.write(bytes("List of available custom presets to use:<BR><BR>\n", "utf-8"))
+                        self.wfile.write(bytes("<BR><HR><BR>\n", "utf-8"))
+                        self.wfile.write(bytes("<A ID='presets'>List of available custom presets to use:</A><BR><BR>\n", "utf-8"))
                         self.wfile.write(bytes("<TABLE WIDTH='98%' BORDER='1'>\n", "utf-8"))
                         self.wfile.write(bytes("  <TR>\n", "utf-8"))
                         self.wfile.write(bytes("     <TH STYLE='width:4%; text-align:left'>Preset\n", "utf-8"))
@@ -2751,26 +2758,27 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         for a in range(4): # build the list itself, showing 2 presets next to each other
                             currentPreset = (2 * a)
                             self.wfile.write(bytes("  <TR>\n", "utf-8"))
-                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(255,215,0)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 1) + "'>" + str(currentPreset + 1) + "</A></FONT></TD>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(173,255,47)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 1) + "#presets'>" + str(currentPreset + 1) + "</A></FONT></TD>\n", "utf-8"))
                             self.wfile.write(bytes("     <TD VALIGN='TOP' STYLE='background-color:rgb(240,248,255)'>" + customPresetInfoBuilder(currentPreset, True) + "</TD>\n", "utf-8"))
-                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(255,215,0)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 2) + "'>" + str(currentPreset + 2) + "</A></FONT></TD>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(173,255,47)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 2) + "#presets'>" + str(currentPreset + 2) + "</A></FONT></TD>\n", "utf-8"))
                             self.wfile.write(bytes("     <TD VALIGN='TOP' STYLE='background-color:rgb(240,248,255)'>" + customPresetInfoBuilder(currentPreset + 1, True) + "</TD>\n", "utf-8"))
                             self.wfile.write(bytes("  </TR>\n", "utf-8"))
                         
                         self.wfile.write(bytes("</TABLE>\n", "utf-8"))
-
-            writeHTMLSections(self, "footer") # add the footer to the bottom of the page
+            
+            if paramsList[1] == True:
+                writeHTMLSections(self, "quicklinks") # add the footer to the bottom of the page
 
 def writeHTMLSections(self, theSection, errorMsg = ""):
-    if theSection == "header":
+    if theSection == "httpheaders":
         self.send_response(200)
         self._send_cors_headers()
         self.send_header("Content-type", "text/html")
         self.end_headers()
-
+    elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python HTTP Server</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.10 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -2804,13 +2812,11 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66&mode=HSI&hue=70&sat=50&bri=10</EM><BR><BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Set the first light available to <EM>SCENE</EM> mode, using the <EM>first</EM> animation and brightness of <EM>55</EM><BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?light=1&mode=SCENE&scene=1&bri=55</EM><BR>\n", "utf-8"))
-    elif theSection == "footer":
+    elif theSection == "quicklinks":
         footerLinks = "Shortcut links: "
         footerLinks = footerLinks + "<A HREF='doAction?discover'>Scan for New Lights</A> | "
-        footerLinks = footerLinks + "<A HREF='doAction?list'>List Currently Available Lights</A> | "
-        footerLinks = footerLinks + "<A HREF='doAction?list_presets'>List Custom Presets</A> | "
-        footerLinks = footerLinks + "<A HREF='doAction?list&list_presets'>List Currently Available Lights and Custom Presets</A>"
-
+        footerLinks = footerLinks + "<A HREF='doAction?list'>List Currently Available Lights and Custom Presets</A>"
+        
         self.wfile.write(bytes("<HR>" + footerLinks + "<HR>\n", "utf-8"))
         self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.10</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
