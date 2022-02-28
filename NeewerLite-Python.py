@@ -1512,7 +1512,7 @@ def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):
     for a in range(numOfLights): # write out a little description of each part of this preset
         if customLightPresets[numOfPreset][a][0] == -1:
             if formatForHTTP == False:
-                toolTipBuilder.append(" FOR: ALL SELECTED LIGHTS") # this is a global preset, and it affects all lights
+                toolTipBuilder.append(" FOR: ALL SELECTED LIGHTS") # this is a global preset, and it affects all *selected* lights
             else:
                 toolTipBuilder.append(" FOR: ALL LIGHTS AVAILABLE") # this is a global preset, and it affects all lights
         else:
@@ -1641,9 +1641,9 @@ def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
                 changedLights.append(currentLight[0])
 
     if changedLights != []:
-        lastSelection = [] # clear the last selection if you've clicked on a snapshot preset (which, if we're here, you did)
-        
         if updateGUI == True:
+            lastSelection = [] # clear the last selection if you've clicked on a snapshot preset (which, if we're here, you did)
+
             mainWindow.lightTable.setFocus() # set the focus to the light table, in order to show which rows are selected
             mainWindow.selectRows(changedLights) # select those rows affected by the lights above
 
@@ -2631,8 +2631,9 @@ class NLPythonServer(BaseHTTPRequestHandler):
                 writeHTMLSections(self, "httpheaders")
                 writeHTMLSections(self, "htmlheaders")
                 writeHTMLSections(self, "quicklinks")
-                writeHTMLSections(self, "errorHelp", "The last request you provided was too long!  The NeewerLite-Python HTTP server can only accept URL commands less than 132 characters long after /NeewerLite-Python/doAction?.")
+                writeHTMLSections(self, "errorHelp", "The last request you provided was too long!  The NeewerLite-Python HTTP server can only accept URL commands less than 132 characters long after /NeewerLite-Python/doAction?")
                 writeHTMLSections(self, "quicklinks")
+                writeHTMLSections(self, "htmlendheaders")
 
                 return
 
@@ -2666,14 +2667,17 @@ class NLPythonServer(BaseHTTPRequestHandler):
                 paramsList = processCommands(paramsList) # process the commands returned from the HTTP parameters
 
                 if len(paramsList) == 0: # we have no valid parameters, so show the error page
+                    writeHTMLSections(self, "htmlheaders")
                     writeHTMLSections(self, "quicklinks")
                     writeHTMLSections(self, "errorHelp", "You didn't provide any valid parameters in the last URL.  To send multiple parameters to NeewerLite-Python, separate each one with a & character.")
                     writeHTMLSections(self, "quicklinks")
+                    writeHTMLSections(self, "htmlendheaders")
                     return
                 else:
                     if paramsList[1] == True:
                         writeHTMLSections(self, "htmlheaders") # write the HTML header section
-                
+                        writeHTMLSections(self, "quicklinks")
+
                         self.wfile.write(bytes("<H1>Request Successful!</H1>\n", "utf-8"))
                         self.wfile.write(bytes("Last Request: <EM>" + self.path + "</EM><BR>\n", "utf-8"))
                         self.wfile.write(bytes("From IP: <EM>" + clientIP + "</EM><BR><BR>\n", "utf-8"))
@@ -2686,7 +2690,13 @@ class NLPythonServer(BaseHTTPRequestHandler):
                                 for a in range(len(paramsList)):
                                     self.wfile.write(bytes("&nbsp;&nbsp;" + str(paramsList[a]) + "<BR>\n", "utf-8"))
                             else:
-                                self.wfile.write(bytes("&nbsp;&nbsp;Light(s) to connect to: " + str(paramsList[2]) + "<BR>\n", "utf-8"))
+                                if paramsList[3] == "use_preset":
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Preset to Use: " + str(paramsList[2]) + "<BR>\n", "utf-8"))
+                                elif paramsList[3] == "save_preset":
+                                    pass # TODO: implement saving presets!
+                                else:
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Light(s) to connect to: " + str(paramsList[2]) + "<BR>\n", "utf-8"))
+
                                 self.wfile.write(bytes("&nbsp;&nbsp;Mode: " + str(paramsList[3]) + "<BR>\n", "utf-8"))
 
                                 if paramsList[3] == "CCT":
@@ -2768,6 +2778,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
             
             if paramsList[1] == True:
                 writeHTMLSections(self, "quicklinks") # add the footer to the bottom of the page
+                writeHTMLSections(self, "htmlendheaders") # add the ending section to the very bottom
 
 def writeHTMLSections(self, theSection, errorMsg = ""):
     if theSection == "httpheaders":
@@ -2816,8 +2827,8 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = "Shortcut links: "
         footerLinks = footerLinks + "<A HREF='doAction?discover'>Scan for New Lights</A> | "
         footerLinks = footerLinks + "<A HREF='doAction?list'>List Currently Available Lights and Custom Presets</A>"
-        
         self.wfile.write(bytes("<HR>" + footerLinks + "<HR>\n", "utf-8"))
+    elif theSection == "htmlendheaders":
         self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.10</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
