@@ -148,7 +148,7 @@ enableTabsOnLaunch = False # whether or not to enable tabs on startup (even with
 
 lockFile = tempfile.gettempdir() + os.sep + "NeewerLite-Python.lock"
 anotherInstance = False # whether or not we're using a new instance (for the Singleton check)
-globalPrefsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "NeewerLite-Python.prefs" # the global preferences file for saving/loading
+globalPrefsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "NeewerLite-Python.prefs" # the global preferences file for saving/loading
 customLightPresetsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "customLights.prefs"
 
 # FILE LOCKING FOR SINGLE INSTANCE
@@ -2407,7 +2407,7 @@ def processCommands(listToProcess=[]):
     if inStartupMode == True: # if we're using the GUI or CLI, then add these arguments to the list
         acceptable_arguments.extend(["--http", "--cli", "--silent", "--help"])
     else: # if we're using the HTTP server, then add these arguments to the list
-        acceptable_arguments.extend(["--discover", "--nopage", "--use_preset", "--save_preset"])
+        acceptable_arguments.extend(["--discover", "--nopage", "--link", "--use_preset", "--save_preset"])
 
     # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST
     for a in range(len(listToProcess) - 1, -1, -1):
@@ -2456,7 +2456,7 @@ def processCommands(listToProcess=[]):
     # HTML SERVER SPECIFIC PARAMETERS
     if inStartupMode == False:
         parser.add_argument("--discover", action="store_true") # tell the HTTP server to search for newly added lights
-        parser.add_argument("--link", default=-1) # link a specific light to NeewerPython-Lite
+        parser.add_argument("--link", default=-1) # link a specific light to NeewerLite-Python
         parser.add_argument("--nopage", action="store_false") # don't render an HTML page
         parser.add_argument("--use_preset", default=-1) # number of custom preset to use via the HTTP interface
         parser.add_argument("--save_preset", default=-1) # option to save a custom snapshot preset via the HTTP interface
@@ -2501,7 +2501,7 @@ def processCommands(listToProcess=[]):
             return [None, args.nopage, None, "list"]
 
         if args.use_preset != -1:
-            return[None, args.nopage, int(args.use_preset), "use_preset"]
+            return[None, args.nopage, testValid("use_preset", int(args.use_preset), 1, 1, 8), "use_preset"]
     else:
         # If we request "LIST" from the CLI, then return a CLI list of lights available
         if args.list == True:
@@ -2748,7 +2748,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                                     else:
                                         self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + "<A HREF='doAction?link=" + str(a + 1) + "'>No</A></TD>\n", "utf-8")) # is the light linked?
                                 except Exception as e:
-                                    self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'" + "<A HREF='doAction?link=" + str(a + 1) + "'>Nope!</A></TD>\n", "utf-8")) # is the light linked?
+                                    self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + "<A HREF='doAction?link=" + str(a + 1) + "'>No</A></TD>\n", "utf-8")) # is the light linked?
 
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + updateStatus(False, availableLights[a][3]) + "</TD>\n", "utf-8")) # the last sent value to the light
                                 self.wfile.write(bytes("  </TR>\n", "utf-8"))
@@ -2789,23 +2789,27 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.10 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.11 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
         self.wfile.write(bytes("Last Request: <EM>" + self.path + "</EM><BR>\n", "utf-8"))
         self.wfile.write(bytes(errorMsg + "<BR><BR>\n", "utf-8"))
         self.wfile.write(bytes("Valid parameters to use -<BR>\n", "utf-8"))
-        self.wfile.write(bytes("<STRONG>list</STRONG> - list the current lights NeewerPython-Lite has available to it<BR>\n", "utf-8"))
+        self.wfile.write(bytes("<STRONG>list</STRONG> - list the current lights NeewerLite-Python has available to it and the custom presets it can use<BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?list</EM><BR>\n", "utf-8"))
         self.wfile.write(bytes("<STRONG>discover</STRONG> - tell NeewerLite-Python to scan for new lights<BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?discover</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("<STRONG>nopage</STRONG> - send a command to the HTTP server, but don't render the webpage showing the results (<EM>useful, for example, on a headless Raspberry Pi where you don't necessarily want to see the results page</EM>)<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?nopage</EM><BR>\n", "utf-8"))
         self.wfile.write(bytes("<STRONG>link=</STRONG> - (value: <EM>index of light to link to</EM>) manually link to a specific light - you can specify multiple lights with semicolons (so link=1;2 would try to link to both lights 1 and 2)<BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?link=1</EM><BR>\n", "utf-8"))
         self.wfile.write(bytes("<STRONG>light=</STRONG> - the MAC address (or current index of the light) you want to send a command to - you can specify multiple lights with semicolons (so light=1;2 would send a command to both lights 1 and 2)<BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66</EM><BR>\n", "utf-8"))
         self.wfile.write(bytes("<STRONG>mode=</STRONG> - the mode (value: <EM>HSI, CCT, and either ANM or SCENE</EM>) - the color mode to switch the light to<BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?mode=CCT</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("<STRONG>use_preset=</STRONG> - (value: <EM>1-8</EM>) - use a custom global or snapshot preset<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?use_preset=2</EM><BR>\n", "utf-8"))
         self.wfile.write(bytes("(CCT mode only) <STRONG>temp=</STRONG> or <STRONG>temperature=</STRONG> - (value: <EM>3200 to 8500</EM>) the color temperature in CCT mode to set the light to<BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;Example: <EM>http://(server address)/NeewerLite-Python/doAction?temp=5200</EM><BR>\n", "utf-8"))
         self.wfile.write(bytes("(HSI mode only) <STRONG>hue=</STRONG> - (value: <EM>0 to 360</EM>) the hue value in HSI mode to set the light to<BR>\n", "utf-8"))
@@ -2822,14 +2826,16 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         self.wfile.write(bytes("&nbsp;&nbsp;Set the light with MAC address <EM>11:22:33:44:55:66</EM> to <EM>HSI</EM> mode, with a hue of <EM>70</EM>, saturation of <EM>50</EM> and brightness of <EM>10</EM><BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?light=11:22:33:44:55:66&mode=HSI&hue=70&sat=50&bri=10</EM><BR><BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Set the first light available to <EM>SCENE</EM> mode, using the <EM>first</EM> animation and brightness of <EM>55</EM><BR>\n", "utf-8"))
-        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?light=1&mode=SCENE&scene=1&bri=55</EM><BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?light=1&mode=SCENE&scene=1&bri=55</EM><BR><BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;Use the 2nd custom preset, but don't render the webpage showing the results<BR>\n", "utf-8"))
+        self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?use_preset=2&nopage</EM><BR>\n", "utf-8"))
     elif theSection == "quicklinks":
         footerLinks = "Shortcut links: "
         footerLinks = footerLinks + "<A HREF='doAction?discover'>Scan for New Lights</A> | "
         footerLinks = footerLinks + "<A HREF='doAction?list'>List Currently Available Lights and Custom Presets</A>"
         self.wfile.write(bytes("<HR>" + footerLinks + "<HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.10</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.11</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3011,7 +3017,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.10 by Zach Glenwright")
+            print("NeewerLite-Python 0.11 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             loop.run_until_complete(findDevices())
 
