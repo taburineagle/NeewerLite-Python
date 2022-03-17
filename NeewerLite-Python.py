@@ -654,7 +654,7 @@ try: # try to load the GUI
                 self.rememberLightsOnExit_check.setChecked(False)
                 self.rememberPresetsOnExit_check.setChecked(True)
                 self.maxNumOfAttempts_field.setText("6")
-                self.acceptable_HTTP_IPs_field.setText("\n".join(["127.0.0.1", "192.168", "10.0.0"]))
+                self.acceptable_HTTP_IPs_field.setText("\n".join(["127.0.0.1", "192.168.", "10."]))
                 self.whiteListedMACs_field.setText("")
                 self.SC_turnOffButton_field.setKeySequence("Ctrl+PgDown")
                 self.SC_turnOnButton_field.setKeySequence("Ctrl+PgUp")
@@ -723,11 +723,11 @@ try: # try to load the GUI
             # FIGURE OUT IF THE HTTP IP ADDRESSES HAVE CHANGED
             returnedList_HTTP_IPs = self.acceptable_HTTP_IPs_field.toPlainText().split("\n")
             
-            if returnedList_HTTP_IPs != ["127.0.0.1", "192.168", "10.0.0"]: # if the list of HTTP IPs have changed
+            if returnedList_HTTP_IPs != ["127.0.0.1", "192.168.", "10."]: # if the list of HTTP IPs have changed
                 acceptable_HTTP_IPs = returnedList_HTTP_IPs # change the global HTTP IPs available
                 finalPrefs.append("acceptable_HTTP_IPs=" + ";".join(acceptable_HTTP_IPs)) # add the new ones to the preferences
             else:
-                acceptable_HTTP_IPs = ["127.0.0.1", "192.168", "10.0.0"] # if we reset the IPs, then re-reset the parameter
+                acceptable_HTTP_IPs = ["127.0.0.1", "192.168.", "10."] # if we reset the IPs, then re-reset the parameter
 
             # ADD WHITELISTED LIGHTS TO PREFERENCES IF THEY EXIST
             returnedList_whiteListedMACs = self.whiteListedMACs_field.toPlainText().replace(" ", "").split("\n") # remove spaces and split on newlines
@@ -2894,7 +2894,7 @@ def loadPrefsFile(globalPrefsFile = ""):
     prefsParser.add_argument("--printDebug", default=1)
     prefsParser.add_argument("--maxNumOfAttempts", default=6)
     prefsParser.add_argument("--rememberLightsOnExit", default=0)
-    prefsParser.add_argument("--acceptableIPs", default=["127.0.0.1", "192.168", "10.0.0"])
+    prefsParser.add_argument("--acceptableIPs", default=["127.0.0.1", "192.168.", "10."])
     prefsParser.add_argument("--whiteListedMACs" , default=[])
     prefsParser.add_argument("--rememberPresetsOnExit", default=1)
 
