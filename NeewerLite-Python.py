@@ -1,17 +1,17 @@
-#############################################################
-## NeewerLite-Python
+############################################################
+## NeewerLite-Python ver. 0.11
 ## by Zach Glenwright
-#############################################################
-##   > https://github.com/taburineagle/NeewerLite-Python/ <
-#############################################################
+############################################################
+## > https://github.com/taburineagle/NeewerLite-Python/ <
+############################################################
 ## A cross-platform Python script using the bleak and
 ## PySide2 libraries to control Neewer brand lights via
 ## Bluetooth on multiple platforms -
 ##          Windows, Linux/Ubuntu, MacOS and RPi
-#############################################################
-## Based on the NeewerLight project by @keefo (Xu Lian)
-##   > https://github.com/keefo/NeewerLite <
-#############################################################
+############################################################
+## Originally based on the NeewerLight project by @keefo
+##      > https://github.com/keefo/NeewerLite <
+############################################################
 
 import os
 import sys
@@ -2967,6 +2967,13 @@ def loadPrefsFile(globalPrefsFile = ""):
     enableTabsOnLaunch = bool(int(mainPrefs.enableTabsOnLaunch))
 
 if __name__ == '__main__':
+    # Display the version of NeewerLite-Python we're using
+    print("---------------------------------------------------------")
+    print("             NeewerLite-Python ver. 0.11")
+    print("                 by Zach Glenwright")
+    print("  > https://github.com/taburineagle/NeewerLite-Python <")
+    print("---------------------------------------------------------")
+
     singleInstanceLock() # make a lockfile if one doesn't exist yet, and quit out if one does
 
     if os.path.exists(globalPrefsFile):
