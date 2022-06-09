@@ -13,7 +13,7 @@ class Ui_MainWindow(object):
         mainFont.setWeight(75)
 
         MainWindow.setFixedSize(590, 606) # the main window should be this size at launch, and no bigger
-        MainWindow.setWindowTitle("NeewerLite-Python 0.11 by Zach Glenwright")
+        MainWindow.setWindowTitle("NeewerLite-Python 0.12 by Zach Glenwright")
         
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
@@ -289,27 +289,51 @@ class Ui_MainWindow(object):
         # === >> THE LIGHT PREFS TAB << ===
         self.lightPrefs = QWidget()
 
-        self.customNameTF = QLineEdit(self.lightPrefs)
-        self.customNameTF.setGeometry(QRect(10, 34, 541, 20))
-        self.customNameTF.setMaxLength(80)
-        
+        # CUSTOM NAME FIELD FOR THIS LIGHT
         self.customNameDescription = QLabel(self.lightPrefs)
         self.customNameDescription.setGeometry(QRect(10, 14, 541, 16))
         self.customNameDescription.setText("Custom Name for this light: (optional)")
         self.customNameDescription.setFont(mainFont)
+        
+        self.customNameTF = QLineEdit(self.lightPrefs)
+        self.customNameTF.setGeometry(QRect(10, 34, 541, 20))
+        self.customNameTF.setMaxLength(80)
 
-        self.widerRangeCheck = QCheckBox(self.lightPrefs)
-        self.widerRangeCheck.setGeometry(QRect(10, 70, 541, 40))
-        self.widerRangeCheck.setText("Allow wider range of color temperatures for the CCT slider\n(for lights that support it, like the SL-80)")
-        self.widerRangeCheck.setFont(mainFont)
+        # CUSTOM HSI COLOR TEMPERATURE RANGES FOR THIS LIGHT
+        self.colorTempRange_Description = QLabel(self.lightPrefs)
+        self.colorTempRange_Description.setGeometry(QRect(10, 62, 541, 16))
+        self.colorTempRange_Description.setText("Custom Color Temperature Range for CCT mode:")
+        self.colorTempRange_Description.setFont(mainFont)
 
+        self.colorTempRange_Min_Description = QLabel(self.lightPrefs)
+        self.colorTempRange_Min_Description.setGeometry(QRect(10, 104, 120, 16))
+        self.colorTempRange_Min_Description.setAlignment(Qt.AlignCenter)
+        self.colorTempRange_Min_Description.setText("Minimum")
+        self.colorTempRange_Min_Description.setFont(mainFont)
+
+        self.colorTempRange_Min_TF = QLineEdit(self.lightPrefs)
+        self.colorTempRange_Min_TF.setGeometry(QRect(10, 82, 120, 20))
+        self.colorTempRange_Min_TF.setMaxLength(80)
+        
+        self.colorTempRange_Max_Description = QLabel(self.lightPrefs)
+        self.colorTempRange_Max_Description.setGeometry(QRect(160, 104, 120, 16))
+        self.colorTempRange_Max_Description.setAlignment(Qt.AlignCenter)
+        self.colorTempRange_Max_Description.setText("Maximum")
+        self.colorTempRange_Max_Description.setFont(mainFont)
+        
+        self.colorTempRange_Max_TF = QLineEdit(self.lightPrefs)
+        self.colorTempRange_Max_TF.setGeometry(QRect(160, 82, 120, 20))
+        self.colorTempRange_Max_TF.setMaxLength(80)
+       
+        # WHETHER OR NOT TO ONLY ALLOW CCT MODE FOR THIS LIGHT
         self.onlyCCTModeCheck = QCheckBox(self.lightPrefs)        
-        self.onlyCCTModeCheck.setGeometry(QRect(10, 120, 401, 40))
+        self.onlyCCTModeCheck.setGeometry(QRect(10, 130, 401, 31))
         self.onlyCCTModeCheck.setText("This light can only use CCT mode\n(for SNL-660 and other Neewer LED/Ring lights)")
         self.onlyCCTModeCheck.setFont(mainFont)
         
+        # SAVE IIITTTTTT!
         self.saveLightPrefsButton = QPushButton(self.lightPrefs)
-        self.saveLightPrefsButton.setGeometry(QRect(410, 130, 141, 23))
+        self.saveLightPrefsButton.setGeometry(QRect(416, 140, 141, 23))
         self.saveLightPrefsButton.setText("Save Preferences")
 
         # === >> THE GLOBAL PREFS TAB << ===

@@ -1,5 +1,5 @@
 #############################################################
-## NeewerLite-Python
+## NeewerLite-Python ver. 0.12
 ## by Zach Glenwright
 #############################################################
 ##   > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -88,7 +88,7 @@ availableLights = [] # the list of Neewer lights currently available to control
 # [1] - Bleak Connection (the actual Bluetooth connection to the light itself)
 # [2] - Custom Name for Light (string)
 # [3] - Last Used Parameters (list)
-# [4] - The range of color temperatures to use in CCT mode (list, min, max)
+# [4] - The range of color temperatures to use in CCT mode (list, min, max) <- changed in 0.12
 # [5] - Whether or not to send Brightness and Hue independently for old lights (boolean)
 # [6] - Whether or not this light has been manually turned ON/OFF (boolean)
 # [7] - The Power and Channel data returned for this light (list)
@@ -594,15 +594,10 @@ try: # try to load the GUI
         def setupLightPrefsTab(self, selectedLight):
             self.customNameTF.setText(availableLights[selectedLight][2]) # set the "custom name" field to the custom name of this light
 
-            # LEMUR: Set up the minimum and maximum values on this tab, from
-            # availableLights[selectedLight][4][0] + availableLights[selectedLight][4][1]
-
-            # IF THE OPTION TO ALLOW WIDER COLOR TEMPERATURES IS ENABLED, THEN ENABLE THAT CHECKBOX
-            # if availableLights[selectedLight][4] == True:
-            #    self.widerRangeCheck.setChecked(True)
-            # else:
-            #    self.widerRangeCheck.setChecked(False)
-
+            # SET UP THE MINIMUM AND MAXIMUM TEXT BOXES
+            self.colorTempRange_Min_TF.setText(str(availableLights[selectedLight][4][0]))
+            self.colorTempRange_Max_TF.setText(str(availableLights[selectedLight][4][1]))
+            
             # IF THE OPTION TO SEND ONLY CCT MODE IS ENABLED, THEN ENABLE THAT CHECKBOX
             if availableLights[selectedLight][5] == True:
                 self.onlyCCTModeCheck.setChecked(True)
@@ -994,8 +989,12 @@ try: # try to load the GUI
 
             if len(selectedRows) == 1: # if we have 1 selected light - which should never be false, as we can't use Prefs with more than 1
                 availableLights[selectedRows[0]][2] = self.customNameTF.text() # set this light's custom name to the text box
-                # LEMUR: Disabled this for now, was still taking the boolean value - need to update the GUI to show color ranges instead
-                # availableLights[selectedRows[0]][4] = self.widerRangeCheck.isChecked() # if the "wider range" box is checked, then allow wider ranges
+
+                # test to make sure the values returned from the minumum and maximum color temp fields are valid
+                # if not, then fall back to their defaults of 3200K (for min) and 5600K (for max)
+                availableLights[selectedRows[0]][4][0] = testValid("color_temp_range_min", self.colorTempRange_Min_TF.text(), 3200, 1000, 5600)
+                availableLights[selectedRows[0]][4][1] = testValid("color_temp_range_max", self.colorTempRange_Max_TF.text(), 5600, 1000, 10000)
+
                 availableLights[selectedRows[0]][5] = self.onlyCCTModeCheck.isChecked() # if the option to send BRI and HUE separately is checked, then turn that on
 
                 # IF A CUSTOM NAME IS SET UP FOR THIS LIGHT, THEN CHANGE THE TABLE TO REFLECT THAT
@@ -2876,7 +2875,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.11 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.12 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -2922,7 +2921,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = footerLinks + "<A HREF='doAction?list'>List Currently Available Lights and Custom Presets</A>"
         self.wfile.write(bytes("<HR>" + footerLinks + "<HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.11</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.12</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3104,7 +3103,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.11 by Zach Glenwright")
+            print("NeewerLite-Python 0.12 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             loop.run_until_complete(findDevices())
 
