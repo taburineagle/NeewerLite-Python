@@ -579,9 +579,10 @@ try: # try to load the GUI
             gradient = QLinearGradient(0, 0, 532, 31) # make a new gradient
 
             for i in range(5): # fill the gradient with a new set of colors
-                rgbValues = convert_K_to_RGB(startRange + (rangeStep * i))
-                print(str(startRange + (rangeStep * i)) + " (" + str(0.25 * i) + "): " + str(rgbValues[0]) + " / " + str(rgbValues[1]) + " / " + str(rgbValues[2]))
+                rgbValues = convert_K_to_RGB(startRange + (rangeStep * i))                
                 gradient.setColorAt((0.25 * i), QColor(rgbValues[0], rgbValues[1], rgbValues[2]))
+                # THIS LINE UNDERNEATH IS JUST FOR DEBUGGING THE GRADIENT GENERATOR (it shows the values from the calculations above)
+                # print(str(startRange + (rangeStep * i)) + " (" + str(0.25 * i) + "): " + str(rgbValues[0]) + " / " + str(rgbValues[1]) + " / " + str(rgbValues[2]))
 
             return gradient # return the new gradient to switch the display out with
 
@@ -2050,7 +2051,7 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
         # the first section of lights here are LED only (can't use HSI), and the 2nd section are HSI-capable lights
         # listed with their name, the max and min color temps available to use in CCT mode, and HSI only (True) or not (False)
         masterNeewerLightList = [
-            ["Apollo 150D", 5600, 5600, True], ["GL1", 2900, 7000, True], ["NL140", 3200, 5600, True],
+            ["Apollo", 5600, 5600, True], ["GL1", 2900, 7000, True], ["NL140", 3200, 5600, True],
             ["SNL1320", 3200, 5600, True], ["SNL1920", 3200, 5600, True], ["SNL480", 3200, 5600, True],
             ["SNL530", 3200, 5600, True], ["SNL660", 3200, 5600, True], ["SNL960", 3200, 5600, True],
             ["SRP16", 3200, 5600, True], ["SRP18", 3200, 5600, True], ["WRP18", 3200, 5600, True],
@@ -2074,12 +2075,12 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
 
             # check the master list to see if the current light is found - if it is, then change the prefs to reflect the light's spec
             if masterNeewerLightList[a][0] in lightName.replace(" ", ""):
-                customPrefs[0] = masterNeewerLightList[a][0] # the name of the light (just now - for testing)
+                # customPrefs[0] = masterNeewerLightList[a][0] # the name of the light (for testing purposes)
                 customPrefs[1] = [masterNeewerLightList[a][1], masterNeewerLightList[a][2]] # the HSI color temp range
                 customPrefs[2] = masterNeewerLightList[a][3] # whether or not to allow RGB commands
                 break # stop looking for the light!
 
-        print(customPrefs) # as with the line above, this is only for testing (for now)
+        # print(customPrefs) # as with the line above, this is only for testing
     
     return customPrefs
 
