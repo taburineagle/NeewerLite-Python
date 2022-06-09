@@ -15,6 +15,7 @@
 
 import os
 import sys
+import math # used for calculating the RGB values of color temperatures
 import tempfile
 
 import argparse
@@ -87,7 +88,7 @@ availableLights = [] # the list of Neewer lights currently available to control
 # [1] - Bleak Connection (the actual Bluetooth connection to the light itself)
 # [2] - Custom Name for Light (string)
 # [3] - Last Used Parameters (list)
-# [4] - Whether or not to use an Extended CCT Range (boolean)
+# [4] - The range of color temperatures to use in CCT mode (list, min, max)
 # [5] - Whether or not to send Brightness and Hue independently for old lights (boolean)
 # [6] - Whether or not this light has been manually turned ON/OFF (boolean)
 # [7] - The Power and Channel data returned for this light (list)
@@ -565,47 +566,42 @@ try: # try to load the GUI
         def checkLightTab(self, selectedLight = -1):
             if self.ColorModeTabWidget.currentIndex() == 0: # if we're on the CCT tab, do the check
                 if selectedLight == -1: # if we don't have a light selected
-                    self.setupCCTBounds(56) # restore the bounds to their default of 56(00)K
-                else:
-                    if availableLights[selectedLight][4] == True: # if we're supposed to be extending the range
-                        if self.Slider_CCT_Hue.maximum() == 56: # if we're set to extend the range, but we're still set to 56(00)K, then change the range
-                            self.setupCCTBounds(85)
-                    else:
-                        if self.Slider_CCT_Hue.maximum() == 85: # if we're set to NOT extend the range, but we're still set to 85(00)K, then reduce the range
-                            self.setupCCTBounds(56)
+                    self.setupCCTBounds(3200, 5600) # restore the bounds to their default of 56(00)K
+                else: # set up the gradient to show the range of color temperatures available to the currently selected light
+                    self.setupCCTBounds(availableLights[selectedLight][4][0], availableLights[selectedLight][4][1])
+
             elif self.ColorModeTabWidget.currentIndex() == 3: # if we're on the Preferences tab instead
                 if selectedLight != -1: # if there is a specific selected light
                     self.setupLightPrefsTab(selectedLight) # update the Prefs tab with the information for that selected light
 
-        def setupCCTBounds(self, gradientBounds):
-            self.Slider_CCT_Hue.setMaximum(gradientBounds) # set the max value of the color temperature slider to the new max bounds
+        def getGradient(self, startRange, endRange):
+            rangeStep = (endRange - startRange) / 4 # figure out how much in between steps of the gradient
+            gradient = QLinearGradient(0, 0, 532, 31) # make a new gradient
 
-            gradient = QLinearGradient(0, 0, 532, 31)
+            for i in range(5): # fill the gradient with a new set of colors
+                rgbValues = convert_K_to_RGB(startRange + (rangeStep * i))
+                print(str(startRange + (rangeStep * i)) + " (" + str(0.25 * i) + "): " + str(rgbValues[0]) + " / " + str(rgbValues[1]) + " / " + str(rgbValues[2]))
+                gradient.setColorAt((0.25 * i), QColor(rgbValues[0], rgbValues[1], rgbValues[2]))
 
-            # SET GRADIENT OF CCT SLIDER IN CHUNKS OF 5 VALUES BASED ON BOUNDARY
-            if gradientBounds == 56: # the color temperature boundary is 5600K
-                gradient.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
-                gradient.setColorAt(0.25, QColor(255, 204, 153, 255)) # 3800K
-                gradient.setColorAt(0.50, QColor(255, 217, 182, 255)) # 4400K
-                gradient.setColorAt(0.75, QColor(255, 228, 206, 255)) # 5000K
-                gradient.setColorAt(1.0, QColor(255, 238, 227, 255)) # 5600K
-            else: # the color temperature boundary is 8500K
-                gradient.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
-                gradient.setColorAt(0.25, QColor(255, 219, 186, 255)) # 4500K
-                gradient.setColorAt(0.50, QColor(255, 240, 233, 255)) # 5800K
-                gradient.setColorAt(0.75, QColor(243, 242, 255, 255)) # 7100K
-                gradient.setColorAt(1.0, QColor(220, 229, 255, 255)) # 8500K
+            return gradient # return the new gradient to switch the display out with
 
-            self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(gradient) # change the gradient to fit the new boundary
+        def setupCCTBounds(self, startRange, endRange):
+            self.Slider_CCT_Hue.setMinimum(startRange / 100) # set the min value of the color temperature slider to the new min bounds
+            self.Slider_CCT_Hue.setMaximum(endRange / 100) # set the max value of the color temperature slider to the new max bounds
+            
+            self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(self.getGradient(startRange, endRange)) # change the gradient to fit the new boundary
 
         def setupLightPrefsTab(self, selectedLight):
             self.customNameTF.setText(availableLights[selectedLight][2]) # set the "custom name" field to the custom name of this light
 
+            # LEMUR: Set up the minimum and maximum values on this tab, from
+            # availableLights[selectedLight][4][0] + availableLights[selectedLight][4][1]
+
             # IF THE OPTION TO ALLOW WIDER COLOR TEMPERATURES IS ENABLED, THEN ENABLE THAT CHECKBOX
-            if availableLights[selectedLight][4] == True:
-                self.widerRangeCheck.setChecked(True)
-            else:
-                self.widerRangeCheck.setChecked(False)
+            # if availableLights[selectedLight][4] == True:
+            #    self.widerRangeCheck.setChecked(True)
+            # else:
+            #    self.widerRangeCheck.setChecked(False)
 
             # IF THE OPTION TO SEND ONLY CCT MODE IS ENABLED, THEN ENABLE THAT CHECKBOX
             if availableLights[selectedLight][5] == True:
@@ -998,7 +994,8 @@ try: # try to load the GUI
 
             if len(selectedRows) == 1: # if we have 1 selected light - which should never be false, as we can't use Prefs with more than 1
                 availableLights[selectedRows[0]][2] = self.customNameTF.text() # set this light's custom name to the text box
-                availableLights[selectedRows[0]][4] = self.widerRangeCheck.isChecked() # if the "wider range" box is checked, then allow wider ranges
+                # LEMUR: Disabled this for now, was still taking the boolean value - need to update the GUI to show color ranges instead
+                # availableLights[selectedRows[0]][4] = self.widerRangeCheck.isChecked() # if the "wider range" box is checked, then allow wider ranges
                 availableLights[selectedRows[0]][5] = self.onlyCCTModeCheck.isChecked() # if the option to send BRI and HUE separately is checked, then turn that on
 
                 # IF A CUSTOM NAME IS SET UP FOR THIS LIGHT, THEN CHANGE THE TABLE TO REFLECT THAT
@@ -1019,7 +1016,8 @@ try: # try to load the GUI
             exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
 
             customName = availableLights[lightID][2] # the custom name for this light
-            widerRange = str(availableLights[lightID][4]) # whether or not the light can use extended CCT ranges
+
+            widerRange = str(availableLights[lightID][4][0]) + "," + str(availableLights[lightID][4][1]) # the color temperature range available
             onlyCCTMode = str(availableLights[lightID][5]) # whether or not the light can only use CCT mode
 
             exportString = customName + "|" + widerRange + "|" + onlyCCTMode # the exported string, minus the light last set parameters
@@ -1490,6 +1488,62 @@ try: # try to load the GUI
                 self.computeValueANM(modeArgs["scene"])
 except NameError:
     pass # could not load the GUI, but we have already logged an error message
+
+# CALCULATE THE RGB VALUE OF COLOR TEMPERATURE
+def convert_K_to_RGB(Ktemp):
+    # Based on this script: https://gist.github.com/petrklus/b1f427accdf7438606a6
+    # from @petrklus on GitHub (his source was from http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/)
+
+    tmp_internal = Ktemp / 100.0
+    
+    # red 
+    if tmp_internal <= 66:
+        red = 255
+    else:
+        tmp_red = 329.698727446 * math.pow(tmp_internal - 60, -0.1332047592)
+
+        if tmp_red < 0:
+            red = 0
+        elif tmp_red > 255:
+            red = 255
+        else:
+            red = tmp_red
+    
+    # green
+    if tmp_internal <= 66:
+        tmp_green = 99.4708025861 * math.log(tmp_internal) - 161.1195681661
+
+        if tmp_green < 0:
+            green = 0
+        elif tmp_green > 255:
+            green = 255
+        else:
+            green = tmp_green
+    else:
+        tmp_green = 288.1221695283 * math.pow(tmp_internal - 60, -0.0755148492)
+
+        if tmp_green < 0:
+            green = 0
+        elif tmp_green > 255:
+            green = 255
+        else:
+            green = tmp_green
+    
+    # blue
+    if tmp_internal >= 66:
+        blue = 255
+    elif tmp_internal <= 19:
+        blue = 0
+    else:
+        tmp_blue = 138.5177312231 * math.log(tmp_internal - 10) - 305.0447927307
+        if tmp_blue < 0:
+            blue = 0
+        elif tmp_blue > 255:
+            blue = 255
+        else:
+            blue = tmp_blue
+    
+    return int(red), int(green), int(blue) # return the integer value for each part of the RGB values for this step
 
 # WORKING WITH CUSTOM PRESETS
 def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):
@@ -1975,12 +2029,18 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
         customPrefs = fileToOpen.read().split("|")
         fileToOpen.close()
 
-        # CHANGE STRING "Booleans" INTO ACTUAL BOOLEANS
-        for b in range(1,3):
-            if customPrefs[b] == "True":
-                customPrefs[b] = True
-            else:
-                customPrefs[b] = False
+        if customPrefs[1] == "True": # original "wider" preference set expands color temps to 3200-8500K
+            customPrefs[1] = [3200, 8500]
+        elif customPrefs[1] == "False": # original "non wider" preference set color temps to 3200-5600K
+            customPrefs[1] = [3200, 5600]
+        else: # we have a new version of preferences that directly specify the color temperatures
+            colorTemps = customPrefs[1].split(",")
+            customPrefs[1] = [int(colorTemps[0]), int(colorTemps[1])]
+
+        if customPrefs[2] == "True":
+            customPrefs[2] = True # convert "True" as a string to an actual boolean value of True
+        else:
+            customPrefs[2] = False # convert anything else to the boolean value False
 
         if len(customPrefs) == 4: # if we have a 4th element (the last used parameters), then load them here
             customPrefs[3] = customPrefs[3].replace(" ", "").split(",") # split the last params into a list
@@ -1988,13 +2048,40 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
             for a in range(len(customPrefs[3])): # convert the string values to ints
                 customPrefs[3][a] = int(customPrefs[3][a])
     else: # if there is no custom preferences file, still check the name against a list of per-light parameters
-        if lightName == "NEEWER-SL80": # we can use extended ranges with the SL80
-            customPrefs = ["", True, False]
-        elif lightName == "NEEWER-SNL660": # we can ONLY use CCT mode with the SNL-660
-            customPrefs = ["", False, True]
-        else: # return a blank slate
-             customPrefs = ["", False, False]
+        # the first section of lights here are LED only (can't use HSI), and the 2nd section are HSI-capable lights
+        # listed with their name, the max and min color temps available to use in CCT mode, and HSI only (True) or not (False)
+        masterNeewerLightList = [
+            ["Apollo 150D", 5600, 5600, True], ["GL1", 2900, 7000, True], ["NL140", 3200, 5600, True],
+            ["SNL1320", 3200, 5600, True], ["SNL1920", 3200, 5600, True], ["SNL480", 3200, 5600, True],
+            ["SNL530", 3200, 5600, True], ["SNL660", 3200, 5600, True], ["SNL960", 3200, 5600, True],
+            ["SRP16", 3200, 5600, True], ["SRP18", 3200, 5600, True], ["WRP18", 3200, 5600, True],
+            ["ZRP16", 3200, 5600, True],
+            ["BH30S", 2500, 10000, False], ["CB60", 2500, 6500, False], ["CL124", 2500, 10000, False],
+            ["RGB C80", 2500, 10000, False], ["RGB CB60", 2500, 10000, False], ["RGB1000", 2500, 10000, False],
+            ["RGB1200", 2500, 10000, False], ["RGB140", 2500, 10000, False], ["RGB168", 2500, 8500, False],
+            ["RGB176 A1", 2500, 10000, False], ["RGB512", 2500, 10000, False], ["RGB800", 2500, 10000, False],
+            ["SL-90", 2500, 10000, False], ["RGB1", 3200, 5600, False], ["RGB176", 3200, 5600, False],
+            ["RGB18", 3200, 5600, False], ["RGB190", 3200, 5600, False], ["RGB450", 3200, 5600, False],
+            ["RGB480", 3200, 5600, False], ["RGB530PRO", 3200, 5600, False], ["RGB530", 3200, 5600, False],
+            ["RGB650", 3200, 5600, False], ["RGB660PRO", 3200, 5600, False], ["RGB660", 3200, 5600, False],
+            ["RGB960", 3200, 5600, False], ["RGB-P200", 3200, 5600, False], ["RGB-P280", 3200, 5600, False],
+            ["SL70", 3200, 8500, False], ["SL80", 3200, 8500, False], ["ZK-RY", 5600, 5600, False]
+        ]
+        
+        for a in range(len(masterNeewerLightList)): # scan the list of preset specs above to find the current light in them
+            # the default list of preferences - no custom name, a color temp range from 3200-5600K, and RGB not restricted (False)
+            # if we don't find the name of the light in the master list, we just return these default parameters
+            customPrefs = ["", [3200, 5600], False]
 
+            # check the master list to see if the current light is found - if it is, then change the prefs to reflect the light's spec
+            if masterNeewerLightList[a][0] in lightName.replace(" ", ""):
+                customPrefs[0] = masterNeewerLightList[a][0] # the name of the light (just now - for testing)
+                customPrefs[1] = [masterNeewerLightList[a][1], masterNeewerLightList[a][2]] # the HSI color temp range
+                customPrefs[2] = masterNeewerLightList[a][3] # whether or not to allow RGB commands
+                break # stop looking for the light!
+
+        print(customPrefs) # as with the line above, this is only for testing (for now)
+    
     return customPrefs
 
 # CONNECT (LINK) TO A LIGHT
