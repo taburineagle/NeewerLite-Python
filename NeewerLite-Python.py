@@ -313,6 +313,8 @@ try: # try to load the GUI
             self.Button_3_lightning_B.clicked.connect(lambda: self.computeValueANM(8))
             self.Button_3_lightning_C.clicked.connect(lambda: self.computeValueANM(9))
 
+            self.customName.clicked.connect(self.checkLightPrefsEnables)
+            self.colorTempRange.clicked.connect(self.checkLightPrefsEnables)
             self.saveLightPrefsButton.clicked.connect(self.checkLightPrefs)
 
             self.resetGlobalPrefsButton.clicked.connect(lambda: self.setupGlobalLightPrefsTab(True))
@@ -593,9 +595,27 @@ try: # try to load the GUI
             self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(self.getGradient(startRange, endRange)) # change the gradient to fit the new boundary
 
         def setupLightPrefsTab(self, selectedLight):
-            self.customNameTF.setText(availableLights[selectedLight][2]) # set the "custom name" field to the custom name of this light
+            # SET UP THE CUSTOM NAME TEXT BOX
+            if availableLights[selectedLight][2] == "":
+                self.customName.setChecked(False)
+                self.customNameTF.setEnabled(False)
+            else:
+                self.customName.setChecked(True)
+                self.customNameTF.setEnabled(True)
+                self.customNameTF.setText(availableLights[selectedLight][2]) # set the "custom name" field to the custom name of this light
 
             # SET UP THE MINIMUM AND MAXIMUM TEXT BOXES
+            defaultRange = getLightSpecs(availableLights[selectedLight][0].name, "temp")
+
+            if [availableLights[selectedLight][4][0], availableLights[selectedLight][4][1]] == defaultRange:
+                self.colorTempRange.setChecked(False)
+                self.colorTempRange_Min_TF.setEnabled(False)
+                self.colorTempRange_Max_TF.setEnabled(False)
+            else:
+                self.colorTempRange.setChecked(True)
+                self.colorTempRange_Min_TF.setEnabled(True)
+                self.colorTempRange_Max_TF.setEnabled(True)
+
             self.colorTempRange_Min_TF.setText(str(availableLights[selectedLight][4][0]))
             self.colorTempRange_Max_TF.setText(str(availableLights[selectedLight][4][1]))
             
@@ -985,16 +1005,41 @@ try: # try to load the GUI
 
                 self.checkLightTab() # check to see if we're on the CCT tab - if we are, then restore order
 
+        def checkLightPrefsEnables(self): # check to see whether or not to enable/disable fields when clicking on radio buttons
+            if self.customName.isChecked():
+                self.customNameTF.setEnabled(True)
+            else:
+                self.customNameTF.setEnabled(False)
+
+            if self.colorTempRange.isChecked():
+                self.colorTempRange_Min_TF.setEnabled(True)
+                self.colorTempRange_Max_TF.setEnabled(True)
+            else:
+                self.colorTempRange_Min_TF.setEnabled(False)
+                self.colorTempRange_Max_TF.setEnabled(False)
+
         def checkLightPrefs(self): # check the new settings and save the custom file
             selectedRows = self.selectedLights() # get the list of currently selected lights
 
             if len(selectedRows) == 1: # if we have 1 selected light - which should never be false, as we can't use Prefs with more than 1
                 availableLights[selectedRows[0]][2] = self.customNameTF.text() # set this light's custom name to the text box
 
-                # test to make sure the values returned from the minumum and maximum color temp fields are valid
-                # if not, then fall back to their defaults of 3200K (for min) and 5600K (for max)
-                availableLights[selectedRows[0]][4][0] = testValid("color_temp_range_min", self.colorTempRange_Min_TF.text(), 3200, 1000, 5600)
-                availableLights[selectedRows[0]][4][1] = testValid("color_temp_range_max", self.colorTempRange_Max_TF.text(), 5600, 1000, 10000)
+                if self.colorTempRange.isChecked(): # if we've asked to save a custom temperature range for this light
+                    # get the default range for this model of light
+                    defaultRange = getLightSpecs(availableLights[selectedRows[0]][0].name, "temp")
+
+                    # get the new range from the preferences, and check them against the defaults for this light
+                    newRange = [
+                               testValid("range_min", self.colorTempRange_Min_TF.text(), 3200, 1000, 5600),
+                               testValid("range_max", self.colorTempRange_Max_TF.text(), 5600, 1000, 10000)
+                    ]
+                    
+                    # change the range in the available lights table
+                    if defaultRange != newRange:
+                        availableLights[selectedRows[0]][4][0] = newRange[0]
+                        availableLights[selectedRows[0]][4][1] = newRange[1]
+                    else:
+                        print("You asked for a custom range of color temperatures, but didn't specify one, so not changing!")
 
                 availableLights[selectedRows[0]][5] = self.onlyCCTModeCheck.isChecked() # if the option to send BRI and HUE separately is checked, then turn that on
 
@@ -2047,42 +2092,51 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
 
             for a in range(len(customPrefs[3])): # convert the string values to ints
                 customPrefs[3][a] = int(customPrefs[3][a])
+
+        return customPrefs
     else: # if there is no custom preferences file, still check the name against a list of per-light parameters
-        # the first section of lights here are LED only (can't use HSI), and the 2nd section are HSI-capable lights
-        # listed with their name, the max and min color temps available to use in CCT mode, and HSI only (True) or not (False)
-        masterNeewerLightList = [
-            ["Apollo", 5600, 5600, True], ["GL1", 2900, 7000, True], ["NL140", 3200, 5600, True],
-            ["SNL1320", 3200, 5600, True], ["SNL1920", 3200, 5600, True], ["SNL480", 3200, 5600, True],
-            ["SNL530", 3200, 5600, True], ["SNL660", 3200, 5600, True], ["SNL960", 3200, 5600, True],
-            ["SRP16", 3200, 5600, True], ["SRP18", 3200, 5600, True], ["WRP18", 3200, 5600, True],
-            ["ZRP16", 3200, 5600, True],
-            ["BH30S", 2500, 10000, False], ["CB60", 2500, 6500, False], ["CL124", 2500, 10000, False],
-            ["RGB C80", 2500, 10000, False], ["RGB CB60", 2500, 10000, False], ["RGB1000", 2500, 10000, False],
-            ["RGB1200", 2500, 10000, False], ["RGB140", 2500, 10000, False], ["RGB168", 2500, 8500, False],
-            ["RGB176 A1", 2500, 10000, False], ["RGB512", 2500, 10000, False], ["RGB800", 2500, 10000, False],
-            ["SL-90", 2500, 10000, False], ["RGB1", 3200, 5600, False], ["RGB176", 3200, 5600, False],
-            ["RGB18", 3200, 5600, False], ["RGB190", 3200, 5600, False], ["RGB450", 3200, 5600, False],
-            ["RGB480", 3200, 5600, False], ["RGB530PRO", 3200, 5600, False], ["RGB530", 3200, 5600, False],
-            ["RGB650", 3200, 5600, False], ["RGB660PRO", 3200, 5600, False], ["RGB660", 3200, 5600, False],
-            ["RGB960", 3200, 5600, False], ["RGB-P200", 3200, 5600, False], ["RGB-P280", 3200, 5600, False],
-            ["SL70", 3200, 8500, False], ["SL80", 3200, 8500, False], ["ZK-RY", 5600, 5600, False]
-        ]
-        
-        for a in range(len(masterNeewerLightList)): # scan the list of preset specs above to find the current light in them
-            # the default list of preferences - no custom name, a color temp range from 3200-5600K, and RGB not restricted (False)
-            # if we don't find the name of the light in the master list, we just return these default parameters
-            customPrefs = ["", [3200, 5600], False]
+        return getLightSpecs(lightName) # get the factory default settings for this light
 
-            # check the master list to see if the current light is found - if it is, then change the prefs to reflect the light's spec
-            if masterNeewerLightList[a][0] in lightName.replace(" ", ""):
-                # customPrefs[0] = masterNeewerLightList[a][0] # the name of the light (for testing purposes)
-                customPrefs[1] = [masterNeewerLightList[a][1], masterNeewerLightList[a][2]] # the HSI color temp range
-                customPrefs[2] = masterNeewerLightList[a][3] # whether or not to allow RGB commands
-                break # stop looking for the light!
-
-        # print(customPrefs) # as with the line above, this is only for testing
+# RETURN THE DEFAULT FACTORY SPECIFICATIONS FOR LIGHTS
+def getLightSpecs(lightName, returnParam = "all"):
+    # the first section of lights here are LED only (can't use HSI), and the 2nd section are HSI-capable lights
+    # listed with their name, the max and min color temps available to use in CCT mode, and HSI only (True) or not (False)
+    masterNeewerLightList = [
+        ["Apollo", 5600, 5600, True], ["GL1", 2900, 7000, True], ["NL140", 3200, 5600, True],
+        ["SNL1320", 3200, 5600, True], ["SNL1920", 3200, 5600, True], ["SNL480", 3200, 5600, True],
+        ["SNL530", 3200, 5600, True], ["SNL660", 3200, 5600, True], ["SNL960", 3200, 5600, True],
+        ["SRP16", 3200, 5600, True], ["SRP18", 3200, 5600, True], ["WRP18", 3200, 5600, True],
+        ["ZRP16", 3200, 5600, True],
+        ["BH30S", 2500, 10000, False], ["CB60", 2500, 6500, False], ["CL124", 2500, 10000, False],
+        ["RGB C80", 2500, 10000, False], ["RGB CB60", 2500, 10000, False], ["RGB1000", 2500, 10000, False],
+        ["RGB1200", 2500, 10000, False], ["RGB140", 2500, 10000, False], ["RGB168", 2500, 8500, False],
+        ["RGB176 A1", 2500, 10000, False], ["RGB512", 2500, 10000, False], ["RGB800", 2500, 10000, False],
+        ["SL-90", 2500, 10000, False], ["RGB1", 3200, 5600, False], ["RGB176", 3200, 5600, False],
+        ["RGB18", 3200, 5600, False], ["RGB190", 3200, 5600, False], ["RGB450", 3200, 5600, False],
+        ["RGB480", 3200, 5600, False], ["RGB530PRO", 3200, 5600, False], ["RGB530", 3200, 5600, False],
+        ["RGB650", 3200, 5600, False], ["RGB660PRO", 3200, 5600, False], ["RGB660", 3200, 5600, False],
+        ["RGB960", 3200, 5600, False], ["RGB-P200", 3200, 5600, False], ["RGB-P280", 3200, 5600, False],
+        ["SL70", 3200, 8500, False], ["SL80", 3200, 8500, False], ["ZK-RY", 5600, 5600, False]
+    ]
     
-    return customPrefs
+    for a in range(len(masterNeewerLightList)): # scan the list of preset specs above to find the current light in them
+        # the default list of preferences - no custom name, a color temp range from 3200-5600K, and RGB not restricted (False)
+        # if we don't find the name of the light in the master list, we just return these default parameters
+        customPrefs = ["", [3200, 5600], False]
+
+        # check the master list to see if the current light is found - if it is, then change the prefs to reflect the light's spec
+        if masterNeewerLightList[a][0] in lightName.replace(" ", ""):
+            # customPrefs[0] = masterNeewerLightList[a][0] # the name of the light (for testing purposes)
+            customPrefs[1] = [masterNeewerLightList[a][1], masterNeewerLightList[a][2]] # the HSI color temp range
+            customPrefs[2] = masterNeewerLightList[a][3] # whether or not to allow RGB commands
+            break # stop looking for the light!
+
+    if returnParam == "all": # we want to return all information (the default)
+        return customPrefs
+    elif returnParam == "temp": # we only want to return color temp ranges for this light
+        return customPrefs[1]
+    elif returnParam == "CCT": # we only want to return CCT-only status for this light
+        return customPrefs[2]
 
 # CONNECT (LINK) TO A LIGHT
 async def connectToLight(selectedLight, updateGUI=True):

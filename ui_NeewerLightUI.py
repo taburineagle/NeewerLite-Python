@@ -290,20 +290,20 @@ class Ui_MainWindow(object):
         self.lightPrefs = QWidget()
 
         # CUSTOM NAME FIELD FOR THIS LIGHT
-        self.customNameDescription = QLabel(self.lightPrefs)
-        self.customNameDescription.setGeometry(QRect(10, 14, 541, 16))
-        self.customNameDescription.setText("Custom Name for this light: (optional)")
-        self.customNameDescription.setFont(mainFont)
+        self.customName = QCheckBox(self.lightPrefs)
+        self.customName.setGeometry(QRect(10, 14, 541, 16))
+        self.customName.setText("Custom Name for this light: (optional)")
+        self.customName.setFont(mainFont)
         
         self.customNameTF = QLineEdit(self.lightPrefs)
         self.customNameTF.setGeometry(QRect(10, 34, 541, 20))
         self.customNameTF.setMaxLength(80)
 
         # CUSTOM HSI COLOR TEMPERATURE RANGES FOR THIS LIGHT
-        self.colorTempRange_Description = QLabel(self.lightPrefs)
-        self.colorTempRange_Description.setGeometry(QRect(10, 62, 541, 16))
-        self.colorTempRange_Description.setText("Custom Color Temperature Range for CCT mode:")
-        self.colorTempRange_Description.setFont(mainFont)
+        self.colorTempRange = QCheckBox(self.lightPrefs)
+        self.colorTempRange.setGeometry(QRect(10, 62, 541, 16))
+        self.colorTempRange.setText("Use Custom Color Temperature Range for CCT mode:")
+        self.colorTempRange.setFont(mainFont)
 
         self.colorTempRange_Min_Description = QLabel(self.lightPrefs)
         self.colorTempRange_Min_Description.setGeometry(QRect(10, 104, 120, 16))
@@ -326,7 +326,7 @@ class Ui_MainWindow(object):
         self.colorTempRange_Max_TF.setMaxLength(80)
        
         # WHETHER OR NOT TO ONLY ALLOW CCT MODE FOR THIS LIGHT
-        self.onlyCCTModeCheck = QCheckBox(self.lightPrefs)        
+        self.onlyCCTModeCheck = QCheckBox(self.lightPrefs)
         self.onlyCCTModeCheck.setGeometry(QRect(10, 130, 401, 31))
         self.onlyCCTModeCheck.setText("This light can only use CCT mode\n(for SNL-660 and other Neewer LED/Ring lights)")
         self.onlyCCTModeCheck.setFont(mainFont)
