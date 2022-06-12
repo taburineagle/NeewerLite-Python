@@ -313,8 +313,11 @@ try: # try to load the GUI
             self.Button_3_lightning_B.clicked.connect(lambda: self.computeValueANM(8))
             self.Button_3_lightning_C.clicked.connect(lambda: self.computeValueANM(9))
 
+            # CHECKS TO SEE IF SPECIFIC FIELDS (and the save button) SHOULD BE ENABLED OR DISABLED
             self.customName.clicked.connect(self.checkLightPrefsEnables)
             self.colorTempRange.clicked.connect(self.checkLightPrefsEnables)
+            self.onlyCCTModeCheck.clicked.connect(self.checkLightPrefsEnables)
+
             self.saveLightPrefsButton.clicked.connect(self.checkLightPrefs)
 
             self.resetGlobalPrefsButton.clicked.connect(lambda: self.setupGlobalLightPrefsTab(True))
@@ -599,6 +602,7 @@ try: # try to load the GUI
             if availableLights[selectedLight][2] == "":
                 self.customName.setChecked(False)
                 self.customNameTF.setEnabled(False)
+                self.customNameTF.setText("") # set the "custom name" to nothing
             else:
                 self.customName.setChecked(True)
                 self.customNameTF.setEnabled(True)
@@ -624,6 +628,126 @@ try: # try to load the GUI
                 self.onlyCCTModeCheck.setChecked(True)
             else:
                 self.onlyCCTModeCheck.setChecked(False)
+
+            self.checkLightPrefsEnables() # set up which fields on the panel are enabled
+
+        def checkLightPrefsEnables(self): # enable/disable fields and/or save button when clicking on checkboxes
+            # allow/deny typing in the "custom name" field if the option is clicked
+            if self.customName.isChecked():
+                self.customNameTF.setEnabled(True)
+            else:
+                self.customNameTF.setEnabled(False)
+                self.customNameTF.setText("")
+
+            # allow/deny typing in the "minmum" and "maximum" fields if the option is clicked
+            if self.colorTempRange.isChecked():
+                self.colorTempRange_Min_TF.setEnabled(True)
+                self.colorTempRange_Max_TF.setEnabled(True)
+            else:
+                self.colorTempRange_Min_TF.setEnabled(False)
+                self.colorTempRange_Max_TF.setEnabled(False)
+
+            # if any of the options are turned on, then enable the save button - otherwise, disable it
+            if self.customName.isChecked() or self.colorTempRange.isChecked() or self.onlyCCTModeCheck.isChecked():
+                self.saveLightPrefsButton.setEnabled(True)
+            else:
+                if self.customNameTF.text() == "": # if the text field for name is empty, then disable the Save button
+                    self.saveLightPrefsButton.setEnabled(False)
+            
+        def checkLightPrefs(self): # check the new settings and save the custom file
+            selectedRows = self.selectedLights() # get the list of currently selected lights
+
+            # CHECK DEFAULT SETTINGS AGAINST THE CURRENT SETTINGS
+            defaultSettings = getLightSpecs(availableLights[selectedRows[0]][0].name)
+
+            if self.colorTempRange.isChecked():
+                newRange = [testValid("range_min", self.colorTempRange_Min_TF.text(), defaultSettings[1][0], 1000, 5600, True),
+                            testValid("range_max", self.colorTempRange_Max_TF.text(), defaultSettings[1][1], 1000, 10000, True)]
+            else:
+                newRange = defaultSettings[1]
+
+            # IF ALL THE SETTINGS ARE THE SAME AS THE DEFAULT, THEN EITHER DELETE THE FILE OR NOT SAVE PREFERENCES
+            if defaultSettings[0] == self.customNameTF.text() and \
+               defaultSettings[1] == newRange and \
+               defaultSettings[2] == self.onlyCCTModeCheck.isChecked():
+                    printDebugString("No options have been changed from the normal defaults for this light.")
+                    self.saveLightPrefs(selectedRows[0], True)
+            else:
+                changedPrefs = 0 # number of how many preferences have changed
+
+                if len(selectedRows) == 1: # if we have 1 selected light - which should never be false, as we can't use Prefs with more than 1
+                    if self.customName.isChecked(): # if we're set to allow a custom name
+                        if availableLights[selectedRows[0]][2] != self.customNameTF.text():
+                            availableLights[selectedRows[0]][2] = self.customNameTF.text() # set this light's custom name to the text box
+                            changedPrefs += 1 # add one to the preferences changed counter
+                    else: # we're not supposed to set a custom name (so delete it)
+                        if availableLights[selectedRows[0]][2] != "":
+                            availableLights[selectedRows[0]][2] = "" # clear the old custom name if we've turned this off
+                            changedPrefs += 1 # add one to the preferences changed counter
+
+                    # IF A CUSTOM NAME IS SET UP FOR THIS LIGHT, THEN CHANGE THE TABLE TO REFLECT THAT
+                    if availableLights[selectedRows[0]][2] != "":
+                        self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")" "\n  [ʀssɪ: " + str(availableLights[selectedRows[0]][0].rssi) + " dBm]",
+                                        "", "", ""], selectedRows[0])
+                    else: # if there is no custom name, then reset the table to show that
+                        self.setTheTable([availableLights[selectedRows[0]][0].name + "\n  [ʀssɪ: " + str(availableLights[selectedRows[0]][0].rssi) + " dBm]",
+                                        "", "", ""], selectedRows[0])
+
+                    if self.colorTempRange.isChecked(): # if we've asked to save a custom temperature range for this light
+                        # change the range in the available lights table if they are different
+                        if defaultSettings[0] != newRange:
+                            availableLights[selectedRows[0]][4][0] = newRange[0]
+                            availableLights[selectedRows[0]][4][1] = newRange[1]
+                            changedPrefs += 1 # add one to the preferences changed counter
+                        else: # the ranges are the same as the default range, so we're not modifying those values
+                            print("You asked for a custom range of color temperatures, but didn't specify a custom range, so not changing!")
+
+                    # LEMUR: Check why clicking on this doesn't elicit a change...
+                    if availableLights[selectedRows[0]][5] != self.onlyCCTModeCheck.isChecked():
+                        availableLights[selectedRows[0]][5] = self.onlyCCTModeCheck.isChecked() # if the option to send BRI and HUE separately is checked, then turn that on
+                        changedPrefs += 1
+
+                    if changedPrefs > 0:
+                        self.saveLightPrefs(selectedRows[0]) # save the light settings to a special file
+                    else:
+                        printDebugString("You haven't changed any preferences, so we aren't saving any!")
+
+        def saveLightPrefs(self, lightID, deleteFile = False): # save a sidecar file with the preferences for a specific light
+            createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
+
+            # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
+            exportFileName = availableLights[lightID][0].address.split(":") # take the colons out of the MAC address
+            exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
+
+            if deleteFile == True:
+                if os.path.exists(exportFileName):
+                    printDebugString("We're going to delete the old preferences file.  Keep in mind, if you have NeewerLite-Python set up")
+                    printDebugString("to remember your last stored parameters, this file will be re-generated when the program closes.")
+                
+                    os.remove(exportFileName) # delete the old preferences file (if it exists)
+            else:
+                customName = availableLights[lightID][2] # the custom name for this light
+
+                widerRange = str(availableLights[lightID][4][0]) + "," + str(availableLights[lightID][4][1]) # the color temperature range available
+                onlyCCTMode = str(availableLights[lightID][5]) # whether or not the light can only use CCT mode
+
+                exportString = customName + "|" + widerRange + "|" + onlyCCTMode # the exported string, minus the light last set parameters
+
+                if rememberLightsOnExit == True: # if we're supposed to remember the last settings, then add that to the Prefs file
+                    if len(availableLights[lightID][3]) > 0: # if we actually have a value stored for this light
+                        lastSettingsString = ",".join(map(str, availableLights[lightID][3])) # combine all the elements of the last set params
+                        exportString += "|" + lastSettingsString # add it to the exported string
+                    else: # if we don't have a value stored for this light (nothing has changed yet)
+                        exportString += "|" + "120,135,2,100,56,157" # then just give the default (CCT, 5600K, 100%) params
+
+                # WRITE THE PREFERENCES FILE
+                with open(exportFileName, "w") as prefsFileToWrite:
+                    prefsFileToWrite.write(exportString)
+
+                if customName != "":
+                    printDebugString("Exported preferences for " + customName + " [" + availableLights[lightID][0].name + "] to " + exportFileName)
+                else:
+                    printDebugString("Exported preferences for [" + availableLights[lightID][0].name + "] to " + exportFileName)
 
         def setupGlobalLightPrefsTab(self, setDefault=False):
             if setDefault == False:
@@ -1004,84 +1128,6 @@ try: # try to load the GUI
                     self.ColorModeTabWidget.setCurrentIndex(0) # if we're on Prefs, then switch to the CCT tab
 
                 self.checkLightTab() # check to see if we're on the CCT tab - if we are, then restore order
-
-        def checkLightPrefsEnables(self): # check to see whether or not to enable/disable fields when clicking on radio buttons
-            if self.customName.isChecked():
-                self.customNameTF.setEnabled(True)
-            else:
-                self.customNameTF.setEnabled(False)
-
-            if self.colorTempRange.isChecked():
-                self.colorTempRange_Min_TF.setEnabled(True)
-                self.colorTempRange_Max_TF.setEnabled(True)
-            else:
-                self.colorTempRange_Min_TF.setEnabled(False)
-                self.colorTempRange_Max_TF.setEnabled(False)
-
-        def checkLightPrefs(self): # check the new settings and save the custom file
-            selectedRows = self.selectedLights() # get the list of currently selected lights
-
-            if len(selectedRows) == 1: # if we have 1 selected light - which should never be false, as we can't use Prefs with more than 1
-                availableLights[selectedRows[0]][2] = self.customNameTF.text() # set this light's custom name to the text box
-
-                if self.colorTempRange.isChecked(): # if we've asked to save a custom temperature range for this light
-                    # get the default range for this model of light
-                    defaultRange = getLightSpecs(availableLights[selectedRows[0]][0].name, "temp")
-
-                    # get the new range from the preferences, and check them against the defaults for this light
-                    newRange = [
-                               testValid("range_min", self.colorTempRange_Min_TF.text(), 3200, 1000, 5600),
-                               testValid("range_max", self.colorTempRange_Max_TF.text(), 5600, 1000, 10000)
-                    ]
-                    
-                    # change the range in the available lights table
-                    if defaultRange != newRange:
-                        availableLights[selectedRows[0]][4][0] = newRange[0]
-                        availableLights[selectedRows[0]][4][1] = newRange[1]
-                    else:
-                        print("You asked for a custom range of color temperatures, but didn't specify one, so not changing!")
-
-                availableLights[selectedRows[0]][5] = self.onlyCCTModeCheck.isChecked() # if the option to send BRI and HUE separately is checked, then turn that on
-
-                # IF A CUSTOM NAME IS SET UP FOR THIS LIGHT, THEN CHANGE THE TABLE TO REFLECT THAT
-                if availableLights[selectedRows[0]][2] != "":
-                    self.setTheTable([availableLights[selectedRows[0]][2] + " (" + availableLights[selectedRows[0]][0].name + ")" "\n  [ʀssɪ: " + str(availableLights[selectedRows[0]][0].rssi) + " dBm]",
-                                    "", "", ""], selectedRows[0])
-                else: # if there is no custom name, then reset the table to show that
-                    self.setTheTable([availableLights[selectedRows[0]][0].name + "\n  [ʀssɪ: " + str(availableLights[selectedRows[0]][0].rssi) + " dBm]",
-                                    "", "", ""], selectedRows[0])
-
-                self.saveLightPrefs(selectedRows[0]) # save the light settings to a special file
-
-        def saveLightPrefs(self, lightID): # save a sidecar file with the preferences for a specific light
-            createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
-
-            # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
-            exportFileName = availableLights[lightID][0].address.split(":") # take the colons out of the MAC address
-            exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
-
-            customName = availableLights[lightID][2] # the custom name for this light
-
-            widerRange = str(availableLights[lightID][4][0]) + "," + str(availableLights[lightID][4][1]) # the color temperature range available
-            onlyCCTMode = str(availableLights[lightID][5]) # whether or not the light can only use CCT mode
-
-            exportString = customName + "|" + widerRange + "|" + onlyCCTMode # the exported string, minus the light last set parameters
-
-            if rememberLightsOnExit == True: # if we're supposed to remember the last settings, then add that to the Prefs file
-                if len(availableLights[lightID][3]) > 0: # if we actually have a value stored for this light
-                    lastSettingsString = ",".join(map(str, availableLights[lightID][3])) # combine all the elements of the last set params
-                    exportString += "|" + lastSettingsString # add it to the exported string
-                else: # if we don't have a value stored for this light (nothing has changed yet)
-                    exportString += "|" + "120,135,2,100,56,157" # then just give the default (CCT, 5600K, 100%) params
-
-            # WRITE THE PREFERENCES FILE
-            with open(exportFileName, "w") as prefsFileToWrite:
-                prefsFileToWrite.write(exportString)
-
-            if customName != "":
-                printDebugString("Exported preferences for " + customName + " [" + availableLights[lightID][0].name + "] to " + exportFileName)
-            else:
-                printDebugString("Exported preferences for [" + availableLights[lightID][0].name + "] to " + exportFileName)
 
         # ADD A LIGHT TO THE TABLE VIEW
         def setTheTable(self, infoArray, rowToChange = -1):
@@ -1888,7 +1934,7 @@ def returnMACname():
         return "MAC Address:"
 
 # TEST TO MAKE SURE THE VALUE GIVEN TO THE FUNCTION IS VALID OR IN BOUNDS
-def testValid(theParam, theValue, defaultValue, startBounds, endBounds):
+def testValid(theParam, theValue, defaultValue, startBounds, endBounds, returnDefault = False):
     if theParam == "temp":
         if len(theValue) > 1: # if the temp has at least 2 characters in it
             theValue = theValue[:2] # take the first 2 characters of the string to convert into int
@@ -1900,12 +1946,16 @@ def testValid(theParam, theValue, defaultValue, startBounds, endBounds):
         theValue = int(theValue) # the value is assumed to be within the bounds, so we check it...
 
         if theValue < startBounds or theValue > endBounds: # the value is not within bounds, so there's an error
-            if theValue < startBounds: # if the value specified is below the starting boundary, make it the starting boundary
-                printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to closest boundary of " + str(startBounds))
-                theValue = startBounds
-            elif theValue > endBounds: # if the value specified is above the ending boundary, make it the ending boundary
-                printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to closest boundary of " + str(endBounds))
-                theValue = endBounds
+            if returnDefault == False: # if the value is too high or low, but we aren't set to return the defaults, make it the lowest/highest boundary
+                if theValue < startBounds: # if the value specified is below the starting boundary, make it the starting boundary
+                    printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to closest boundary of " + str(startBounds))
+                    theValue = startBounds
+                elif theValue > endBounds: # if the value specified is above the ending boundary, make it the ending boundary
+                    printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to closest boundary of " + str(endBounds))
+                    theValue = endBounds
+            else: # if the value is too high or low, but we're set to return the default, do that here
+                printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to the default value of " + str(defaultValue))
+                theValue = defaultValue
 
         return theValue # return the within-bounds value
     except ValueError: # if the string can not be converted, then return the defaultValue

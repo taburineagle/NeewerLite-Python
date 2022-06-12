@@ -292,7 +292,7 @@ class Ui_MainWindow(object):
         # CUSTOM NAME FIELD FOR THIS LIGHT
         self.customName = QCheckBox(self.lightPrefs)
         self.customName.setGeometry(QRect(10, 14, 541, 16))
-        self.customName.setText("Custom Name for this light: (optional)")
+        self.customName.setText("Custom Name for this light:")
         self.customName.setFont(mainFont)
         
         self.customNameTF = QLineEdit(self.lightPrefs)
@@ -328,7 +328,7 @@ class Ui_MainWindow(object):
         # WHETHER OR NOT TO ONLY ALLOW CCT MODE FOR THIS LIGHT
         self.onlyCCTModeCheck = QCheckBox(self.lightPrefs)
         self.onlyCCTModeCheck.setGeometry(QRect(10, 130, 401, 31))
-        self.onlyCCTModeCheck.setText("This light can only use CCT mode\n(for SNL-660 and other Neewer LED/Ring lights)")
+        self.onlyCCTModeCheck.setText("This light can only use CCT mode\n(for Neewer lights without HSI mode)")
         self.onlyCCTModeCheck.setFont(mainFont)
         
         # SAVE IIITTTTTT!
