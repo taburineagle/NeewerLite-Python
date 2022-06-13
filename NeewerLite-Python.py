@@ -749,7 +749,7 @@ try: # try to load the GUI
                         exportString += "|" + "120,135,2,100,56,157" # then just give the default (CCT, 5600K, 100%) params
 
                 # WRITE THE PREFERENCES FILE
-                with open(exportFileName, "w") as prefsFileToWrite:
+                with open(exportFileName, mode="w", encoding="utf-8") as prefsFileToWrite:
                     prefsFileToWrite.write(exportString)
 
                 if customName != "":
@@ -3180,7 +3180,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. 0.11")
+    print("             NeewerLite-Python ver. 0.12")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
