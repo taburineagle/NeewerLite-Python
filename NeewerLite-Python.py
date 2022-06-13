@@ -1,17 +1,17 @@
-#############################################################
-## NeewerLite-Python
+############################################################
+## NeewerLite-Python ver. 0.11
 ## by Zach Glenwright
-#############################################################
-##   > https://github.com/taburineagle/NeewerLite-Python/ <
-#############################################################
+############################################################
+## > https://github.com/taburineagle/NeewerLite-Python/ <
+############################################################
 ## A cross-platform Python script using the bleak and
 ## PySide2 libraries to control Neewer brand lights via
 ## Bluetooth on multiple platforms -
 ##          Windows, Linux/Ubuntu, MacOS and RPi
-#############################################################
-## Based on the NeewerLight project by @keefo (Xu Lian)
-##   > https://github.com/keefo/NeewerLite <
-#############################################################
+############################################################
+## Originally based on the NeewerLight project by @keefo
+##      > https://github.com/keefo/NeewerLite <
+############################################################
 
 import os
 import sys
@@ -654,7 +654,7 @@ try: # try to load the GUI
                 self.rememberLightsOnExit_check.setChecked(False)
                 self.rememberPresetsOnExit_check.setChecked(True)
                 self.maxNumOfAttempts_field.setText("6")
-                self.acceptable_HTTP_IPs_field.setText("\n".join(["127.0.0.1", "192.168", "10.0.0"]))
+                self.acceptable_HTTP_IPs_field.setText("\n".join(["127.0.0.1", "192.168.", "10."]))
                 self.whiteListedMACs_field.setText("")
                 self.SC_turnOffButton_field.setKeySequence("Ctrl+PgDown")
                 self.SC_turnOnButton_field.setKeySequence("Ctrl+PgUp")
@@ -723,11 +723,11 @@ try: # try to load the GUI
             # FIGURE OUT IF THE HTTP IP ADDRESSES HAVE CHANGED
             returnedList_HTTP_IPs = self.acceptable_HTTP_IPs_field.toPlainText().split("\n")
             
-            if returnedList_HTTP_IPs != ["127.0.0.1", "192.168", "10.0.0"]: # if the list of HTTP IPs have changed
+            if returnedList_HTTP_IPs != ["127.0.0.1", "192.168.", "10."]: # if the list of HTTP IPs have changed
                 acceptable_HTTP_IPs = returnedList_HTTP_IPs # change the global HTTP IPs available
                 finalPrefs.append("acceptable_HTTP_IPs=" + ";".join(acceptable_HTTP_IPs)) # add the new ones to the preferences
             else:
-                acceptable_HTTP_IPs = ["127.0.0.1", "192.168", "10.0.0"] # if we reset the IPs, then re-reset the parameter
+                acceptable_HTTP_IPs = ["127.0.0.1", "192.168.", "10."] # if we reset the IPs, then re-reset the parameter
 
             # ADD WHITELISTED LIGHTS TO PREFERENCES IF THEY EXIST
             returnedList_whiteListedMACs = self.whiteListedMACs_field.toPlainText().replace(" ", "").split("\n") # remove spaces and split on newlines
@@ -843,7 +843,7 @@ try: # try to load the GUI
                 finalPrefs.append("enableTabsOnLaunch=1")
                
             if len(finalPrefs) > 0: # if we actually have preferences to save...
-                with open(globalPrefsFile, "w") as prefsFileToWrite:
+                with open(globalPrefsFile, mode="w", encoding="utf-8") as prefsFileToWrite:
                     prefsFileToWrite.write(("\n").join(finalPrefs)) # then write them to the prefs file
 
                 # PRINT THIS INFORMATION WHETHER DEBUG OUTPUT IS TURNED ON OR NOT
@@ -1032,7 +1032,7 @@ try: # try to load the GUI
                     exportString += "|" + "120,135,2,100,56,157" # then just give the default (CCT, 5600K, 100%) params
 
             # WRITE THE PREFERENCES FILE
-            with open(exportFileName, "w") as prefsFileToWrite:
+            with open(exportFileName, mode="w", encoding="utf-8") as prefsFileToWrite:
                 prefsFileToWrite.write(exportString)
 
             if customName != "":
@@ -1305,7 +1305,7 @@ try: # try to load the GUI
                     createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
 
                     # WRITE THE PREFERENCES FILE
-                    with open(customLightPresetsFile, "w") as prefsFileToWrite:
+                    with open(customLightPresetsFile, mode="w", encoding="utf-8") as prefsFileToWrite:
                         prefsFileToWrite.write("\n".join(customPresetsToWrite))
 
                     printDebugString("Exported custom presets to " + customLightPresetsFile)
@@ -1736,9 +1736,8 @@ def loadCustomPresets():
     global customLightPresets
 
     # READ THE PREFERENCES FILE INTO A LIST
-    fileToOpen = open(customLightPresetsFile)
-    customPresets = fileToOpen.read().split("\n")
-    fileToOpen.close()
+    with open(customLightPresetsFile, mode="r", encoding="utf-8") as fileToOpen:
+        customPresets = fileToOpen.read().split("\n")
 
     acceptable_arguments = ["customPreset0", "customPreset1", "customPreset2", "customPreset3", \
                             "customPreset4", "customPreset5", "customPreset6", "customPreset7"]
@@ -1971,9 +1970,8 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
         printDebugString("A custom preferences file was found for " + MACAddress + "!")
 
         # READ THE PREFERENCES FILE INTO A LIST
-        fileToOpen = open(customPrefsPath)
-        customPrefs = fileToOpen.read().split("|")
-        fileToOpen.close()
+        with open(customPrefsPath, mode="r", encoding="utf-8") as fileToOpen:
+            customPrefs = fileToOpen.read().split("|")
 
         # CHANGE STRING "Booleans" INTO ACTUAL BOOLEANS
         for b in range(1,3):
@@ -2789,6 +2787,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<META HTTP-EQUIV='Content-Type' CONTENT='text/html;charset=UTF-8'>\n", "utf-8"))
         self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.11 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
@@ -2864,9 +2863,8 @@ def loadPrefsFile(globalPrefsFile = ""):
     if globalPrefsFile != "":
         printDebugString("Loading global preferences from file...")
 
-        fileToOpen = open(globalPrefsFile)
-        mainPrefs = fileToOpen.read().splitlines()
-        fileToOpen.close()
+        with open(globalPrefsFile, mode="r", encoding="utf-8") as fileToOpen:
+            mainPrefs = fileToOpen.read().splitlines()
 
         acceptable_arguments = ["findLightsOnStartup", "autoConnectToLights", "printDebug", "maxNumOfAttempts", "rememberLightsOnExit", "acceptableIPs", \
             "SC_turnOffButton", "SC_turnOnButton", "SC_scanCommandButton", "SC_tryConnectButton", "SC_Tab_CCT", "SC_Tab_HSI", "SC_Tab_SCENE", "SC_Tab_PREFS", \
@@ -2896,7 +2894,7 @@ def loadPrefsFile(globalPrefsFile = ""):
     prefsParser.add_argument("--printDebug", default=1)
     prefsParser.add_argument("--maxNumOfAttempts", default=6)
     prefsParser.add_argument("--rememberLightsOnExit", default=0)
-    prefsParser.add_argument("--acceptableIPs", default=["127.0.0.1", "192.168", "10.0.0"])
+    prefsParser.add_argument("--acceptableIPs", default=["127.0.0.1", "192.168.", "10."])
     prefsParser.add_argument("--whiteListedMACs" , default=[])
     prefsParser.add_argument("--rememberPresetsOnExit", default=1)
 
@@ -2969,6 +2967,13 @@ def loadPrefsFile(globalPrefsFile = ""):
     enableTabsOnLaunch = bool(int(mainPrefs.enableTabsOnLaunch))
 
 if __name__ == '__main__':
+    # Display the version of NeewerLite-Python we're using
+    print("---------------------------------------------------------")
+    print("             NeewerLite-Python ver. 0.11")
+    print("                 by Zach Glenwright")
+    print("  > https://github.com/taburineagle/NeewerLite-Python <")
+    print("---------------------------------------------------------")
+
     singleInstanceLock() # make a lockfile if one doesn't exist yet, and quit out if one does
 
     if os.path.exists(globalPrefsFile):
