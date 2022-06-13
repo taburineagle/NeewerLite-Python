@@ -473,7 +473,7 @@ class Ui_MainWindow(object):
         self.globalPrefsLay.addRow(self.rememberLightsOnExit_check)
         self.globalPrefsLay.addRow(self.rememberPresetsOnExit_check)
         self.globalPrefsLay.addRow("Maximum Number of retries:", self.maxNumOfAttempts_field)
-        self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Acceptable IPs to use for the HTTP Server:</strong></u><br><em>Each line below is an IP allows access to NeewerLite-Python's HTTP server.<br>Wildcards for IP addresses can be entered by just leaving that section blank.<br><u>For example:</u><br><strong>192.168.*.*</strong> would be entered as just <strong>192.168</strong><br><strong>10.0.1.*</strong> is <strong>10.0.1</strong>", alignment=Qt.AlignCenter))
+        self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Acceptable IPs to use for the HTTP Server:</strong></u><br><em>Each line below is an IP allows access to NeewerLite-Python's HTTP server.<br>Wildcards for IP addresses can be entered by just leaving that section blank.<br><u>For example:</u><br><strong>192.168.*.*</strong> would be entered as just <strong>192.168.</strong><br><strong>10.0.1.*</strong> is <strong>10.0.1.</strong>", alignment=Qt.AlignCenter))
         self.globalPrefsLay.addRow(self.acceptable_HTTP_IPs_field)
         self.globalPrefsLay.addRow(QLabel("<hr><strong><u>Whitelisted MAC Addresses/GUIDs</u></strong><br><em>Devices with whitelisted MAC Addresses/GUIDs are added to the<br>list of lights even if their name doesn't contain <strong>Neewer</strong> in it.<br><br>This preference is really only useful if you have compatible lights<br>that don't show up properly due to name mismatches.</em>", alignment=Qt.AlignCenter))
         self.globalPrefsLay.addRow(self.whiteListedMACs_field)
