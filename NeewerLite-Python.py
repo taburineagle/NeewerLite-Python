@@ -298,9 +298,9 @@ try: # try to load the GUI
             self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
             self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
 
-            self.Slider_HSI_1_H.valueChanged.connect(self.computeValueHSI)
-            self.Slider_HSI_2_S.valueChanged.connect(self.computeValueHSI)
-            self.Slider_HSI_3_L.valueChanged.connect(self.computeValueHSI)
+            self.Slider_HSI_1_H.valueChanged.connect(lambda: self.computeValueHSI(1))
+            self.Slider_HSI_2_S.valueChanged.connect(lambda: self.computeValueHSI(2))
+            self.Slider_HSI_3_L.valueChanged.connect(lambda: self.computeValueHSI(3))
 
             self.Slider_ANM_Brightness.valueChanged.connect(lambda: self.computeValueANM(0))
             self.Button_1_police_A.clicked.connect(lambda: self.computeValueANM(1))
@@ -577,7 +577,7 @@ try: # try to load the GUI
                 if selectedLight != -1: # if there is a specific selected light
                     self.setupLightPrefsTab(selectedLight) # update the Prefs tab with the information for that selected light
 
-        def getGradient(self, startRange, endRange):
+        def getCCTTempGradient(self, startRange, endRange):
             rangeStep = (endRange - startRange) / 4 # figure out how much in between steps of the gradient
             gradient = QLinearGradient(0, 0, 532, 31) # make a new gradient
 
@@ -589,6 +589,15 @@ try: # try to load the GUI
 
             return gradient # return the new gradient to switch the display out with
 
+        def getHSIHueGradient(self, hue):
+            gradient = QLinearGradient(0, 0, 532, 31) # make a new gradient
+
+            gradient.setColorAt(0, QColor(255, 255, 255))
+            newColor = convert_HSI_to_RGB(hue / 360)
+            gradient.setColorAt(1, QColor(newColor[0], newColor[1], newColor[2]))
+
+            return gradient # return the new gradient to switch the display out with
+
         def setupCCTBounds(self, startRange, endRange):
             self.TFV_CCT_Hue_Min.setText(str(startRange) + "K")
             self.TFV_CCT_Hue_Max.setText(str(endRange) + "K")
@@ -596,7 +605,7 @@ try: # try to load the GUI
             self.Slider_CCT_Hue.setMinimum(startRange / 100) # set the min value of the color temperature slider to the new min bounds
             self.Slider_CCT_Hue.setMaximum(endRange / 100) # set the max value of the color temperature slider to the new max bounds
             
-            self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(self.getGradient(startRange, endRange)) # change the gradient to fit the new boundary
+            self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(self.getCCTTempGradient(startRange, endRange)) # change the gradient to fit the new boundary
 
         def setupLightPrefsTab(self, selectedLight):
             # SET UP THE CUSTOM NAME TEXT BOX
@@ -1218,6 +1227,10 @@ try: # try to load the GUI
                         self.checkLightTab() # reset the bounds to the normal values (5600K)
             elif i == 1: # we clicked on the HSI tab
                 if len(currentSelection) == 1: # if we have only one thing selected
+                    # if the "saturation" gradient isn't drawn yet, do that here
+                    if self.HSI_Sat_Gradient_BG.scene().backgroundBrush() == Qt.NoBrush:
+                        self.HSI_Sat_Gradient_BG.scene().setBackgroundBrush(self.getHSIHueGradient(self.Slider_HSI_1_H.value())) # change the gradient to fit the new boundary
+
                     if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update HSI value
                         self.computeValueHSI() # calculate the current HSI value
             elif i == 2: # we clicked on the ANM tab
@@ -1233,7 +1246,7 @@ try: # try to load the GUI
             global CCTSlider
             CCTSlider = hueOrBrightness # set the global CCT "current slider" to the slider you just... slid
 
-            if CCTSlider == 2: # we dragged the hue slider
+            if CCTSlider == 2: # we dragged the color temperature slider
                 self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
             else: # we dragged the brightness slider
                 self.TFV_CCT_Bright.setText(str(self.Slider_CCT_Bright.value()) + "%")
@@ -1246,11 +1259,24 @@ try: # try to load the GUI
             self.startSend()
 
         # COMPUTE A BYTESTRING FOR THE HSI SECTION
-        def computeValueHSI(self):
+        def computeValueHSI(self, slidSlider = -1):
             calculateByteString(colorMode="HSI",\
                                 HSI_H=str(int(self.Slider_HSI_1_H.value())),\
                                 HSI_S=str(int(self.Slider_HSI_2_S.value())),\
                                 HSI_I=str(int(self.Slider_HSI_3_L.value())))
+
+            if slidSlider == 1: # we dragged the hue slider
+                self.TFV_HSI_1_H.setText(str(int(self.Slider_HSI_1_H.value())) + "º")
+                self.HSI_Sat_Gradient_BG.scene().setBackgroundBrush(self.getHSIHueGradient(self.Slider_HSI_1_H.value())) # change the gradient to fit the new boundary
+                # BUILD THE GRADIENT HERE
+            elif slidSlider == 2: # we dragged the saturation slider
+                self.TFV_HSI_2_S.setText(str(int(self.Slider_HSI_2_S.value())) + "%")
+            elif slidSlider == 3: # we dragged the intensity slider
+                self.TFV_HSI_3_L.setText(str(int(self.Slider_HSI_3_L.value())) + "%")
+            else: # we're updating everything, so make sure all is correct
+                self.TFV_HSI_1_H.setText(str(int(self.Slider_HSI_1_H.value())) + "º")
+                self.TFV_HSI_2_S.setText(str(int(self.Slider_HSI_2_S.value())) + "%")
+                self.TFV_HSI_3_L.setText(str(int(self.Slider_HSI_3_L.value())) + "%")
 
             self.statusBar.showMessage("Current value (HSI Mode): " + updateStatus())
             self.startSend()
@@ -1648,6 +1674,21 @@ def convert_K_to_RGB(Ktemp):
             blue = tmp_blue
     
     return int(red), int(green), int(blue) # return the integer value for each part of the RGB values for this step
+
+def convert_HSI_to_RGB(h, s = 1, v = 1):
+    # Taken from this StackOverflow page, which is an articulation of the colorsys code to
+    # convert HSV values (not HSI, but close, as I'm keeping S and V locked to 1) to RGB:
+    # https://stackoverflow.com/posts/26856771/revisions
+
+    if s == 0.0: v*=255; return (v, v, v)
+    i = int(h*6.) # XXX assume int() truncates!
+    f = (h*6.)-i; p,q,t = int(255*(v*(1.-s))), int(255*(v*(1.-s*f))), int(255*(v*(1.-s*(1.-f)))); v*=255; i%=6
+    if i == 0: return (v, t, p)
+    if i == 1: return (q, v, p)
+    if i == 2: return (p, v, t)
+    if i == 3: return (p, q, v)
+    if i == 4: return (t, p, v)
+    if i == 5: return (v, p, q)
 
 # WORKING WITH CUSTOM PRESETS
 def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):

@@ -7,12 +7,27 @@ import platform # for selecting specific fonts for specific systems
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
-        # ============ FONTS AND OTHER WINDOW SPECIFICS ============
+        # ============ FONTS, GRADIENTS AND OTHER WINDOW SPECIFICS ============
         mainFont = QFont()
         mainFont.setBold(True)
         mainFont.setWeight(75)
 
-        MainWindow.setFixedSize(590, 606) # the main window should be this size at launch, and no bigger
+        # THE "DARK TO LIGHT" GRADIENT FOR BRIGHTNESS/INTENSITY
+        gradient_Bri = QLinearGradient(0, 0, 532, 31)
+        gradient_Bri.setColorAt(0.0, QColor(0, 0, 0, 255)) # Dark
+        gradient_Bri.setColorAt(1.0, QColor(255, 255, 255, 255)) # Light
+
+        # THE "RGB" COLOR PICKER'S GRADIENT
+        gradient_RGB = QLinearGradient(0, 0, 532, 31)
+        gradient_RGB.setColorAt(0.0, QColor(255, 0, 0, 255))
+        gradient_RGB.setColorAt(0.16, QColor(255, 255, 0, 255))
+        gradient_RGB.setColorAt(0.33, QColor(0, 255, 0, 255))
+        gradient_RGB.setColorAt(0.49, QColor(0, 255, 255, 255))
+        gradient_RGB.setColorAt(0.66, QColor(0, 0, 255, 255))
+        gradient_RGB.setColorAt(0.83, QColor(255, 0, 255, 255))
+        gradient_RGB.setColorAt(1.0, QColor(255, 0, 0, 255))
+
+        MainWindow.setFixedSize(590, 670) # the main window should be this size at launch, and no bigger
         MainWindow.setWindowTitle("NeewerLite-Python 0.12 by Zach Glenwright")
 
         self.centralwidget = QWidget(MainWindow)
@@ -97,7 +112,7 @@ class Ui_MainWindow(object):
 
         # ============ THE MODE TABS ============
         self.ColorModeTabWidget = QTabWidget(self.centralwidget)
-        self.ColorModeTabWidget.setGeometry(QRect(10, 376, 571, 201))
+        self.ColorModeTabWidget.setGeometry(QRect(10, 385, 571, 254))
 
         # === >> THE CCT TAB << ===
         self.CCT = QWidget()
@@ -109,17 +124,7 @@ class Ui_MainWindow(object):
 
         # DRAW THE LINEAR GRADIENT TO INDICATE THE COLOR TEMPERATURE VALUE IN THE CCT TAB
         # NEW DEFAULT OF 5600K FOR LIGHTS THAT DON'T SCALE UP TO 8500K
-        mySceneCCT_Temp = QGraphicsScene(self)
-
-        # COLOR TEMPERATURE GRADIENT
-        gradient_Temp = QLinearGradient(0, 0, 532, 31)
-        gradient_Temp.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
-        gradient_Temp.setColorAt(0.25, QColor(255, 204, 153, 255)) # 3800K
-        gradient_Temp.setColorAt(0.50, QColor(255, 217, 182, 255)) # 4400K
-        gradient_Temp.setColorAt(0.75, QColor(255, 228, 206, 255)) # 5000K
-        gradient_Temp.setColorAt(1.0, QColor(255, 238, 227, 255)) # 5600K
-
-        mySceneCCT_Temp.setBackgroundBrush(gradient_Temp)
+        mySceneCCT_Temp = QGraphicsScene(self) # make a scene (ha, right) and don't fill it yet - do that on loading a light
 
         self.CCT_Temp_Gradient_BG = QGraphicsView(mySceneCCT_Temp, self.CCT)
         self.CCT_Temp_Gradient_BG.setGeometry(QRect(8, 30, 552, 24))
@@ -156,12 +161,6 @@ class Ui_MainWindow(object):
         self.TFL_CCT_Bright.setFont(mainFont)
 
         mySceneCCT_Bri = QGraphicsScene(self)
-
-        # DARK TO LIGHT GRADIENT
-        gradient_Bri = QLinearGradient(0, 0, 532, 31)
-        gradient_Bri.setColorAt(0.0, QColor(0, 0, 0, 255)) # Dark
-        gradient_Bri.setColorAt(1.0, QColor(255, 255, 255, 255)) # Light
-
         mySceneCCT_Bri.setBackgroundBrush(gradient_Bri)
 
         self.CCT_Bright_Gradient_BG = QGraphicsView(mySceneCCT_Bri, self.CCT)
@@ -196,76 +195,115 @@ class Ui_MainWindow(object):
         # === >> THE HSI TAB << ===
         self.HSI = QWidget()
 
-        # DRAW THE LINEAR GRADIENT TO INDICATE THE HUE VALUE IN THE HSI TAB
-        mySceneHSI = QGraphicsScene(self)
+        self.TFL_HSI_1_H = QLabel(self.HSI)
+        self.TFL_HSI_1_H.setGeometry(QRect(8, 10, 440, 17))
+        self.TFL_HSI_1_H.setText("Hue")
+        self.TFL_HSI_1_H.setFont(mainFont)
 
-        gradient = QLinearGradient(0, 0, 532, 31)
-        gradient.setColorAt(0.0, QColor(255, 0, 0, 255))
-        gradient.setColorAt(0.16, QColor(255, 255, 0, 255))
-        gradient.setColorAt(0.33, QColor(0, 255, 0, 255))
-        gradient.setColorAt(0.49, QColor(0, 255, 255, 255))
-        gradient.setColorAt(0.66, QColor(0, 0, 255, 255))
-        gradient.setColorAt(0.83, QColor(255, 0, 255, 255))
-        gradient.setColorAt(1.0, QColor(255, 0, 0, 255))
+        mySceneHSI_Hue = QGraphicsScene(self)
+        mySceneHSI_Hue.setBackgroundBrush(gradient_RGB)
 
-        mySceneHSI.setBackgroundBrush(gradient)
-
-        self.HSI_Hue_Gradient_BG = QGraphicsView(mySceneHSI, self.HSI)
-        self.HSI_Hue_Gradient_BG.setObjectName(u"HSI_Hue_Gradient_BG")
-        self.HSI_Hue_Gradient_BG.setGeometry(QRect(9, 10, 552, 31))
+        self.HSI_Hue_Gradient_BG = QGraphicsView(mySceneHSI_Hue, self.HSI)
+        self.HSI_Hue_Gradient_BG.setGeometry(QRect(8, 30, 552, 24))
         self.HSI_Hue_Gradient_BG.setFrameShape(QFrame.NoFrame)
         self.HSI_Hue_Gradient_BG.setFrameShadow(QFrame.Sunken)
         self.HSI_Hue_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
 
         self.Slider_HSI_1_H = QSlider(self.HSI)
-        self.Slider_HSI_1_H.setGeometry(QRect(10, 20, 551, 16))
+        self.Slider_HSI_1_H.setGeometry(QRect(9, 35, 551, 16))
+        self.Slider_HSI_1_H.setMinimum(0)
         self.Slider_HSI_1_H.setMaximum(360)
-        self.Slider_HSI_1_H.setSliderPosition(240)
+        self.Slider_HSI_1_H.setValue(240)
         self.Slider_HSI_1_H.setOrientation(Qt.Horizontal)
 
-        self.TFL_HSI_1_H = QLabel(self.HSI)
-        self.TFL_HSI_1_H.setGeometry(QRect(10, 40, 440, 17))
-        self.TFL_HSI_1_H.setText("Hue")
-        self.TFL_HSI_1_H.setFont(mainFont)
+        self.TFV_HSI_1_H_Min = QLabel(self.HSI)
+        self.TFV_HSI_1_H_Min.setGeometry(QRect(10, 56, 51, 20))
+        self.TFV_HSI_1_H_Min.setText("0º")
+        self.TFV_HSI_1_H_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
 
         self.TFV_HSI_1_H = QLabel(self.HSI)
-        self.TFV_HSI_1_H.setGeometry(QRect(510, 40, 51, 20))
-        self.TFV_HSI_1_H.setText("240")
-        self.TFV_HSI_1_H.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_HSI_1_H.setGeometry(QRect(250, 56, 51, 20))
+        self.TFV_HSI_1_H.setText("240º")
+        self.TFV_HSI_1_H.setFont(mainFont)
+        self.TFV_HSI_1_H.setAlignment(Qt.AlignCenter)
 
-        self.Slider_HSI_2_S = QSlider(self.HSI)
-        self.Slider_HSI_2_S.setGeometry(QRect(10, 70, 551, 16))
-        self.Slider_HSI_2_S.setMaximum(100)
-        self.Slider_HSI_2_S.setSliderPosition(100)
-        self.Slider_HSI_2_S.setOrientation(Qt.Horizontal)
+        self.TFV_HSI_1_H_Max = QLabel(self.HSI)
+        self.TFV_HSI_1_H_Max.setGeometry(QRect(510, 56, 51, 20))
+        self.TFV_HSI_1_H_Max.setText("360º")
+        self.TFV_HSI_1_H_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
 
         self.TFL_HSI_2_S = QLabel(self.HSI)
-        self.TFL_HSI_2_S.setGeometry(QRect(10, 90, 440, 17))
+        self.TFL_HSI_2_S.setGeometry(QRect(8, 80, 440, 17))
         self.TFL_HSI_2_S.setText("Saturation")
         self.TFL_HSI_2_S.setFont(mainFont)
 
-        self.TFV_HSI_2_S = QLabel(self.HSI)
-        self.TFV_HSI_2_S.setGeometry(QRect(510, 90, 51, 20))
-        self.TFV_HSI_2_S.setText("100")
-        self.TFV_HSI_2_S.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        mySceneHSI_Sat = QGraphicsScene(self)
+        
+        self.HSI_Sat_Gradient_BG = QGraphicsView(mySceneHSI_Sat, self.HSI)
+        self.HSI_Sat_Gradient_BG.setGeometry(QRect(8, 100, 552, 24))
+        self.HSI_Sat_Gradient_BG.setFrameShape(QFrame.NoFrame)
+        self.HSI_Sat_Gradient_BG.setFrameShadow(QFrame.Sunken)
+        self.HSI_Sat_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
 
-        self.Slider_HSI_3_L = QSlider(self.HSI)
-        self.Slider_HSI_3_L.setGeometry(QRect(10, 120, 551, 16))
-        self.Slider_HSI_3_L.setMaximum(100)
-        self.Slider_HSI_3_L.setSliderPosition(100)
-        self.Slider_HSI_3_L.setOrientation(Qt.Horizontal)
+        self.Slider_HSI_2_S = QSlider(self.HSI)
+        self.Slider_HSI_2_S.setGeometry(QRect(9, 105, 551, 16))
+        self.Slider_HSI_2_S.setMinimum(0)
+        self.Slider_HSI_2_S.setMaximum(100)
+        self.Slider_HSI_2_S.setValue(100)
+        self.Slider_HSI_2_S.setOrientation(Qt.Horizontal)
+
+        self.TFV_HSI_2_S_Min = QLabel(self.HSI)
+        self.TFV_HSI_2_S_Min.setGeometry(QRect(10, 126, 51, 20))
+        self.TFV_HSI_2_S_Min.setText("0%")
+        self.TFV_HSI_2_S_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+
+        self.TFV_HSI_2_S = QLabel(self.HSI)
+        self.TFV_HSI_2_S.setGeometry(QRect(250, 126, 51, 20))
+        self.TFV_HSI_2_S.setText("100%")
+        self.TFV_HSI_2_S.setFont(mainFont)
+        self.TFV_HSI_2_S.setAlignment(Qt.AlignCenter)
+
+        self.TFV_HSI_2_S_Max = QLabel(self.HSI)
+        self.TFV_HSI_2_S_Max.setGeometry(QRect(510, 126, 51, 20))
+        self.TFV_HSI_2_S_Max.setText("100%")
+        self.TFV_HSI_2_S_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
 
         self.TFL_HSI_3_L = QLabel(self.HSI)
-        self.TFL_HSI_3_L.setObjectName(u"TFL_HSI_3_L")
-        self.TFL_HSI_3_L.setGeometry(QRect(10, 140, 481, 17))
+        self.TFL_HSI_3_L.setGeometry(QRect(8, 150, 440, 17))
         self.TFL_HSI_3_L.setText("Intensity (Brightness)")
         self.TFL_HSI_3_L.setFont(mainFont)
 
+        mySceneHSI_Int = QGraphicsScene(self)
+        mySceneHSI_Int.setBackgroundBrush(gradient_Bri)
+
+        self.HSI_Int_Gradient_BG = QGraphicsView(mySceneHSI_Int, self.HSI)
+        self.HSI_Int_Gradient_BG.setGeometry(QRect(8, 170, 552, 24))
+        self.HSI_Int_Gradient_BG.setFrameShape(QFrame.NoFrame)
+        self.HSI_Int_Gradient_BG.setFrameShadow(QFrame.Sunken)
+        self.HSI_Int_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+
+        self.Slider_HSI_3_L = QSlider(self.HSI)
+        self.Slider_HSI_3_L.setGeometry(QRect(9, 175, 551, 16))
+        self.Slider_HSI_3_L.setMinimum(0)
+        self.Slider_HSI_3_L.setMaximum(100)
+        self.Slider_HSI_3_L.setValue(100)
+        self.Slider_HSI_3_L.setOrientation(Qt.Horizontal)
+
+        self.TFV_HSI_3_L_Min = QLabel(self.HSI)
+        self.TFV_HSI_3_L_Min.setGeometry(QRect(10, 196, 51, 20))
+        self.TFV_HSI_3_L_Min.setText("0%")
+        self.TFV_HSI_3_L_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+
         self.TFV_HSI_3_L = QLabel(self.HSI)
-        self.TFV_HSI_3_L.setObjectName(u"TFV_HSI_3_L")
-        self.TFV_HSI_3_L.setGeometry(QRect(510, 140, 51, 20))
-        self.TFV_HSI_3_L.setText("100")
-        self.TFV_HSI_3_L.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_HSI_3_L.setGeometry(QRect(250, 196, 51, 20))
+        self.TFV_HSI_3_L.setText("100%")
+        self.TFV_HSI_3_L.setFont(mainFont)
+        self.TFV_HSI_3_L.setAlignment(Qt.AlignCenter)
+
+        self.TFV_HSI_3_L_Max = QLabel(self.HSI)
+        self.TFV_HSI_3_L_Max.setGeometry(QRect(510, 196, 51, 20))
+        self.TFV_HSI_3_L_Max.setText("100%")
+        self.TFV_HSI_3_L_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
 
         # === >> THE SCENE TAB << ===
         self.ANM = QWidget()
@@ -542,9 +580,6 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusBar)
 
         # ============ CONNECTIONS ============
-        self.Slider_HSI_1_H.valueChanged.connect(self.TFV_HSI_1_H.setNum)
-        self.Slider_HSI_2_S.valueChanged.connect(self.TFV_HSI_2_S.setNum)
-        self.Slider_HSI_3_L.valueChanged.connect(self.TFV_HSI_3_L.setNum)
         self.Slider_ANM_Brightness.valueChanged.connect(self.TFV_ANM_Brightness.setNum)
 
 class customPresetButton(QLabel):
