@@ -295,8 +295,8 @@ try: # try to load the GUI
             self.customPreset_7_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7))
             self.customPreset_7_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7, True))
 
-            self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
             self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
+            self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
 
             self.Slider_HSI_1_H.valueChanged.connect(self.computeValueHSI)
             self.Slider_HSI_2_S.valueChanged.connect(self.computeValueHSI)
@@ -590,6 +590,9 @@ try: # try to load the GUI
             return gradient # return the new gradient to switch the display out with
 
         def setupCCTBounds(self, startRange, endRange):
+            self.TFV_CCT_Hue_Min.setText(str(startRange) + "K")
+            self.TFV_CCT_Hue_Max.setText(str(endRange) + "K")
+
             self.Slider_CCT_Hue.setMinimum(startRange / 100) # set the min value of the color temperature slider to the new min bounds
             self.Slider_CCT_Hue.setMaximum(endRange / 100) # set the max value of the color temperature slider to the new max bounds
             
@@ -1228,10 +1231,12 @@ try: # try to load the GUI
         # COMPUTE A BYTESTRING FOR THE CCT SECTION
         def computeValueCCT(self, hueOrBrightness = -1):
             global CCTSlider
-            # CCTSlider = -1 # force this value to -1 to send both hue and brightness at the same time on SNL-660
             CCTSlider = hueOrBrightness # set the global CCT "current slider" to the slider you just... slid
 
-            self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
+            if CCTSlider == 2: # we dragged the hue slider
+                self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
+            else: # we dragged the brightness slider
+                self.TFV_CCT_Bright.setText(str(self.Slider_CCT_Bright.value()) + "%")
 
             calculateByteString(colorMode="CCT",\
                                 temp=str(int(self.Slider_CCT_Hue.value())),\

@@ -14,7 +14,7 @@ class Ui_MainWindow(object):
 
         MainWindow.setFixedSize(590, 606) # the main window should be this size at launch, and no bigger
         MainWindow.setWindowTitle("NeewerLite-Python 0.12 by Zach Glenwright")
-        
+
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
 
@@ -34,20 +34,20 @@ class Ui_MainWindow(object):
         self.tryConnectButton = QPushButton(self.centralwidget)
         self.tryConnectButton.setGeometry(QRect(500, 4, 81, 22))
         self.tryConnectButton.setText("Connect")
-        
+
         self.turnOffButton.setEnabled(False)
         self.turnOnButton.setEnabled(False)
         self.tryConnectButton.setEnabled(False)
 
         # ============ THE LIGHT TABLE ============
         self.lightTable = QTableWidget(self.centralwidget)
-        
+
         self.lightTable.setColumnCount(4)
         self.lightTable.setColumnWidth(0, 120)
         self.lightTable.setColumnWidth(1, 150)
         self.lightTable.setColumnWidth(2, 94)
         self.lightTable.setColumnWidth(3, 190)
-        
+
         __QT0 = QTableWidgetItem()
         __QT0.setText("Light Name")
         self.lightTable.setHorizontalHeaderItem(0, __QT0)
@@ -63,7 +63,7 @@ class Ui_MainWindow(object):
         __QT3 = QTableWidgetItem()
         __QT3.setText("Status")
         self.lightTable.setHorizontalHeaderItem(3, __QT3)
-        
+
         self.lightTable.setGeometry(QRect(10, 32, 571, 261))
         self.lightTable.setSizeAdjustPolicy(QAbstractScrollArea.AdjustToContents)
         self.lightTable.setEditTriggers(QAbstractItemView.NoEditTriggers)
@@ -102,58 +102,97 @@ class Ui_MainWindow(object):
         # === >> THE CCT TAB << ===
         self.CCT = QWidget()
 
-        # DRAW THE LINEAR GRADIENT TO INDICATE THE COLOR TEMPERATURE VALUE IN THE CCT TAB
-        # NEW DEFAULT OF 5600K FOR LIGHTS THAT DON'T SCALE UP TO 8500K
-        mySceneCCT = QGraphicsScene(self)
-
-        gradient = QLinearGradient(0, 0, 532, 31)
-        gradient.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
-        gradient.setColorAt(0.25, QColor(255, 204, 153, 255)) # 3800K
-        gradient.setColorAt(0.50, QColor(255, 217, 182, 255)) # 4400K
-        gradient.setColorAt(0.75, QColor(255, 228, 206, 255)) # 5000K
-        gradient.setColorAt(1.0, QColor(255, 238, 227, 255)) # 5600K
-    
-        mySceneCCT.setBackgroundBrush(gradient)
-        
-        self.CCT_Temp_Gradient_BG = QGraphicsView(mySceneCCT, self.CCT)
-        self.CCT_Temp_Gradient_BG.setGeometry(QRect(9, 10, 552, 31))
-        self.CCT_Temp_Gradient_BG.setFrameShape(QFrame.NoFrame)
-        self.CCT_Temp_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.CCT_Temp_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
-        
-        self.Slider_CCT_Hue = QSlider(self.CCT)
-        self.Slider_CCT_Hue.setGeometry(QRect(10, 20, 551, 16))
-        self.Slider_CCT_Hue.setMinimum(32)
-        self.Slider_CCT_Hue.setMaximum(56)
-        self.Slider_CCT_Hue.setSliderPosition(56)
-        self.Slider_CCT_Hue.setOrientation(Qt.Horizontal)
-
         self.TFL_CCT_Hue = QLabel(self.CCT)
-        self.TFL_CCT_Hue.setGeometry(QRect(10, 40, 440, 17))
+        self.TFL_CCT_Hue.setGeometry(QRect(8, 10, 440, 17))
         self.TFL_CCT_Hue.setText("Color Temperature")
         self.TFL_CCT_Hue.setFont(mainFont)
 
+        # DRAW THE LINEAR GRADIENT TO INDICATE THE COLOR TEMPERATURE VALUE IN THE CCT TAB
+        # NEW DEFAULT OF 5600K FOR LIGHTS THAT DON'T SCALE UP TO 8500K
+        mySceneCCT_Temp = QGraphicsScene(self)
+
+        # COLOR TEMPERATURE GRADIENT
+        gradient_Temp = QLinearGradient(0, 0, 532, 31)
+        gradient_Temp.setColorAt(0.0, QColor(255, 187, 120, 255)) # 3200K
+        gradient_Temp.setColorAt(0.25, QColor(255, 204, 153, 255)) # 3800K
+        gradient_Temp.setColorAt(0.50, QColor(255, 217, 182, 255)) # 4400K
+        gradient_Temp.setColorAt(0.75, QColor(255, 228, 206, 255)) # 5000K
+        gradient_Temp.setColorAt(1.0, QColor(255, 238, 227, 255)) # 5600K
+
+        mySceneCCT_Temp.setBackgroundBrush(gradient_Temp)
+
+        self.CCT_Temp_Gradient_BG = QGraphicsView(mySceneCCT_Temp, self.CCT)
+        self.CCT_Temp_Gradient_BG.setGeometry(QRect(8, 30, 552, 24))
+        self.CCT_Temp_Gradient_BG.setFrameShape(QFrame.NoFrame)
+        self.CCT_Temp_Gradient_BG.setFrameShadow(QFrame.Sunken)
+        self.CCT_Temp_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+
+        self.Slider_CCT_Hue = QSlider(self.CCT)
+        self.Slider_CCT_Hue.setGeometry(QRect(9, 35, 551, 16))
+        self.Slider_CCT_Hue.setMinimum(32)
+        self.Slider_CCT_Hue.setMaximum(56)
+        self.Slider_CCT_Hue.setValue(56)
+        self.Slider_CCT_Hue.setOrientation(Qt.Horizontal)
+
+        self.TFV_CCT_Hue_Min = QLabel(self.CCT)
+        self.TFV_CCT_Hue_Min.setGeometry(QRect(10, 56, 51, 20))
+        self.TFV_CCT_Hue_Min.setText("")
+        self.TFV_CCT_Hue_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+
         self.TFV_CCT_Hue = QLabel(self.CCT)
-        self.TFV_CCT_Hue.setGeometry(QRect(510, 40, 51, 20))
+        self.TFV_CCT_Hue.setGeometry(QRect(250, 56, 51, 20))
         self.TFV_CCT_Hue.setText("5600K")
-        self.TFV_CCT_Hue.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_CCT_Hue.setFont(mainFont)
+        self.TFV_CCT_Hue.setAlignment(Qt.AlignCenter)
 
-        self.Slider_CCT_Bright = QSlider(self.CCT)
-        self.Slider_CCT_Bright.setGeometry(QRect(10, 70, 551, 16))
-        self.Slider_CCT_Bright.setMaximum(100)
-        self.Slider_CCT_Bright.setSliderPosition(100)
-        self.Slider_CCT_Bright.setOrientation(Qt.Horizontal)
-
-        self.TFV_CCT_Bright = QLabel(self.CCT)
-        self.TFV_CCT_Bright.setGeometry(QRect(510, 90, 51, 20))
-        self.TFV_CCT_Bright.setText("100")
-        self.TFV_CCT_Bright.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_CCT_Hue_Max = QLabel(self.CCT)
+        self.TFV_CCT_Hue_Max.setGeometry(QRect(510, 56, 51, 20))
+        self.TFV_CCT_Hue_Max.setText("")
+        self.TFV_CCT_Hue_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
 
         self.TFL_CCT_Bright = QLabel(self.CCT)
-        self.TFL_CCT_Bright.setGeometry(QRect(10, 90, 440, 17))
+        self.TFL_CCT_Bright.setGeometry(QRect(8, 86, 440, 17))
         self.TFL_CCT_Bright.setText("Brightness")
         self.TFL_CCT_Bright.setFont(mainFont)
-        
+
+        mySceneCCT_Bri = QGraphicsScene(self)
+
+        # DARK TO LIGHT GRADIENT
+        gradient_Bri = QLinearGradient(0, 0, 532, 31)
+        gradient_Bri.setColorAt(0.0, QColor(0, 0, 0, 255)) # Dark
+        gradient_Bri.setColorAt(1.0, QColor(255, 255, 255, 255)) # Light
+
+        mySceneCCT_Bri.setBackgroundBrush(gradient_Bri)
+
+        self.CCT_Bright_Gradient_BG = QGraphicsView(mySceneCCT_Bri, self.CCT)
+        self.CCT_Bright_Gradient_BG.setGeometry(QRect(8, 106, 552, 24))
+        self.CCT_Bright_Gradient_BG.setFrameShape(QFrame.NoFrame)
+        self.CCT_Bright_Gradient_BG.setFrameShadow(QFrame.Sunken)
+        self.CCT_Bright_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+
+        self.Slider_CCT_Bright = QSlider(self.CCT)
+        self.Slider_CCT_Bright.setGeometry(QRect(9, 111, 551, 16))
+        self.Slider_CCT_Bright.setMinimum(0)
+        self.Slider_CCT_Bright.setMaximum(100)
+        self.Slider_CCT_Bright.setValue(100)
+        self.Slider_CCT_Bright.setOrientation(Qt.Horizontal)
+
+        self.TFV_CCT_Bright_Min = QLabel(self.CCT)
+        self.TFV_CCT_Bright_Min.setGeometry(QRect(10, 132, 51, 20))
+        self.TFV_CCT_Bright_Min.setText("0%")
+        self.TFV_CCT_Bright_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+
+        self.TFV_CCT_Bright = QLabel(self.CCT)
+        self.TFV_CCT_Bright.setGeometry(QRect(250, 132, 51, 20))
+        self.TFV_CCT_Bright.setText("100")
+        self.TFV_CCT_Bright.setFont(mainFont)
+        self.TFV_CCT_Bright.setAlignment(Qt.AlignCenter)
+
+        self.TFV_CCT_Bright_Max = QLabel(self.CCT)
+        self.TFV_CCT_Bright_Max.setGeometry(QRect(510, 132, 51, 20))
+        self.TFV_CCT_Bright_Max.setText("100%")
+        self.TFV_CCT_Bright_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+
         # === >> THE HSI TAB << ===
         self.HSI = QWidget()
 
@@ -168,10 +207,10 @@ class Ui_MainWindow(object):
         gradient.setColorAt(0.66, QColor(0, 0, 255, 255))
         gradient.setColorAt(0.83, QColor(255, 0, 255, 255))
         gradient.setColorAt(1.0, QColor(255, 0, 0, 255))
-    
+
         mySceneHSI.setBackgroundBrush(gradient)
-        
-        self.HSI_Hue_Gradient_BG = QGraphicsView(mySceneHSI, self.HSI)        
+
+        self.HSI_Hue_Gradient_BG = QGraphicsView(mySceneHSI, self.HSI)
         self.HSI_Hue_Gradient_BG.setObjectName(u"HSI_Hue_Gradient_BG")
         self.HSI_Hue_Gradient_BG.setGeometry(QRect(9, 10, 552, 31))
         self.HSI_Hue_Gradient_BG.setFrameShape(QFrame.NoFrame)
@@ -209,19 +248,19 @@ class Ui_MainWindow(object):
         self.TFV_HSI_2_S.setGeometry(QRect(510, 90, 51, 20))
         self.TFV_HSI_2_S.setText("100")
         self.TFV_HSI_2_S.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
-        
+
         self.Slider_HSI_3_L = QSlider(self.HSI)
         self.Slider_HSI_3_L.setGeometry(QRect(10, 120, 551, 16))
         self.Slider_HSI_3_L.setMaximum(100)
         self.Slider_HSI_3_L.setSliderPosition(100)
         self.Slider_HSI_3_L.setOrientation(Qt.Horizontal)
-        
+
         self.TFL_HSI_3_L = QLabel(self.HSI)
         self.TFL_HSI_3_L.setObjectName(u"TFL_HSI_3_L")
         self.TFL_HSI_3_L.setGeometry(QRect(10, 140, 481, 17))
         self.TFL_HSI_3_L.setText("Intensity (Brightness)")
         self.TFL_HSI_3_L.setFont(mainFont)
-        
+
         self.TFV_HSI_3_L = QLabel(self.HSI)
         self.TFV_HSI_3_L.setObjectName(u"TFV_HSI_3_L")
         self.TFV_HSI_3_L.setGeometry(QRect(510, 140, 51, 20))
@@ -246,7 +285,7 @@ class Ui_MainWindow(object):
         self.TFV_ANM_Brightness.setGeometry(QRect(510, 25, 51, 20))
         self.TFV_ANM_Brightness.setText("100")
         self.TFV_ANM_Brightness.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
-        
+
         self.TFL_A_policeAnim = QLabel(self.ANM)
         self.TFL_A_policeAnim.setGeometry(QRect(10, 46, 40, 40))
         self.TFL_A_policeAnim.setText("<html><head/><body><p><font size=\"8\">&#x1F6A8;</font></p></body></html>")
@@ -280,12 +319,12 @@ class Ui_MainWindow(object):
         self.Button_3_lightning_A.setGeometry(QRect(50, 130, 160, 31))
         self.Button_3_lightning_A.setText("(7) Lightning")
         self.Button_3_lightning_B = QPushButton(self.ANM)
-        self.Button_3_lightning_B.setGeometry(QRect(220, 130, 160, 31))        
+        self.Button_3_lightning_B.setGeometry(QRect(220, 130, 160, 31))
         self.Button_3_lightning_B.setText("(8) Paparazzi")
         self.Button_3_lightning_C = QPushButton(self.ANM)
-        self.Button_3_lightning_C.setGeometry(QRect(390, 130, 160, 31))     
+        self.Button_3_lightning_C.setGeometry(QRect(390, 130, 160, 31))
         self.Button_3_lightning_C.setText("(9) Screen")
-     
+
         # === >> THE LIGHT PREFS TAB << ===
         self.lightPrefs = QWidget()
 
@@ -294,7 +333,7 @@ class Ui_MainWindow(object):
         self.customName.setGeometry(QRect(10, 14, 541, 16))
         self.customName.setText("Custom Name for this light:")
         self.customName.setFont(mainFont)
-        
+
         self.customNameTF = QLineEdit(self.lightPrefs)
         self.customNameTF.setGeometry(QRect(10, 34, 541, 20))
         self.customNameTF.setMaxLength(80)
@@ -314,23 +353,23 @@ class Ui_MainWindow(object):
         self.colorTempRange_Min_TF = QLineEdit(self.lightPrefs)
         self.colorTempRange_Min_TF.setGeometry(QRect(10, 82, 120, 20))
         self.colorTempRange_Min_TF.setMaxLength(80)
-        
+
         self.colorTempRange_Max_Description = QLabel(self.lightPrefs)
         self.colorTempRange_Max_Description.setGeometry(QRect(160, 104, 120, 16))
         self.colorTempRange_Max_Description.setAlignment(Qt.AlignCenter)
         self.colorTempRange_Max_Description.setText("Maximum")
         self.colorTempRange_Max_Description.setFont(mainFont)
-        
+
         self.colorTempRange_Max_TF = QLineEdit(self.lightPrefs)
         self.colorTempRange_Max_TF.setGeometry(QRect(160, 82, 120, 20))
         self.colorTempRange_Max_TF.setMaxLength(80)
-       
+
         # WHETHER OR NOT TO ONLY ALLOW CCT MODE FOR THIS LIGHT
         self.onlyCCTModeCheck = QCheckBox(self.lightPrefs)
         self.onlyCCTModeCheck.setGeometry(QRect(10, 130, 401, 31))
         self.onlyCCTModeCheck.setText("This light can only use CCT mode\n(for Neewer lights without HSI mode)")
         self.onlyCCTModeCheck.setFont(mainFont)
-        
+
         # SAVE IIITTTTTT!
         self.saveLightPrefsButton = QPushButton(self.lightPrefs)
         self.saveLightPrefsButton.setGeometry(QRect(416, 140, 141, 23))
@@ -344,7 +383,7 @@ class Ui_MainWindow(object):
 
         self.globalPrefsLay = QFormLayout(self.globalPrefsCW)
         self.globalPrefsLay.setLabelAlignment(Qt.AlignLeft)
-        
+
         self.globalPrefs.setWidget(self.globalPrefsCW)
         self.globalPrefs.setWidgetResizable(True)
 
@@ -360,14 +399,14 @@ class Ui_MainWindow(object):
         self.acceptable_HTTP_IPs_field.setFixedHeight(70)
         self.whiteListedMACs_field = QTextEdit()
         self.whiteListedMACs_field.setFixedHeight(70)
-        
+
         self.resetGlobalPrefsButton = QPushButton("Reset Preferences to Defaults")
         self.saveGlobalPrefsButton = QPushButton("Save Global Preferences")
 
         # THE FIRST SECTION OF KEYBOARD MAPPING SECTION
         self.windowButtonsCW = QWidget()
         self.windowButtonsLay = QGridLayout(self.windowButtonsCW)
-        
+
         self.SC_turnOffButton_field = singleKeySequenceEditCancel("Ctrl+PgDown")
         self.windowButtonsLay.addWidget(QLabel("<strong>Window Top</strong><br>Turn Light(s) Off", alignment=Qt.AlignCenter), 1, 1)
         self.windowButtonsLay.addWidget(self.SC_turnOffButton_field, 2, 1)
@@ -496,14 +535,13 @@ class Ui_MainWindow(object):
         self.ColorModeTabWidget.addTab(self.globalPrefs, "Global Preferences")
 
         self.ColorModeTabWidget.setCurrentIndex(0) # make the CCT tab the main tab shown on launch
-        
+
         # ============ THE STATUS BAR AND WINDOW ASSIGNS ============
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusBar = QStatusBar(MainWindow)
         MainWindow.setStatusBar(self.statusBar)
 
         # ============ CONNECTIONS ============
-        self.Slider_CCT_Bright.valueChanged.connect(self.TFV_CCT_Bright.setNum)
         self.Slider_HSI_1_H.valueChanged.connect(self.TFV_HSI_1_H.setNum)
         self.Slider_HSI_2_S.valueChanged.connect(self.TFV_HSI_2_S.setNum)
         self.Slider_HSI_3_L.valueChanged.connect(self.TFV_HSI_3_L.setNum)
@@ -618,7 +656,7 @@ class singleKeySequenceEditCancel(QWidget):
 
         self.setMaximumWidth(135) # make sure the entire control is no longer than 135 pixels wide
         self.setLayout(customLayout)
-    
+
     def keySequence(self):
         return self.keyPressField.keySequence()
 
@@ -634,7 +672,7 @@ class singleKeySequenceEdit(QKeySequenceEdit):
         super(singleKeySequenceEdit, self).keyPressEvent(event)
 
         theString = self.keySequence().toString(QKeySequence.NativeText)
-            
+
         if theString:
             lastSequence = theString.split(",")[-1].strip()
             self.setKeySequence(lastSequence)
