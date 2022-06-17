@@ -2977,6 +2977,18 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         if totalLights == 0: # there are no lights available to you at the moment!
                             self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <A HREF='doAction?discover'>click here</a>.<BR>\n", "utf-8"))
                         else:
+                            # JAVASCRIPT CODE TO ALLOW LIGHT CHANGES
+                            self.wfile.write(bytes("\n<script>\n", "utf-8"))
+                            self.wfile.write(bytes("function editLight(lightNum, lightType, previousName) {\n", "utf-8"))
+                            self.wfile.write(bytes("     let newName = prompt('What do you want to call light ' + (lightNum+1) + ' (' + lightType + ')?', previousName);\n\n", "utf-8"))
+                            self.wfile.write(bytes("     if (!(newName == null || newName == '' || newName == previousName)) {\n", "utf-8"))
+                            self.wfile.write(bytes("          alert(newName);\n", "utf-8"))
+                            self.wfile.write(bytes("     } else {\n", "utf-8"))
+                            self.wfile.write(bytes("          alert('No');\n", "utf-8"))
+                            self.wfile.write(bytes("     }\n", "utf-8"))
+                            self.wfile.write(bytes("}\n", "utf-8"))
+                            self.wfile.write(bytes("</script>\n\n", "utf-8"))
+
                             self.wfile.write(bytes("List of available Neewer lights:<BR><BR>\n", "utf-8"))
                             self.wfile.write(bytes("<TABLE WIDTH='98%' BORDER='1'>\n", "utf-8"))
                             self.wfile.write(bytes("  <TR>\n", "utf-8"))
@@ -2992,7 +3004,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                             for a in range(totalLights):
                                 self.wfile.write(bytes("  <TR>\n", "utf-8"))
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(173,255,47)'>" + str(a + 1) + "</TD>\n", "utf-8")) # light ID #
-                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][2] + "</TD>\n", "utf-8")) # light custom name
+                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'><button onclick='editLight(" + str(a) + ", \"" + availableLights[a][0].name + "\", \"" + availableLights[a][2] + "\")'>Edit</button>&nbsp;&nbsp;" + availableLights[a][2] + "</TD>\n", "utf-8")) # light custom name
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][0].name + "</TD>\n", "utf-8")) # light type
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][0].address + "</TD>\n", "utf-8")) # light MAC address
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + str(availableLights[a][0].rssi) + " dbM</TD>\n", "utf-8")) # light RSSI (signal quality)
