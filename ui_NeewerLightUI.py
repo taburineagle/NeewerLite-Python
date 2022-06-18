@@ -308,59 +308,83 @@ class Ui_MainWindow(object):
         # === >> THE SCENE TAB << ===
         self.ANM = QWidget()
 
+        self.TFL_ANM_Brightness = QLabel(self.ANM)
+        self.TFL_ANM_Brightness.setGeometry(QRect(8, 10, 300, 17))
+        self.TFL_ANM_Brightness.setText("Brightness")
+        self.TFL_ANM_Brightness.setFont(mainFont)
+
+        mySceneAnm = QGraphicsScene(self)
+        mySceneAnm.setBackgroundBrush(gradient_Bri)
+
+        self.ANM_Brightness_Gradient_BG = QGraphicsView(mySceneAnm, self.ANM)
+        self.ANM_Brightness_Gradient_BG.setObjectName(u"ANM_Brightness_Gradient_BG")
+        self.ANM_Brightness_Gradient_BG.setGeometry(QRect(8, 30, 552, 24))
+        self.ANM_Brightness_Gradient_BG.setFrameShape(QFrame.NoFrame)
+        self.ANM_Brightness_Gradient_BG.setFrameShadow(QFrame.Sunken)
+        self.ANM_Brightness_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+
         self.Slider_ANM_Brightness = QSlider(self.ANM)
-        self.Slider_ANM_Brightness.setGeometry(QRect(10, 10, 551, 16))
+        self.Slider_ANM_Brightness.setGeometry(QRect(9, 35, 551, 16))
+        self.Slider_ANM_Brightness.setMinimum(0)
         self.Slider_ANM_Brightness.setMaximum(100)
         self.Slider_ANM_Brightness.setSliderPosition(100)
         self.Slider_ANM_Brightness.setOrientation(Qt.Horizontal)
 
-        self.TFL_ANM_Brightness = QLabel(self.ANM)
-        self.TFL_ANM_Brightness.setGeometry(QRect(10, 25, 300, 17))
-        self.TFL_ANM_Brightness.setText("Brightness")
-        self.TFL_ANM_Brightness.setFont(mainFont)
-
+        self.TFV_ANM_Brightness_Min = QLabel(self.ANM)
+        self.TFV_ANM_Brightness_Min.setGeometry(QRect(10, 56, 51, 20))
+        self.TFV_ANM_Brightness_Min.setText("0%")
+        self.TFV_ANM_Brightness_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+             
         self.TFV_ANM_Brightness = QLabel(self.ANM)
-        self.TFV_ANM_Brightness.setGeometry(QRect(510, 25, 51, 20))
-        self.TFV_ANM_Brightness.setText("100")
+        self.TFV_ANM_Brightness.setGeometry(QRect(250, 56, 51, 20))
+        self.TFV_ANM_Brightness.setText("100%")
         self.TFV_ANM_Brightness.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
 
+        self.TFV_ANM_Brightness_Max = QLabel(self.ANM)
+        self.TFV_ANM_Brightness_Max.setGeometry(QRect(510, 56, 51, 20))
+        self.TFV_ANM_Brightness_Max.setText("100%")
+        self.TFV_ANM_Brightness_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+
         self.TFL_A_policeAnim = QLabel(self.ANM)
-        self.TFL_A_policeAnim.setGeometry(QRect(10, 46, 40, 40))
+        self.TFL_A_policeAnim.setGeometry(QRect(10, 86, 40, 40))
         self.TFL_A_policeAnim.setText("<html><head/><body><p><font size=\"8\">&#x1F6A8;</font></p></body></html>")
+
         self.Button_1_police_A = QPushButton(self.ANM)
-        self.Button_1_police_A.setGeometry(QRect(50, 50, 160, 31))
+        self.Button_1_police_A.setGeometry(QRect(50, 90, 160, 31))
         self.Button_1_police_A.setText("(1) Squad Car")
         self.Button_1_police_B = QPushButton(self.ANM)
-        self.Button_1_police_B.setGeometry(QRect(220, 50, 160, 31))
+        self.Button_1_police_B.setGeometry(QRect(220, 90, 160, 31))
         self.Button_1_police_B.setText("(2) Ambulance")
         self.Button_1_police_C = QPushButton(self.ANM)
-        self.Button_1_police_C.setGeometry(QRect(390, 50, 160, 31))
+        self.Button_1_police_C.setGeometry(QRect(390, 90, 160, 31))
         self.Button_1_police_C.setText("(3) Fire Engine")
 
         self.TFL_B_partyAnim = QLabel(self.ANM)
-        self.TFL_B_partyAnim.setGeometry(QRect(10, 84, 40, 40))
+        self.TFL_B_partyAnim.setGeometry(QRect(10, 136, 40, 40))
         self.TFL_B_partyAnim.setText("<html><head/><body><p><font size=\"8\">&#x1F389;</font></p></body></html>")
+
         self.Button_2_party_A = QPushButton(self.ANM)
-        self.Button_2_party_A.setGeometry(QRect(50, 90, 160, 31))
+        self.Button_2_party_A.setGeometry(QRect(50, 140, 160, 31))
         self.Button_2_party_A.setText("(4) Fireworks")
         self.Button_2_party_B = QPushButton(self.ANM)
-        self.Button_2_party_B.setGeometry(QRect(220, 90, 160, 31))
+        self.Button_2_party_B.setGeometry(QRect(220, 140, 160, 31))
         self.Button_2_party_B.setText("(5) Party")
         self.Button_2_party_C = QPushButton(self.ANM)
-        self.Button_2_party_C.setGeometry(QRect(390, 90, 160, 31))
+        self.Button_2_party_C.setGeometry(QRect(390, 140, 160, 31))
         self.Button_2_party_C.setText("(6) Candle Light")
 
         self.TFL_C_lightningAnim = QLabel(self.ANM)
-        self.TFL_C_lightningAnim.setGeometry(QRect(10, 126, 40, 40))
+        self.TFL_C_lightningAnim.setGeometry(QRect(10, 184, 40, 40))
         self.TFL_C_lightningAnim.setText("<html><head/><body><p><font size=\"8\">&#x26A1;</font></p></body></html>")
+
         self.Button_3_lightning_A = QPushButton(self.ANM)
-        self.Button_3_lightning_A.setGeometry(QRect(50, 130, 160, 31))
+        self.Button_3_lightning_A.setGeometry(QRect(50, 190, 160, 31))
         self.Button_3_lightning_A.setText("(7) Lightning")
         self.Button_3_lightning_B = QPushButton(self.ANM)
-        self.Button_3_lightning_B.setGeometry(QRect(220, 130, 160, 31))
+        self.Button_3_lightning_B.setGeometry(QRect(220, 190, 160, 31))
         self.Button_3_lightning_B.setText("(8) Paparazzi")
         self.Button_3_lightning_C = QPushButton(self.ANM)
-        self.Button_3_lightning_C.setGeometry(QRect(390, 130, 160, 31))
+        self.Button_3_lightning_C.setGeometry(QRect(390, 190, 160, 31))
         self.Button_3_lightning_C.setText("(9) Screen")
 
         # === >> THE LIGHT PREFS TAB << ===
@@ -578,10 +602,7 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusBar = QStatusBar(MainWindow)
         MainWindow.setStatusBar(self.statusBar)
-
-        # ============ CONNECTIONS ============
-        self.Slider_ANM_Brightness.valueChanged.connect(self.TFV_ANM_Brightness.setNum)
-
+        
 class customPresetButton(QLabel):
     clicked = Signal() # signal sent when you click on the button
     rightclicked = Signal() # signal sent when you right-click on the button

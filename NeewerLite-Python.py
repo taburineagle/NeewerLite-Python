@@ -73,6 +73,7 @@ except Exception as e:
 # IMPORT THE HTTP SERVER
 try:
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    import urllib.parse # parsing custom light names in the HTTP server
 except Exception as e:
     pass # if there are any HTTP errors, don't do anything yet
 
@@ -721,53 +722,11 @@ try: # try to load the GUI
                     defaultSettings[1] == newRange and \
                     defaultSettings[2] == self.onlyCCTModeCheck.isChecked():
                         printDebugString("All the options that are currently set are the defaults for this light, so the preferences file will be deleted.")
-                        self.saveLightPrefs(selectedRows[0], True) # delete the old prefs file
+                        saveLightPrefs(selectedRows[0], True) # delete the old prefs file
                     else:
-                        self.saveLightPrefs(selectedRows[0]) # save the light settings to a special file
+                        saveLightPrefs(selectedRows[0]) # save the light settings to a special file
                 else:                    
                     printDebugString("You don't have any new preferences to save, so we aren't saving any!")
-
-        def saveLightPrefs(self, lightID, deleteFile = False): # save a sidecar file with the preferences for a specific light
-            createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
-
-            # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
-            exportFileName = availableLights[lightID][0].address.split(":") # take the colons out of the MAC address
-            exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
-
-            if deleteFile == True:
-                if os.path.exists(exportFileName):
-                    os.remove(exportFileName) # delete the old preferences file (if it exists)
-            else:
-                customName = availableLights[lightID][2] # the custom name for this light
-                defaultSettings = getLightSpecs(availableLights[lightID][0].name)
-
-                if defaultSettings[1] != availableLights[lightID][4]:
-                    customTempRange = str(availableLights[lightID][4][0]) + "," + str(availableLights[lightID][4][1]) # the color temperature range available
-                else:
-                    customTempRange = "" # if the range is the same as the default range, then just leave this entry blank
-
-                if defaultSettings[2] != availableLights[lightID][5]:
-                    onlyCCTMode = str(availableLights[lightID][5]) # whether or not the light can only use CCT mode
-                else:
-                    onlyCCTMode = "" # if the CCT mode enable is the same as the default value, then just leave this entry blank
-
-                exportString = customName + "|" + customTempRange + "|" + onlyCCTMode # the exported string, minus the light last set parameters
-
-                if rememberLightsOnExit == True: # if we're supposed to remember the last settings, then add that to the Prefs file
-                    if len(availableLights[lightID][3]) > 0: # if we actually have a value stored for this light
-                        lastSettingsString = ",".join(map(str, availableLights[lightID][3])) # combine all the elements of the last set params
-                        exportString += "|" + lastSettingsString # add it to the exported string
-                    else: # if we don't have a value stored for this light (nothing has changed yet)
-                        exportString += "|" + "120,135,2,100,56,157" # then just give the default (CCT, 5600K, 100%) params
-
-                # WRITE THE PREFERENCES FILE
-                with open(exportFileName, mode="w", encoding="utf-8") as prefsFileToWrite:
-                    prefsFileToWrite.write(exportString)
-
-                if customName != "":
-                    printDebugString("Exported preferences for " + customName + " [" + availableLights[lightID][0].name + "] to " + exportFileName)
-                else:
-                    printDebugString("Exported preferences for [" + availableLights[lightID][0].name + "] to " + exportFileName)
 
         def setupGlobalLightPrefsTab(self, setDefault=False):
             if setDefault == False:
@@ -1287,6 +1246,7 @@ try: # try to load the GUI
 
             if buttonPressed == 0:
                 buttonPressed = lastAnimButtonPressed
+                self.TFV_ANM_Brightness.setText(str(int(self.Slider_ANM_Brightness.value())) + "%")
             else:
                 # CHANGE THE OLD BUTTON COLOR BACK TO THE DEFAULT COLOR
                 if lastAnimButtonPressed == 1:
@@ -1448,7 +1408,7 @@ try: # try to load the GUI
 
                 for a in range(len(availableLights)):
                     printDebugString("Saving last used parameters for light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + ")")
-                    self.saveLightPrefs(a)
+                    saveLightPrefs(a)
 
             # THE THREAD HAS TERMINATED, NOW CONTINUE...
             printDebugString("We will now attempt to unlink from the lights...")
@@ -1689,6 +1649,48 @@ def convert_HSI_to_RGB(h, s = 1, v = 1):
     if i == 3: return (p, q, v)
     if i == 4: return (t, p, v)
     if i == 5: return (v, p, q)
+
+def saveLightPrefs(lightID, deleteFile = False): # save a sidecar file with the preferences for a specific light
+    createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
+
+    # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
+    exportFileName = availableLights[lightID][0].address.split(":") # take the colons out of the MAC address
+    exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
+
+    if deleteFile == True:
+        if os.path.exists(exportFileName):
+            os.remove(exportFileName) # delete the old preferences file (if it exists)
+    else:
+        customName = availableLights[lightID][2] # the custom name for this light
+        defaultSettings = getLightSpecs(availableLights[lightID][0].name)
+
+        if defaultSettings[1] != availableLights[lightID][4]:
+            customTempRange = str(availableLights[lightID][4][0]) + "," + str(availableLights[lightID][4][1]) # the color temperature range available
+        else:
+            customTempRange = "" # if the range is the same as the default range, then just leave this entry blank
+
+        if defaultSettings[2] != availableLights[lightID][5]:
+            onlyCCTMode = str(availableLights[lightID][5]) # whether or not the light can only use CCT mode
+        else:
+            onlyCCTMode = "" # if the CCT mode enable is the same as the default value, then just leave this entry blank
+
+        exportString = customName + "|" + customTempRange + "|" + onlyCCTMode # the exported string, minus the light last set parameters
+
+        if rememberLightsOnExit == True: # if we're supposed to remember the last settings, then add that to the Prefs file
+            if len(availableLights[lightID][3]) > 0: # if we actually have a value stored for this light
+                lastSettingsString = ",".join(map(str, availableLights[lightID][3])) # combine all the elements of the last set params
+                exportString += "|" + lastSettingsString # add it to the exported string
+            else: # if we don't have a value stored for this light (nothing has changed yet)
+                exportString += "|" + "120,135,2,100,56,157" # then just give the default (CCT, 5600K, 100%) params
+
+        # WRITE THE PREFERENCES FILE
+        with open(exportFileName, mode="w", encoding="utf-8") as prefsFileToWrite:
+            prefsFileToWrite.write(exportString)
+
+        if customName != "":
+            printDebugString("Exported preferences for " + customName + " [" + availableLights[lightID][0].name + "] to " + exportFileName)
+        else:
+            printDebugString("Exported preferences for [" + availableLights[lightID][0].name + "] to " + exportFileName)
 
 # WORKING WITH CUSTOM PRESETS
 def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):
@@ -2650,7 +2652,10 @@ def processCommands(listToProcess=[]):
             if listToProcess[a][:1] == "-": # if the current parameter only has one dash (typed wrongly)
                 listToProcess[a] = "--" + listToProcess[a][1:].lower() # then remove that, and add the double dash and switch to lowercase
             else: # the parameter has no dashes at all, so add them
-                listToProcess[a] = "--" + listToProcess[a].lower() # add the dashes + switch to lowercase to properly parse as arguments below
+                if listToProcess[a][:11] == "custom_name": # if we're setting a custom name for the light, DON'T LOWERCASE THE RESULT
+                    listToProcess[a] = "--" + listToProcess[a] # add the dashes (but don't make it lowercase)
+                else:
+                    listToProcess[a] = "--" + listToProcess[a].lower() # add the dashes + switch to lowercase to properly parse as arguments below                  
         else: # if the dashes are already in the current item
             listToProcess[a] = listToProcess[a].lower() # we don't need to add dashes, so just switch to lowercase
 
@@ -2662,7 +2667,7 @@ def processCommands(listToProcess=[]):
     if inStartupMode == True: # if we're using the GUI or CLI, then add these arguments to the list
         acceptable_arguments.extend(["--http", "--cli", "--silent", "--help"])
     else: # if we're using the HTTP server, then add these arguments to the list
-        acceptable_arguments.extend(["--discover", "--nopage", "--link", "--use_preset", "--save_preset"])
+        acceptable_arguments.extend(["--custom_name", "--discover", "--nopage", "--link", "--use_preset", "--save_preset"])
 
     # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST
     for a in range(len(listToProcess) - 1, -1, -1):
@@ -2694,6 +2699,8 @@ def processCommands(listToProcess=[]):
             listToProcess[a] = "--on"
         elif listToProcess[a] == "--link":
             listToProcess[a] = "--link=-1"
+        elif listToProcess[a] == "--custom_name":
+            listToProcess[a] = "--custom_name=-1"
         elif listToProcess[a] == "--use_preset":
             listToProcess[a] = "--use_preset=-1"
         elif listToProcess[a] == "--save_preset":
@@ -2710,6 +2717,7 @@ def processCommands(listToProcess=[]):
 
     # HTML SERVER SPECIFIC PARAMETERS
     if inStartupMode == False:
+        parser.add_argument("--custom_name", default=-1) # a new custom name for the light
         parser.add_argument("--discover", action="store_true") # tell the HTTP server to search for newly added lights
         parser.add_argument("--link", default=-1) # link a specific light to NeewerLite-Python
         parser.add_argument("--nopage", action="store_false") # don't render an HTML page
@@ -2746,6 +2754,9 @@ def processCommands(listToProcess=[]):
 
     if inStartupMode == False:
         # HTTP specific parameter returns!
+        if args.custom_name != -1:
+            return [None, args.nopage, args.custom_name, "custom_name"] # rename one of the lights with a new name (| delimited)
+
         if args.discover == True:
             return[None, args.nopage, None, "discover"] # discover new lights
 
@@ -2793,6 +2804,7 @@ def processHTMLCommands(paramsList, loop):
 
     if threadAction == "": # if we're not already processing info in another thread
         threadAction = "HTTP"
+
         if len(paramsList) != 0:
             if paramsList[3] == "discover": # we asked to discover new lights
                 loop.run_until_complete(findDevices()) # find the lights available to control
@@ -2809,6 +2821,14 @@ def processHTMLCommands(paramsList, loop):
                 recallCustomPreset(paramsList[2] - 1, False, loop)
             elif paramsList[3] == "save_preset":
                 pass
+            elif paramsList[3] == "custom_name":
+                nameInfo = paramsList[2].split("|") # split the command into 2 parts
+                nameInfo[0] = int(nameInfo[0]) # make sure the first element is an integer
+                nameInfo[1] = urllib.parse.unquote(nameInfo[1]) # decode URL string for new light name
+                
+                availableLights[nameInfo[0]][2] = nameInfo[1] # change the custom name in the list
+                saveLightPrefs(nameInfo[0]) # save the new custom name to the prefs file
+
             else: # we want to write a value to a specific light
                 if paramsList[3] == "CCT": # calculate CCT bytestring
                     calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
@@ -2950,7 +2970,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                                 elif paramsList[3] == "save_preset":
                                     pass # TODO: implement saving presets!
                                 else:
-                                    self.wfile.write(bytes("&nbsp;&nbsp;Light(s) to connect to: " + str(paramsList[2]) + "<BR>\n", "utf-8"))
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Parameters: " + str(paramsList[2]) + "<BR>\n", "utf-8"))
 
                                 self.wfile.write(bytes("&nbsp;&nbsp;Mode: " + str(paramsList[3]) + "<BR>\n", "utf-8"))
 
@@ -2977,16 +2997,15 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         if totalLights == 0: # there are no lights available to you at the moment!
                             self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <A HREF='doAction?discover'>click here</a>.<BR>\n", "utf-8"))
                         else:
-                            # JAVASCRIPT CODE TO ALLOW LIGHT CHANGES
-                            self.wfile.write(bytes("\n<script>\n", "utf-8"))
-                            self.wfile.write(bytes("function editLight(lightNum, lightType, previousName) {\n", "utf-8"))
+                            # JAVASCRIPT CODE TO CHANGE LIGHT NAMES
+                            self.wfile.write(bytes("\n<!-- JAVASCRIPT CODE TO CHANGE LIGHT NAMES -->\n", "utf-8"))
+                            self.wfile.write(bytes("<script>\n", "utf-8"))
+                            self.wfile.write(bytes("  function editLight(lightNum, lightType, previousName) {\n", "utf-8"))
                             self.wfile.write(bytes("     let newName = prompt('What do you want to call light ' + (lightNum+1) + ' (' + lightType + ')?', previousName);\n\n", "utf-8"))
                             self.wfile.write(bytes("     if (!(newName == null || newName == '' || newName == previousName)) {\n", "utf-8"))
-                            self.wfile.write(bytes("          alert(newName);\n", "utf-8"))
-                            self.wfile.write(bytes("     } else {\n", "utf-8"))
-                            self.wfile.write(bytes("          alert('No');\n", "utf-8"))
+                            self.wfile.write(bytes("          window.location.href = 'doAction?custom_name=' + lightNum + '|' + newName + '';\n", "utf-8"))
                             self.wfile.write(bytes("     }\n", "utf-8"))
-                            self.wfile.write(bytes("}\n", "utf-8"))
+                            self.wfile.write(bytes("  }\n", "utf-8"))
                             self.wfile.write(bytes("</script>\n\n", "utf-8"))
 
                             self.wfile.write(bytes("List of available Neewer lights:<BR><BR>\n", "utf-8"))
