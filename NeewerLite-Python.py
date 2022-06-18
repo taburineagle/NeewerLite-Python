@@ -2822,12 +2822,15 @@ def processHTMLCommands(paramsList, loop):
             elif paramsList[3] == "save_preset":
                 pass
             elif paramsList[3] == "custom_name":
-                nameInfo = paramsList[2].split("|") # split the command into 2 parts
-                nameInfo[0] = int(nameInfo[0]) # make sure the first element is an integer
-                nameInfo[1] = urllib.parse.unquote(nameInfo[1]) # decode URL string for new light name
+                if paramsList[2] != "-1": # if we haven't returned a negative value, process it
+                    nameInfo = paramsList[2].split("|") # split the command into 2 parts
                 
-                availableLights[nameInfo[0]][2] = nameInfo[1] # change the custom name in the list
-                saveLightPrefs(nameInfo[0]) # save the new custom name to the prefs file
+                    if len(nameInfo) > 1: # if we have more than 1 parameter (correct), process it
+                        nameInfo[0] = int(nameInfo[0]) # make sure the first element is an integer
+                        nameInfo[1] = urllib.parse.unquote(nameInfo[1]) # decode URL string for new light name
+                        
+                        availableLights[nameInfo[0]][2] = nameInfo[1] # change the custom name in the list
+                        saveLightPrefs(nameInfo[0]) # save the new custom name to the prefs file
 
             else: # we want to write a value to a specific light
                 if paramsList[3] == "CCT": # calculate CCT bytestring
