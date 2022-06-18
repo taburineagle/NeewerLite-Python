@@ -21,13 +21,13 @@ In order to enable the application as a service on a Linux systemd enabled syste
 3. Download the latest release of NeewerLite-Python and export it the folder `/opt/NeewerLite-Python/` . 
 
     ```bash
-    wget https://github.com/taburineagle/NeewerLite-Python/archive/refs/tags/0.11.zip -O ~/NeewerLite-Python.zip && sudo unzip ~/NeewerLite-Python.zip -d /opt/
+    wget https://github.com/taburineagle/NeewerLite-Python/archive/refs/tags/0.12.zip -O ~/NeewerLite-Python.zip && sudo unzip ~/NeewerLite-Python.zip -d /opt/
     ```
 
 4. Rename the folder that was created to `NeewerLite-Python`. 
 
     ```bash
-    sudo mv /opt/NeewerLite-Python-0.11 /opt/NeewerLite-Python
+    sudo mv /opt/NeewerLite-Python-0.12 /opt/NeewerLite-Python
     ```
 
 5. Change the ownership of the files in the folder to the executing user. 
