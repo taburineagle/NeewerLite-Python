@@ -1232,11 +1232,7 @@ try: # try to load the GUI
                 self.TFV_HSI_2_S.setText(str(int(self.Slider_HSI_2_S.value())) + "%")
             elif slidSlider == 3: # we dragged the intensity slider
                 self.TFV_HSI_3_L.setText(str(int(self.Slider_HSI_3_L.value())) + "%")
-            else: # we're updating everything, so make sure all is correct
-                self.TFV_HSI_1_H.setText(str(int(self.Slider_HSI_1_H.value())) + "º")
-                self.TFV_HSI_2_S.setText(str(int(self.Slider_HSI_2_S.value())) + "%")
-                self.TFV_HSI_3_L.setText(str(int(self.Slider_HSI_3_L.value())) + "%")
-
+            
             self.statusBar.showMessage("Current value (HSI Mode): " + updateStatus())
             self.startSend()
 
