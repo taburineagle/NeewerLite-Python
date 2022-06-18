@@ -73,6 +73,7 @@ except Exception as e:
 # IMPORT THE HTTP SERVER
 try:
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    import urllib.parse # parsing custom light names in the HTTP server
 except Exception as e:
     pass # if there are any HTTP errors, don't do anything yet
 
@@ -295,12 +296,12 @@ try: # try to load the GUI
             self.customPreset_7_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7))
             self.customPreset_7_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7, True))
 
-            self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
-            self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
+            self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(1))
+            self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(2))
 
-            self.Slider_HSI_1_H.valueChanged.connect(self.computeValueHSI)
-            self.Slider_HSI_2_S.valueChanged.connect(self.computeValueHSI)
-            self.Slider_HSI_3_L.valueChanged.connect(self.computeValueHSI)
+            self.Slider_HSI_1_H.valueChanged.connect(lambda: self.computeValueHSI(1))
+            self.Slider_HSI_2_S.valueChanged.connect(lambda: self.computeValueHSI(2))
+            self.Slider_HSI_3_L.valueChanged.connect(lambda: self.computeValueHSI(3))
 
             self.Slider_ANM_Brightness.valueChanged.connect(lambda: self.computeValueANM(0))
             self.Button_1_police_A.clicked.connect(lambda: self.computeValueANM(1))
@@ -577,7 +578,7 @@ try: # try to load the GUI
                 if selectedLight != -1: # if there is a specific selected light
                     self.setupLightPrefsTab(selectedLight) # update the Prefs tab with the information for that selected light
 
-        def getGradient(self, startRange, endRange):
+        def getCCTTempGradient(self, startRange, endRange):
             rangeStep = (endRange - startRange) / 4 # figure out how much in between steps of the gradient
             gradient = QLinearGradient(0, 0, 532, 31) # make a new gradient
 
@@ -589,11 +590,23 @@ try: # try to load the GUI
 
             return gradient # return the new gradient to switch the display out with
 
+        def getHSIHueGradient(self, hue):
+            gradient = QLinearGradient(0, 0, 532, 31) # make a new gradient
+
+            gradient.setColorAt(0, QColor(255, 255, 255))
+            newColor = convert_HSI_to_RGB(hue / 360)
+            gradient.setColorAt(1, QColor(newColor[0], newColor[1], newColor[2]))
+
+            return gradient # return the new gradient to switch the display out with
+
         def setupCCTBounds(self, startRange, endRange):
+            self.TFV_CCT_Hue_Min.setText(str(startRange) + "K")
+            self.TFV_CCT_Hue_Max.setText(str(endRange) + "K")
+
             self.Slider_CCT_Hue.setMinimum(startRange / 100) # set the min value of the color temperature slider to the new min bounds
             self.Slider_CCT_Hue.setMaximum(endRange / 100) # set the max value of the color temperature slider to the new max bounds
             
-            self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(self.getGradient(startRange, endRange)) # change the gradient to fit the new boundary
+            self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(self.getCCTTempGradient(startRange, endRange)) # change the gradient to fit the new boundary
 
         def setupLightPrefsTab(self, selectedLight):
             # SET UP THE CUSTOM NAME TEXT BOX
@@ -709,53 +722,11 @@ try: # try to load the GUI
                     defaultSettings[1] == newRange and \
                     defaultSettings[2] == self.onlyCCTModeCheck.isChecked():
                         printDebugString("All the options that are currently set are the defaults for this light, so the preferences file will be deleted.")
-                        self.saveLightPrefs(selectedRows[0], True) # delete the old prefs file
+                        saveLightPrefs(selectedRows[0], True) # delete the old prefs file
                     else:
-                        self.saveLightPrefs(selectedRows[0]) # save the light settings to a special file
+                        saveLightPrefs(selectedRows[0]) # save the light settings to a special file
                 else:                    
                     printDebugString("You don't have any new preferences to save, so we aren't saving any!")
-
-        def saveLightPrefs(self, lightID, deleteFile = False): # save a sidecar file with the preferences for a specific light
-            createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
-
-            # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
-            exportFileName = availableLights[lightID][0].address.split(":") # take the colons out of the MAC address
-            exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
-
-            if deleteFile == True:
-                if os.path.exists(exportFileName):
-                    os.remove(exportFileName) # delete the old preferences file (if it exists)
-            else:
-                customName = availableLights[lightID][2] # the custom name for this light
-                defaultSettings = getLightSpecs(availableLights[lightID][0].name)
-
-                if defaultSettings[1] != availableLights[lightID][4]:
-                    customTempRange = str(availableLights[lightID][4][0]) + "," + str(availableLights[lightID][4][1]) # the color temperature range available
-                else:
-                    customTempRange = "" # if the range is the same as the default range, then just leave this entry blank
-
-                if defaultSettings[2] != availableLights[lightID][5]:
-                    onlyCCTMode = str(availableLights[lightID][5]) # whether or not the light can only use CCT mode
-                else:
-                    onlyCCTMode = "" # if the CCT mode enable is the same as the default value, then just leave this entry blank
-
-                exportString = customName + "|" + customTempRange + "|" + onlyCCTMode # the exported string, minus the light last set parameters
-
-                if rememberLightsOnExit == True: # if we're supposed to remember the last settings, then add that to the Prefs file
-                    if len(availableLights[lightID][3]) > 0: # if we actually have a value stored for this light
-                        lastSettingsString = ",".join(map(str, availableLights[lightID][3])) # combine all the elements of the last set params
-                        exportString += "|" + lastSettingsString # add it to the exported string
-                    else: # if we don't have a value stored for this light (nothing has changed yet)
-                        exportString += "|" + "120,135,2,100,56,157" # then just give the default (CCT, 5600K, 100%) params
-
-                # WRITE THE PREFERENCES FILE
-                with open(exportFileName, mode="w", encoding="utf-8") as prefsFileToWrite:
-                    prefsFileToWrite.write(exportString)
-
-                if customName != "":
-                    printDebugString("Exported preferences for " + customName + " [" + availableLights[lightID][0].name + "] to " + exportFileName)
-                else:
-                    printDebugString("Exported preferences for [" + availableLights[lightID][0].name + "] to " + exportFileName)
 
         def setupGlobalLightPrefsTab(self, setDefault=False):
             if setDefault == False:
@@ -1215,6 +1186,10 @@ try: # try to load the GUI
                         self.checkLightTab() # reset the bounds to the normal values (5600K)
             elif i == 1: # we clicked on the HSI tab
                 if len(currentSelection) == 1: # if we have only one thing selected
+                    # if the "saturation" gradient isn't drawn yet, do that here
+                    if self.HSI_Sat_Gradient_BG.scene().backgroundBrush() == Qt.NoBrush:
+                        self.HSI_Sat_Gradient_BG.scene().setBackgroundBrush(self.getHSIHueGradient(self.Slider_HSI_1_H.value())) # change the gradient to fit the new boundary
+
                     if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update HSI value
                         self.computeValueHSI() # calculate the current HSI value
             elif i == 2: # we clicked on the ANM tab
@@ -1228,10 +1203,12 @@ try: # try to load the GUI
         # COMPUTE A BYTESTRING FOR THE CCT SECTION
         def computeValueCCT(self, hueOrBrightness = -1):
             global CCTSlider
-            # CCTSlider = -1 # force this value to -1 to send both hue and brightness at the same time on SNL-660
             CCTSlider = hueOrBrightness # set the global CCT "current slider" to the slider you just... slid
 
-            self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
+            if CCTSlider == 1: # we dragged the color temperature slider
+                self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
+            else: # we dragged the brightness slider
+                self.TFV_CCT_Bright.setText(str(self.Slider_CCT_Bright.value()) + "%")
 
             calculateByteString(colorMode="CCT",\
                                 temp=str(int(self.Slider_CCT_Hue.value())),\
@@ -1241,12 +1218,21 @@ try: # try to load the GUI
             self.startSend()
 
         # COMPUTE A BYTESTRING FOR THE HSI SECTION
-        def computeValueHSI(self):
+        def computeValueHSI(self, slidSlider = -1):
             calculateByteString(colorMode="HSI",\
                                 HSI_H=str(int(self.Slider_HSI_1_H.value())),\
                                 HSI_S=str(int(self.Slider_HSI_2_S.value())),\
                                 HSI_I=str(int(self.Slider_HSI_3_L.value())))
 
+            if slidSlider == 1: # we dragged the hue slider
+                self.TFV_HSI_1_H.setText(str(int(self.Slider_HSI_1_H.value())) + "º")
+                self.HSI_Sat_Gradient_BG.scene().setBackgroundBrush(self.getHSIHueGradient(self.Slider_HSI_1_H.value())) # change the gradient to fit the new boundary
+                # BUILD THE GRADIENT HERE
+            elif slidSlider == 2: # we dragged the saturation slider
+                self.TFV_HSI_2_S.setText(str(int(self.Slider_HSI_2_S.value())) + "%")
+            elif slidSlider == 3: # we dragged the intensity slider
+                self.TFV_HSI_3_L.setText(str(int(self.Slider_HSI_3_L.value())) + "%")
+            
             self.statusBar.showMessage("Current value (HSI Mode): " + updateStatus())
             self.startSend()
 
@@ -1256,6 +1242,7 @@ try: # try to load the GUI
 
             if buttonPressed == 0:
                 buttonPressed = lastAnimButtonPressed
+                self.TFV_ANM_Brightness.setText(str(int(self.Slider_ANM_Brightness.value())) + "%")
             else:
                 # CHANGE THE OLD BUTTON COLOR BACK TO THE DEFAULT COLOR
                 if lastAnimButtonPressed == 1:
@@ -1417,7 +1404,7 @@ try: # try to load the GUI
 
                 for a in range(len(availableLights)):
                     printDebugString("Saving last used parameters for light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + ")")
-                    self.saveLightPrefs(a)
+                    saveLightPrefs(a)
 
             # THE THREAD HAS TERMINATED, NOW CONTINUE...
             printDebugString("We will now attempt to unlink from the lights...")
@@ -1643,6 +1630,63 @@ def convert_K_to_RGB(Ktemp):
             blue = tmp_blue
     
     return int(red), int(green), int(blue) # return the integer value for each part of the RGB values for this step
+
+def convert_HSI_to_RGB(h, s = 1, v = 1):
+    # Taken from this StackOverflow page, which is an articulation of the colorsys code to
+    # convert HSV values (not HSI, but close, as I'm keeping S and V locked to 1) to RGB:
+    # https://stackoverflow.com/posts/26856771/revisions
+
+    if s == 0.0: v*=255; return (v, v, v)
+    i = int(h*6.) # XXX assume int() truncates!
+    f = (h*6.)-i; p,q,t = int(255*(v*(1.-s))), int(255*(v*(1.-s*f))), int(255*(v*(1.-s*(1.-f)))); v*=255; i%=6
+    if i == 0: return (v, t, p)
+    if i == 1: return (q, v, p)
+    if i == 2: return (p, v, t)
+    if i == 3: return (p, q, v)
+    if i == 4: return (t, p, v)
+    if i == 5: return (v, p, q)
+
+def saveLightPrefs(lightID, deleteFile = False): # save a sidecar file with the preferences for a specific light
+    createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
+
+    # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
+    exportFileName = availableLights[lightID][0].address.split(":") # take the colons out of the MAC address
+    exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
+
+    if deleteFile == True:
+        if os.path.exists(exportFileName):
+            os.remove(exportFileName) # delete the old preferences file (if it exists)
+    else:
+        customName = availableLights[lightID][2] # the custom name for this light
+        defaultSettings = getLightSpecs(availableLights[lightID][0].name)
+
+        if defaultSettings[1] != availableLights[lightID][4]:
+            customTempRange = str(availableLights[lightID][4][0]) + "," + str(availableLights[lightID][4][1]) # the color temperature range available
+        else:
+            customTempRange = "" # if the range is the same as the default range, then just leave this entry blank
+
+        if defaultSettings[2] != availableLights[lightID][5]:
+            onlyCCTMode = str(availableLights[lightID][5]) # whether or not the light can only use CCT mode
+        else:
+            onlyCCTMode = "" # if the CCT mode enable is the same as the default value, then just leave this entry blank
+
+        exportString = customName + "|" + customTempRange + "|" + onlyCCTMode # the exported string, minus the light last set parameters
+
+        if rememberLightsOnExit == True: # if we're supposed to remember the last settings, then add that to the Prefs file
+            if len(availableLights[lightID][3]) > 0: # if we actually have a value stored for this light
+                lastSettingsString = ",".join(map(str, availableLights[lightID][3])) # combine all the elements of the last set params
+                exportString += "|" + lastSettingsString # add it to the exported string
+            else: # if we don't have a value stored for this light (nothing has changed yet)
+                exportString += "|" + "120,135,2,100,56,157" # then just give the default (CCT, 5600K, 100%) params
+
+        # WRITE THE PREFERENCES FILE
+        with open(exportFileName, mode="w", encoding="utf-8") as prefsFileToWrite:
+            prefsFileToWrite.write(exportString)
+
+        if customName != "":
+            printDebugString("Exported preferences for " + customName + " [" + availableLights[lightID][0].name + "] to " + exportFileName)
+        else:
+            printDebugString("Exported preferences for [" + availableLights[lightID][0].name + "] to " + exportFileName)
 
 # WORKING WITH CUSTOM PRESETS
 def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):
@@ -2023,10 +2067,11 @@ def calculateSeparateBytestrings(sendValue):
 
     if CCTSlider == -1: # return both newly computed values
         return [newValueBRI, newValueHUE]
-    elif CCTSlider == 1: # return only the brightness value
-        return newValueBRI
-    elif CCTSlider == 2: # return only the hue value
+    elif CCTSlider == 1: # return only the color temperature value
         return newValueHUE
+    elif CCTSlider == 2: # return only the brightness value
+        return newValueBRI
+        
 
 def setPowerBytestring(onOrOff):
     global sendValue
@@ -2604,7 +2649,10 @@ def processCommands(listToProcess=[]):
             if listToProcess[a][:1] == "-": # if the current parameter only has one dash (typed wrongly)
                 listToProcess[a] = "--" + listToProcess[a][1:].lower() # then remove that, and add the double dash and switch to lowercase
             else: # the parameter has no dashes at all, so add them
-                listToProcess[a] = "--" + listToProcess[a].lower() # add the dashes + switch to lowercase to properly parse as arguments below
+                if listToProcess[a][:11] == "custom_name": # if we're setting a custom name for the light, DON'T LOWERCASE THE RESULT
+                    listToProcess[a] = "--" + listToProcess[a] # add the dashes (but don't make it lowercase)
+                else:
+                    listToProcess[a] = "--" + listToProcess[a].lower() # add the dashes + switch to lowercase to properly parse as arguments below                  
         else: # if the dashes are already in the current item
             listToProcess[a] = listToProcess[a].lower() # we don't need to add dashes, so just switch to lowercase
 
@@ -2616,7 +2664,7 @@ def processCommands(listToProcess=[]):
     if inStartupMode == True: # if we're using the GUI or CLI, then add these arguments to the list
         acceptable_arguments.extend(["--http", "--cli", "--silent", "--help"])
     else: # if we're using the HTTP server, then add these arguments to the list
-        acceptable_arguments.extend(["--discover", "--nopage", "--link", "--use_preset", "--save_preset"])
+        acceptable_arguments.extend(["--custom_name", "--discover", "--nopage", "--link", "--use_preset", "--save_preset"])
 
     # KICK OUT ANY PARAMETERS THAT AREN'T IN THE "ACCEPTABLE ARGUMENTS" LIST
     for a in range(len(listToProcess) - 1, -1, -1):
@@ -2648,6 +2696,8 @@ def processCommands(listToProcess=[]):
             listToProcess[a] = "--on"
         elif listToProcess[a] == "--link":
             listToProcess[a] = "--link=-1"
+        elif listToProcess[a] == "--custom_name":
+            listToProcess[a] = "--custom_name=-1"
         elif listToProcess[a] == "--use_preset":
             listToProcess[a] = "--use_preset=-1"
         elif listToProcess[a] == "--save_preset":
@@ -2664,6 +2714,7 @@ def processCommands(listToProcess=[]):
 
     # HTML SERVER SPECIFIC PARAMETERS
     if inStartupMode == False:
+        parser.add_argument("--custom_name", default=-1) # a new custom name for the light
         parser.add_argument("--discover", action="store_true") # tell the HTTP server to search for newly added lights
         parser.add_argument("--link", default=-1) # link a specific light to NeewerLite-Python
         parser.add_argument("--nopage", action="store_false") # don't render an HTML page
@@ -2700,6 +2751,9 @@ def processCommands(listToProcess=[]):
 
     if inStartupMode == False:
         # HTTP specific parameter returns!
+        if args.custom_name != -1:
+            return [None, args.nopage, args.custom_name, "custom_name"] # rename one of the lights with a new name (| delimited)
+
         if args.discover == True:
             return[None, args.nopage, None, "discover"] # discover new lights
 
@@ -2747,6 +2801,7 @@ def processHTMLCommands(paramsList, loop):
 
     if threadAction == "": # if we're not already processing info in another thread
         threadAction = "HTTP"
+
         if len(paramsList) != 0:
             if paramsList[3] == "discover": # we asked to discover new lights
                 loop.run_until_complete(findDevices()) # find the lights available to control
@@ -2763,6 +2818,17 @@ def processHTMLCommands(paramsList, loop):
                 recallCustomPreset(paramsList[2] - 1, False, loop)
             elif paramsList[3] == "save_preset":
                 pass
+            elif paramsList[3] == "custom_name":
+                if paramsList[2] != "-1": # if we haven't returned a negative value, process it
+                    nameInfo = paramsList[2].split("|") # split the command into 2 parts
+                
+                    if len(nameInfo) > 1: # if we have more than 1 parameter (correct), process it
+                        nameInfo[0] = int(nameInfo[0]) # make sure the first element is an integer
+                        nameInfo[1] = urllib.parse.unquote(nameInfo[1]) # decode URL string for new light name
+                        
+                        availableLights[nameInfo[0]][2] = nameInfo[1] # change the custom name in the list
+                        saveLightPrefs(nameInfo[0]) # save the new custom name to the prefs file
+
             else: # we want to write a value to a specific light
                 if paramsList[3] == "CCT": # calculate CCT bytestring
                     calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
@@ -2904,7 +2970,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                                 elif paramsList[3] == "save_preset":
                                     pass # TODO: implement saving presets!
                                 else:
-                                    self.wfile.write(bytes("&nbsp;&nbsp;Light(s) to connect to: " + str(paramsList[2]) + "<BR>\n", "utf-8"))
+                                    self.wfile.write(bytes("&nbsp;&nbsp;Parameters: " + str(paramsList[2]) + "<BR>\n", "utf-8"))
 
                                 self.wfile.write(bytes("&nbsp;&nbsp;Mode: " + str(paramsList[3]) + "<BR>\n", "utf-8"))
 
@@ -2931,6 +2997,17 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         if totalLights == 0: # there are no lights available to you at the moment!
                             self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <A HREF='doAction?discover'>click here</a>.<BR>\n", "utf-8"))
                         else:
+                            # JAVASCRIPT CODE TO CHANGE LIGHT NAMES
+                            self.wfile.write(bytes("\n<!-- JAVASCRIPT CODE TO CHANGE LIGHT NAMES -->\n", "utf-8"))
+                            self.wfile.write(bytes("<script>\n", "utf-8"))
+                            self.wfile.write(bytes("  function editLight(lightNum, lightType, previousName) {\n", "utf-8"))
+                            self.wfile.write(bytes("     let newName = prompt('What do you want to call light ' + (lightNum+1) + ' (' + lightType + ')?', previousName);\n\n", "utf-8"))
+                            self.wfile.write(bytes("     if (!(newName == null || newName == '' || newName == previousName)) {\n", "utf-8"))
+                            self.wfile.write(bytes("          window.location.href = 'doAction?custom_name=' + lightNum + '|' + newName + '';\n", "utf-8"))
+                            self.wfile.write(bytes("     }\n", "utf-8"))
+                            self.wfile.write(bytes("  }\n", "utf-8"))
+                            self.wfile.write(bytes("</script>\n\n", "utf-8"))
+
                             self.wfile.write(bytes("List of available Neewer lights:<BR><BR>\n", "utf-8"))
                             self.wfile.write(bytes("<TABLE WIDTH='98%' BORDER='1'>\n", "utf-8"))
                             self.wfile.write(bytes("  <TR>\n", "utf-8"))
@@ -2946,7 +3023,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                             for a in range(totalLights):
                                 self.wfile.write(bytes("  <TR>\n", "utf-8"))
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(173,255,47)'>" + str(a + 1) + "</TD>\n", "utf-8")) # light ID #
-                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][2] + "</TD>\n", "utf-8")) # light custom name
+                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'><button onclick='editLight(" + str(a) + ", \"" + availableLights[a][0].name + "\", \"" + availableLights[a][2] + "\")'>Edit</button>&nbsp;&nbsp;" + availableLights[a][2] + "</TD>\n", "utf-8")) # light custom name
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][0].name + "</TD>\n", "utf-8")) # light type
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][0].address + "</TD>\n", "utf-8")) # light MAC address
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + str(availableLights[a][0].rssi) + " dbM</TD>\n", "utf-8")) # light RSSI (signal quality)
