@@ -402,39 +402,39 @@ class Ui_MainWindow(object):
 
         # CUSTOM HSI COLOR TEMPERATURE RANGES FOR THIS LIGHT
         self.colorTempRange = QCheckBox(self.lightPrefs)
-        self.colorTempRange.setGeometry(QRect(10, 62, 541, 16))
+        self.colorTempRange.setGeometry(QRect(10, 82, 541, 16))
         self.colorTempRange.setText("Use Custom Color Temperature Range for CCT mode:")
         self.colorTempRange.setFont(mainFont)
 
+        self.colorTempRange_Min_TF = QLineEdit(self.lightPrefs)
+        self.colorTempRange_Min_TF.setGeometry(QRect(10, 102, 120, 20))
+        self.colorTempRange_Min_TF.setMaxLength(80)
+
+        self.colorTempRange_Max_TF = QLineEdit(self.lightPrefs)
+        self.colorTempRange_Max_TF.setGeometry(QRect(160, 102, 120, 20))
+        self.colorTempRange_Max_TF.setMaxLength(80)
+        
         self.colorTempRange_Min_Description = QLabel(self.lightPrefs)
-        self.colorTempRange_Min_Description.setGeometry(QRect(10, 104, 120, 16))
+        self.colorTempRange_Min_Description.setGeometry(QRect(10, 124, 120, 16))
         self.colorTempRange_Min_Description.setAlignment(Qt.AlignCenter)
         self.colorTempRange_Min_Description.setText("Minimum")
         self.colorTempRange_Min_Description.setFont(mainFont)
-
-        self.colorTempRange_Min_TF = QLineEdit(self.lightPrefs)
-        self.colorTempRange_Min_TF.setGeometry(QRect(10, 82, 120, 20))
-        self.colorTempRange_Min_TF.setMaxLength(80)
-
+        
         self.colorTempRange_Max_Description = QLabel(self.lightPrefs)
-        self.colorTempRange_Max_Description.setGeometry(QRect(160, 104, 120, 16))
+        self.colorTempRange_Max_Description.setGeometry(QRect(160, 124, 120, 16))
         self.colorTempRange_Max_Description.setAlignment(Qt.AlignCenter)
         self.colorTempRange_Max_Description.setText("Maximum")
         self.colorTempRange_Max_Description.setFont(mainFont)
-
-        self.colorTempRange_Max_TF = QLineEdit(self.lightPrefs)
-        self.colorTempRange_Max_TF.setGeometry(QRect(160, 82, 120, 20))
-        self.colorTempRange_Max_TF.setMaxLength(80)
-
+        
         # WHETHER OR NOT TO ONLY ALLOW CCT MODE FOR THIS LIGHT
         self.onlyCCTModeCheck = QCheckBox(self.lightPrefs)
-        self.onlyCCTModeCheck.setGeometry(QRect(10, 130, 401, 31))
+        self.onlyCCTModeCheck.setGeometry(QRect(10, 160, 401, 31))
         self.onlyCCTModeCheck.setText("This light can only use CCT mode\n(for Neewer lights without HSI mode)")
         self.onlyCCTModeCheck.setFont(mainFont)
 
         # SAVE IIITTTTTT!
         self.saveLightPrefsButton = QPushButton(self.lightPrefs)
-        self.saveLightPrefsButton.setGeometry(QRect(416, 140, 141, 23))
+        self.saveLightPrefsButton.setGeometry(QRect(416, 170, 141, 23))
         self.saveLightPrefsButton.setText("Save Preferences")
 
         # === >> THE GLOBAL PREFS TAB << ===
