@@ -296,8 +296,8 @@ try: # try to load the GUI
             self.customPreset_7_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7))
             self.customPreset_7_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7, True))
 
-            self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(1))
-            self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(2))
+            self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(1))
+            self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(2))
 
             self.Slider_HSI_1_H.valueChanged.connect(lambda: self.computeValueHSI(1))
             self.Slider_HSI_2_S.valueChanged.connect(lambda: self.computeValueHSI(2))
@@ -1205,7 +1205,7 @@ try: # try to load the GUI
             global CCTSlider
             CCTSlider = hueOrBrightness # set the global CCT "current slider" to the slider you just... slid
 
-            if CCTSlider == 2: # we dragged the color temperature slider
+            if CCTSlider == 1: # we dragged the color temperature slider
                 self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
             else: # we dragged the brightness slider
                 self.TFV_CCT_Bright.setText(str(self.Slider_CCT_Bright.value()) + "%")
@@ -2071,10 +2071,11 @@ def calculateSeparateBytestrings(sendValue):
 
     if CCTSlider == -1: # return both newly computed values
         return [newValueBRI, newValueHUE]
-    elif CCTSlider == 1: # return only the brightness value
-        return newValueBRI
-    elif CCTSlider == 2: # return only the hue value
+    elif CCTSlider == 1: # return only the color temperature value
         return newValueHUE
+    elif CCTSlider == 2: # return only the brightness value
+        return newValueBRI
+        
 
 def setPowerBytestring(onOrOff):
     global sendValue
