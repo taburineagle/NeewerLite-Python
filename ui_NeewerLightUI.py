@@ -612,14 +612,18 @@ class customPresetButton(QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if platform.system() != "Windows": # if we're not on Windows, use the default font
+        if platform.system() == "Windows": # Windows font
+            customPresetFont = QFont("Calibri")
+            customPresetFont.setPointSize(10.5)
+            self.setFont(customPresetFont)
+        elif platform.system() == "Linux": # Linux (Ubuntu) font
+            customPresetFont = QFont()
+            customPresetFont.setPointSize(10.5)
+            self.setFont(customPresetFont)
+        else: # fallback font
             customPresetFont = QFont()
             customPresetFont.setPointSize(12)
             self.setFont(customPresetFont)
-        else: # if we are on Windows, use a slightly less garish font than the default one
-            windowsCustomPresetFont = QFont("Calibri")
-            windowsCustomPresetFont.setPointSize(10.5)
-            self.setFont(windowsCustomPresetFont)
 
         self.setAlignment(Qt.AlignCenter)
         self.setTextFormat(Qt.TextFormat.RichText)
