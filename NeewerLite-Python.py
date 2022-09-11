@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #############################################################
 ## NeewerLite-Python ver. 0.12b
 ## by Zach Glenwright
