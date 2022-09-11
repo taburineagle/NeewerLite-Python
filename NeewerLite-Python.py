@@ -3510,7 +3510,7 @@ if __name__ == '__main__':
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> Attempting to disconnect from light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
                 printDebugString("-------------------------------------------------------------------------------------")
-                isFinished = asyncioEventLoop.run_until_complete(disconnectFromLight(0))
+                isFinished = asyncioEventLoop.run_until_complete(disconnectFromLight(0, updateGUI = False))
 
                 if numOfAttempts < maxNumOfAttempts:
                     numOfAttempts = numOfAttempts + 1
