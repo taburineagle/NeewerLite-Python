@@ -1,5 +1,5 @@
 #############################################################
-## NeewerLite-Python ver. 0.12
+## NeewerLite-Python ver. 0.12b
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -130,6 +130,7 @@ customLightPresets = [
     ]
 
 threadAction = "" # the current action to take from the thread
+asyncioEventLoop = None # the current asyncio loop
 
 setLightUUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99" # the UUID to send information to the light
 notifyLightUUID = "69400003-B5A3-F393-E0A9-E50E24DCCA99" # the UUID for notify callbacks from the light
@@ -1411,8 +1412,7 @@ try: # try to load the GUI
             self.statusBar.showMessage("Quitting program - unlinking from lights...")
             QApplication.processEvents() # force the status bar to update
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(parallelAction("disconnect", [-1])) # disconnect from all lights in parallel
+            asyncioEventLoop.run_until_complete(parallelAction("disconnect", [-1])) # disconnect from all lights in parallel
 
             printDebugString("Closing the program NOW")
 
@@ -1574,6 +1574,16 @@ try: # try to load the GUI
                 self.computeValueANM(modeArgs["scene"])
 except NameError:
     pass # could not load the GUI, but we have already logged an error message
+
+def setUpAsyncio():
+    global asyncioEventLoop
+
+    try:
+        asyncioEventLoop = asyncio.get_running_loop()
+    except RuntimeError:
+        asyncioEventLoop = asyncio.new_event_loop()
+
+    asyncio.set_event_loop(asyncioEventLoop)
 
 # CALCULATE THE RGB VALUE OF COLOR TEMPERATURE
 def convert_K_to_RGB(Ktemp):
@@ -2804,16 +2814,16 @@ def processHTMLCommands(paramsList, loop):
 
         if len(paramsList) != 0:
             if paramsList[3] == "discover": # we asked to discover new lights
-                loop.run_until_complete(findDevices()) # find the lights available to control
+                asyncioEventLoop.run_until_complete(findDevices()) # find the lights available to control
 
                 # try to connect to each light
                 if autoConnectToLights == True:
-                    loop.run_until_complete(parallelAction("connect", [-1], False)) # try to connect to *all* lights in parallel
+                    asyncioEventLoop.run_until_complete(parallelAction("connect", [-1], False)) # try to connect to *all* lights in parallel
             elif paramsList[3] == "link": # we asked to connect to a specific light
                 selectedLights = returnLightIndexesFromMacAddress(paramsList[2])
 
                 if len(selectedLights) > 0:
-                    loop.run_until_complete(parallelAction("connect", selectedLights, False)) # try to connect to all *selected* lights in parallel
+                    asyncioEventLoop.run_until_complete(parallelAction("connect", selectedLights, False)) # try to connect to all *selected* lights in parallel
             elif paramsList[3] == "use_preset":
                 recallCustomPreset(paramsList[2] - 1, False, loop)
             elif paramsList[3] == "save_preset":
@@ -2844,7 +2854,7 @@ def processHTMLCommands(paramsList, loop):
                 selectedLights = returnLightIndexesFromMacAddress(paramsList[2])
 
                 if len(selectedLights) > 0:
-                    loop.run_until_complete(writeToLight(selectedLights, False))
+                    asyncioEventLoop.run_until_complete(writeToLight(selectedLights, False))
 
             threadAction = "" # clear the thread variable
     else:
@@ -2880,8 +2890,6 @@ def returnLightIndexesFromMacAddress(addresses):
     return foundIndexes
 
 class NLPythonServer(BaseHTTPRequestHandler):
-    loop = asyncio.get_event_loop()
-
     def _send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
@@ -2988,7 +2996,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                             self.wfile.write(bytes("<BR><HR><BR>\n", "utf-8"))
 
                         # PROCESS THE HTML COMMANDS IN ANOTHER THREAD
-                        htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(paramsList, loop), name="htmlProcessThread")
+                        htmlProcessThread = threading.Thread(target=processHTMLCommands, args=(paramsList, asyncioEventLoop), name="htmlProcessThread")
                         htmlProcessThread.start()
 
                     if paramsList[1] == True: # if we've been asked to list the currently available lights, do that now
@@ -3076,7 +3084,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<META HTTP-EQUIV='Content-Type' CONTENT='text/html;charset=UTF-8'>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.12 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.12b HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3122,7 +3130,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = footerLinks + "<A HREF='doAction?list'>List Currently Available Lights and Custom Presets</A>"
         self.wfile.write(bytes("<HR>" + footerLinks + "<HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.12</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.12b</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3257,7 +3265,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. 0.12")
+    print("             NeewerLite-Python ver. 0.12b")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3272,7 +3280,7 @@ if __name__ == '__main__':
     if os.path.exists(customLightPresetsFile):
         loadCustomPresets() # if there's a custom mapping for presets, then load that into memory
 
-    loop = asyncio.get_event_loop() # get the current asyncio loop
+    setUpAsyncio() # set up the asyncio loop
     cmdReturn = [True] # initially set to show the GUI interface over the CLI interface
 
     if len(sys.argv) > 1: # if we have more than 1 argument on the command line (the script itself is argument 1), then process switches
@@ -3302,7 +3310,7 @@ if __name__ == '__main__':
 
                 # DISCONNECT FROM EACH LIGHT BEFORE FINISHING THE PROGRAM
                 printDebugString("Attempting to unlink from lights...")
-                loop.run_until_complete(parallelAction("disconnect", [-1], False)) # disconnect from all lights in parallel
+                asyncioEventLoop.run_until_complete(parallelAction("disconnect", [-1], False)) # disconnect from all lights in parallel
            
             printDebugString("Closing the program NOW")
             singleInstanceUnlockandQuit(0) # delete the lock file and quit out
@@ -3310,9 +3318,9 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.12 by Zach Glenwright")
+            print("NeewerLite-Python 0.12b by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
-            loop.run_until_complete(findDevices())
+            asyncioEventLoop.run_until_complete(findDevices())
 
             if len(availableLights) > 0:
                 print()
@@ -3375,7 +3383,7 @@ if __name__ == '__main__':
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> MAC Address of light to send command to: " + cmdReturn[2].upper())
 
-                loop.run_until_complete(connectToOneLight(cmdReturn[2])) # get Bleak object linking to this specific light and getting custom prefs
+                asyncioEventLoop.run_until_complete(connectToOneLight(cmdReturn[2])) # get Bleak object linking to this specific light and getting custom prefs
             else:
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> You did not specify a light to send the command to - use the --light switch")
@@ -3417,7 +3425,7 @@ if __name__ == '__main__':
                 mainWindow.show()
 
                 # START THE BACKGROUND THREAD
-                workerThread = threading.Thread(target=workerThread, args=(loop,), name="workerThread")
+                workerThread = threading.Thread(target=workerThread, args=(asyncioEventLoop,), name="workerThread")
                 workerThread.start()
 
                 ret = app.exec_()
@@ -3472,7 +3480,7 @@ if __name__ == '__main__':
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> Attempting to connect to light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
                 printDebugString("-------------------------------------------------------------------------------------")
-                isFinished = loop.run_until_complete(connectToLight(0, False))
+                isFinished = asyncioEventLoop.run_until_complete(connectToLight(0, False))
 
                 if numOfAttempts < maxNumOfAttempts:
                     numOfAttempts = numOfAttempts + 1
@@ -3487,7 +3495,7 @@ if __name__ == '__main__':
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> Attempting to write to light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
                 printDebugString("-------------------------------------------------------------------------------------")
-                isFinished = loop.run_until_complete(writeToLight(0, False))
+                isFinished = asyncioEventLoop.run_until_complete(writeToLight(0, False))
 
                 if numOfAttempts < maxNumOfAttempts:
                     numOfAttempts = numOfAttempts + 1
@@ -3502,7 +3510,7 @@ if __name__ == '__main__':
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> Attempting to disconnect from light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
                 printDebugString("-------------------------------------------------------------------------------------")
-                isFinished = loop.run_until_complete(disconnectFromLight(0))
+                isFinished = asyncioEventLoop.run_until_complete(disconnectFromLight(0))
 
                 if numOfAttempts < maxNumOfAttempts:
                     numOfAttempts = numOfAttempts + 1
