@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. 0.12b
+## NeewerLite-Python ver. 0.12c
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -2271,8 +2271,16 @@ async def connectToLight(selectedLight, updateGUI=True):
     lightName = availableLights[selectedLight][0].name # the Name of the light (for status updates)
     lightMAC = availableLights[selectedLight][0].address # the MAC address of the light (to keep track of the light even if the index number changes)
 
-    # FILL THE [1] ELEMENT OF THE availableLights ARRAY WITH THE BLEAK CONNECTION
+    createNewBleakInstance = False
+
+    # CHECK TO SEE IF A BLEAK OBJECT EXISTS
     if availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1] == "":
+        createNewBleakInstance = True
+    else: # if the object exists, but nothing is connected to it, then make a new instance
+        if not availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1].is_connected:
+            createNewBleakInstance = True
+
+    if createNewBleakInstance == True: # FILL THE [1] ELEMENT OF THE availableLights ARRAY WITH A NEW BLEAK CONNECTION OBJECT
         availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1] = BleakClient(availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][0])
         await asyncio.sleep(0.25) # wait just a short time before trying to connect
 
@@ -2524,7 +2532,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
             if updateGUI == True:
                 selectedLights = mainWindow.selectedLights() # re-acquire the current list of selected lights
     except Exception as e:
-        printDebugString("There was an error communicating with the light.")
+        printDebugString("There was an error communicating with light " + str(selectedLights[a] + 1) + " [" + availableLights[selectedLights[a]][0].name + "] " + returnMACname() + " " + availableLights[selectedLights[a]][0].address)
         print(e)
 
         if updateGUI == True:
@@ -3085,7 +3093,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<META HTTP-EQUIV='Content-Type' CONTENT='text/html;charset=UTF-8'>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.12b HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.12c HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3131,7 +3139,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         footerLinks = footerLinks + "<A HREF='doAction?list'>List Currently Available Lights and Custom Presets</A>"
         self.wfile.write(bytes("<HR>" + footerLinks + "<HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.12b</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.12c</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3266,7 +3274,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. 0.12b")
+    print("             NeewerLite-Python ver. 0.12c")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3319,7 +3327,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.12b by Zach Glenwright")
+            print("NeewerLite-Python 0.12c by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
