@@ -2968,7 +2968,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                 else:
                     if paramsList[1] == True:
                         writeHTMLSections(self, "htmlheaders") # write the HTML header section
-                        writeHTMLSections(self, "quicklinks")
+                        writeHTMLSections(self, "quicklinks-timer") # put the quicklinks (with timer) at the top of the page
 
                         self.wfile.write(bytes("<H1>Request Successful!</H1>\n", "utf-8"))
                         self.wfile.write(bytes("Last Request: <EM>" + self.path + "</EM><BR>\n", "utf-8"))
@@ -3011,20 +3011,62 @@ class NLPythonServer(BaseHTTPRequestHandler):
                     if paramsList[1] == True: # if we've been asked to list the currently available lights, do that now
                         totalLights = len(availableLights)
 
+                        # JAVASCRIPT CODE TO CHANGE LIGHT NAMES
+                        self.wfile.write(bytes("\n<!-- JAVASCRIPT CODE TO REFRESH PAGE / CHANGE LIGHT NAMES -->\n", "utf-8"))
+                        self.wfile.write(bytes("<script language='JavaScript'>\n", "utf-8"))
+                        self.wfile.write(bytes("  class webTimer{\n", "utf-8"))
+                        self.wfile.write(bytes("    constructor(timeOut) {\n", "utf-8"))
+                        self.wfile.write(bytes("      this.isRunning = true; // set to 'running' status on creation\n", "utf-8"))
+                        self.wfile.write(bytes("      this.startTime = Date.now(); // the time the timer was first created\n", "utf-8"))
+                        self.wfile.write(bytes("      this.timeOut = timeOut; // how long to time down from\n", "utf-8"))
+                        self.wfile.write(bytes("    }\n\n", "utf-8"))
+                        self.wfile.write(bytes("    stop() { // stop running the timer\n", "utf-8"))
+                        self.wfile.write(bytes("      this.isRunning = false;\n", "utf-8"))
+                        self.wfile.write(bytes("    }\n\n", "utf-8"))
+                        self.wfile.write(bytes("    restart() { // re-start the countdown timer\n", "utf-8"))
+                        self.wfile.write(bytes("      this.isRunning = true;\n", "utf-8"))
+                        self.wfile.write(bytes("      this.startTime = Date.now(); // re-initialize the counter from the current time\n", "utf-8"))
+                        self.wfile.write(bytes("    }\n\n", "utf-8"))
+                        self.wfile.write(bytes("    getTime() {\n", "utf-8"))
+                        self.wfile.write(bytes("      if (this.isRunning) { // return the amount of time that's left until the timeout\n", "utf-8"))
+                        self.wfile.write(bytes("        return Math.round(this.timeOut - (Date.now() - this.startTime) / 1000);\n", "utf-8"))
+                        self.wfile.write(bytes("      }\n\n", "utf-8"))
+                        self.wfile.write(bytes("      return 42; // we're paused, so return a... decent answer\n", "utf-8"))
+                        self.wfile.write(bytes("    }\n", "utf-8"))
+                        self.wfile.write(bytes("  }\n\n", "utf-8"))
+                        self.wfile.write(bytes("  function checkPageReload(ctElapsed) {\n", "utf-8"))
+                        self.wfile.write(bytes("    if (ctElapsed > 0) {\n", "utf-8"))
+                        self.wfile.write(bytes("      if (ctElapsed > 1) {\n", "utf-8"))
+                        self.wfile.write(bytes("        document.getElementById('refreshDisplay').innerText = 'This page will auto-refresh in ' + ctElapsed + ' seconds';\n", "utf-8"))
+                        self.wfile.write(bytes("      } else {\n", "utf-8"))
+                        self.wfile.write(bytes("        document.getElementById('refreshDisplay').innerText = 'This page will auto-refresh in 1 second';\n", "utf-8"))
+                        self.wfile.write(bytes("      }\n", "utf-8"))
+                        self.wfile.write(bytes("    } else {\n", "utf-8"))
+                        self.wfile.write(bytes("      location.assign('/NeewerLite-Python/doAction?list');\n", "utf-8"))
+                        self.wfile.write(bytes("    }\n", "utf-8"))
+                        self.wfile.write(bytes("  }\n\n", "utf-8"))
+                        self.wfile.write(bytes("  function editLight(lightNum, lightType, previousName) {\n", "utf-8"))
+                        self.wfile.write(bytes("    WT.stop(); // stop the refresh timer\n\n", "utf-8"))
+                        self.wfile.write(bytes("    document.getElementById('refreshDisplay').innerText = 'You clicked on an Edit button, so the refresh timer has been stopped.';\n", "utf-8"))
+                        self.wfile.write(bytes("    let newName = prompt('What do you want to call light ' + (lightNum+1) + ' (' + lightType + ')?', previousName);\n\n", "utf-8"))
+                        self.wfile.write(bytes("    if (!(newName == null || newName == '' || newName == previousName)) {\n", "utf-8"))
+                        self.wfile.write(bytes("      window.location.href = 'doAction?custom_name=' + lightNum + '|' + newName + '';\n", "utf-8"))
+                        self.wfile.write(bytes("    } else {\n", "utf-8"))
+                        self.wfile.write(bytes("      WT.restart(); // restart the countdown timer for refreshing the page\n", "utf-8"))
+                        self.wfile.write(bytes("    }\n", "utf-8"))
+                        self.wfile.write(bytes("  }\n\n", "utf-8"))
+                        self.wfile.write(bytes("  const timeOut = 8; // the delay in seconds before the page reloads\n", "utf-8"))
+                        self.wfile.write(bytes("  const WT = new webTimer(timeOut); // the timer to track the above\n\n", "utf-8"))
+                        self.wfile.write(bytes("  // The check to see whether or not to refresh the page\n", "utf-8"))
+                        self.wfile.write(bytes("  setInterval(() => {\n", "utf-8"))
+                        self.wfile.write(bytes("    const ctElapsed = WT.getTime();\n", "utf-8"))
+                        self.wfile.write(bytes("    checkPageReload(ctElapsed);\n", "utf-8"))
+                        self.wfile.write(bytes("  }, 250)\n", "utf-8"))
+                        self.wfile.write(bytes("</script>\n\n", "utf-8"))
+
                         if totalLights == 0: # there are no lights available to you at the moment!
                             self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <A HREF='doAction?discover'>click here</a>.<BR>\n", "utf-8"))
                         else:
-                            # JAVASCRIPT CODE TO CHANGE LIGHT NAMES
-                            self.wfile.write(bytes("\n<!-- JAVASCRIPT CODE TO CHANGE LIGHT NAMES -->\n", "utf-8"))
-                            self.wfile.write(bytes("<script>\n", "utf-8"))
-                            self.wfile.write(bytes("  function editLight(lightNum, lightType, previousName) {\n", "utf-8"))
-                            self.wfile.write(bytes("     let newName = prompt('What do you want to call light ' + (lightNum+1) + ' (' + lightType + ')?', previousName);\n\n", "utf-8"))
-                            self.wfile.write(bytes("     if (!(newName == null || newName == '' || newName == previousName)) {\n", "utf-8"))
-                            self.wfile.write(bytes("          window.location.href = 'doAction?custom_name=' + lightNum + '|' + newName + '';\n", "utf-8"))
-                            self.wfile.write(bytes("     }\n", "utf-8"))
-                            self.wfile.write(bytes("  }\n", "utf-8"))
-                            self.wfile.write(bytes("</script>\n\n", "utf-8"))
-
                             self.wfile.write(bytes("List of available Neewer lights:<BR><BR>\n", "utf-8"))
                             self.wfile.write(bytes("<TABLE WIDTH='98%' BORDER='1'>\n", "utf-8"))
                             self.wfile.write(bytes("  <TR>\n", "utf-8"))
@@ -3071,9 +3113,9 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         for a in range(4): # build the list itself, showing 2 presets next to each other
                             currentPreset = (2 * a)
                             self.wfile.write(bytes("  <TR>\n", "utf-8"))
-                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(173,255,47)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 1) + "#presets'>" + str(currentPreset + 1) + "</A></FONT></TD>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(173,255,47)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 1) + "'>" + str(currentPreset + 1) + "</A></FONT></TD>\n", "utf-8"))
                             self.wfile.write(bytes("     <TD VALIGN='TOP' STYLE='background-color:rgb(240,248,255)'>" + customPresetInfoBuilder(currentPreset, True) + "</TD>\n", "utf-8"))
-                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(173,255,47)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 2) + "#presets'>" + str(currentPreset + 2) + "</A></FONT></TD>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(173,255,47)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 2) + "'>" + str(currentPreset + 2) + "</A></FONT></TD>\n", "utf-8"))
                             self.wfile.write(bytes("     <TD VALIGN='TOP' STYLE='background-color:rgb(240,248,255)'>" + customPresetInfoBuilder(currentPreset + 1, True) + "</TD>\n", "utf-8"))
                             self.wfile.write(bytes("  </TR>\n", "utf-8"))
                         
@@ -3087,12 +3129,14 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     if theSection == "httpheaders":
         self.send_response(200)
         self._send_cors_headers()
-        self.send_header("Content-type", "text/html")
+        self.send_header("Content-Type", "text/html;charset=UTF-8")
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         self.end_headers()
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<META HTTP-EQUIV='Content-Type' CONTENT='text/html;charset=UTF-8'>\n", "utf-8"))
         self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.12c HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
@@ -3133,11 +3177,14 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?light=1&mode=SCENE&scene=1&bri=55</EM><BR><BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;Use the 2nd custom preset, but don't render the webpage showing the results<BR>\n", "utf-8"))
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?use_preset=2&nopage</EM><BR>\n", "utf-8"))
-    elif theSection == "quicklinks":
+    elif theSection == "quicklinks" or theSection == "quicklinks-timer":
         footerLinks = "Shortcut links: "
         footerLinks = footerLinks + "<A HREF='doAction?discover'>Scan for New Lights</A> | "
         footerLinks = footerLinks + "<A HREF='doAction?list'>List Currently Available Lights and Custom Presets</A>"
-        self.wfile.write(bytes("<HR>" + footerLinks + "<HR>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><HR>" + footerLinks + "<HR></CENTER>\n", "utf-8"))
+
+        if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
+            self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
         self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.12c</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
