@@ -8,7 +8,7 @@
   <summary>Control your Neewer light with your computer</summary>
   <description>
     <p>
-      Control your Neewer light via bluetooth with a gui or cli 
+      Control your Neewer light via Bluetooth with a GUI, CLI or HTTP interface
     </p>
   </description>
   <url type="homepage">https://github.com/taburineagle/NeewerLite-Python</url>
