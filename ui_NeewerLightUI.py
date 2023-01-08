@@ -28,7 +28,7 @@ class Ui_MainWindow(object):
         gradient_RGB.setColorAt(1.0, QColor(255, 0, 0, 255))
 
         MainWindow.setFixedSize(590, 670) # the main window should be this size at launch, and no bigger
-        MainWindow.setWindowTitle("NeewerLite-Python 0.12c by Zach Glenwright")
+        MainWindow.setWindowTitle("NeewerLite-Python 0.12d by Zach Glenwright")
 
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
