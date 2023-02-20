@@ -130,7 +130,7 @@ class Ui_MainWindow(object):
         self.CCT_Temp_Gradient_BG.setGeometry(QRect(8, 30, 552, 24))
         self.CCT_Temp_Gradient_BG.setFrameShape(QFrame.NoFrame)
         self.CCT_Temp_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.CCT_Temp_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+        self.CCT_Temp_Gradient_BG.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
         self.Slider_CCT_Hue = QSlider(self.CCT)
         self.Slider_CCT_Hue.setGeometry(QRect(9, 35, 551, 16))
@@ -142,7 +142,7 @@ class Ui_MainWindow(object):
         self.TFV_CCT_Hue_Min = QLabel(self.CCT)
         self.TFV_CCT_Hue_Min.setGeometry(QRect(10, 56, 51, 20))
         self.TFV_CCT_Hue_Min.setText("")
-        self.TFV_CCT_Hue_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+        # self.TFV_CCT_Hue_Min.setAlignment(Qt.AlignLeading | Qt.AlignLeft | Qt.AlignVCenter)
 
         self.TFV_CCT_Hue = QLabel(self.CCT)
         self.TFV_CCT_Hue.setGeometry(QRect(250, 56, 51, 20))
@@ -153,7 +153,7 @@ class Ui_MainWindow(object):
         self.TFV_CCT_Hue_Max = QLabel(self.CCT)
         self.TFV_CCT_Hue_Max.setGeometry(QRect(510, 56, 51, 20))
         self.TFV_CCT_Hue_Max.setText("")
-        self.TFV_CCT_Hue_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_CCT_Hue_Max.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
 
         self.TFL_CCT_Bright = QLabel(self.CCT)
         self.TFL_CCT_Bright.setGeometry(QRect(8, 86, 440, 17))
@@ -167,7 +167,7 @@ class Ui_MainWindow(object):
         self.CCT_Bright_Gradient_BG.setGeometry(QRect(8, 106, 552, 24))
         self.CCT_Bright_Gradient_BG.setFrameShape(QFrame.NoFrame)
         self.CCT_Bright_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.CCT_Bright_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+        self.CCT_Bright_Gradient_BG.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
         self.Slider_CCT_Bright = QSlider(self.CCT)
         self.Slider_CCT_Bright.setGeometry(QRect(9, 111, 551, 16))
@@ -179,7 +179,7 @@ class Ui_MainWindow(object):
         self.TFV_CCT_Bright_Min = QLabel(self.CCT)
         self.TFV_CCT_Bright_Min.setGeometry(QRect(10, 132, 51, 20))
         self.TFV_CCT_Bright_Min.setText("0%")
-        self.TFV_CCT_Bright_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+        # self.TFV_CCT_Bright_Min.setAlignment(Qt.AlignLeading | Qt.AlignLeft | Qt.AlignVCenter)
 
         self.TFV_CCT_Bright = QLabel(self.CCT)
         self.TFV_CCT_Bright.setGeometry(QRect(250, 132, 51, 20))
@@ -190,7 +190,7 @@ class Ui_MainWindow(object):
         self.TFV_CCT_Bright_Max = QLabel(self.CCT)
         self.TFV_CCT_Bright_Max.setGeometry(QRect(510, 132, 51, 20))
         self.TFV_CCT_Bright_Max.setText("100%")
-        self.TFV_CCT_Bright_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_CCT_Bright_Max.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
 
         # === >> THE HSI TAB << ===
         self.HSI = QWidget()
@@ -207,7 +207,7 @@ class Ui_MainWindow(object):
         self.HSI_Hue_Gradient_BG.setGeometry(QRect(8, 30, 552, 24))
         self.HSI_Hue_Gradient_BG.setFrameShape(QFrame.NoFrame)
         self.HSI_Hue_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.HSI_Hue_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+        self.HSI_Hue_Gradient_BG.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
         self.Slider_HSI_1_H = QSlider(self.HSI)
         self.Slider_HSI_1_H.setGeometry(QRect(9, 35, 551, 16))
@@ -219,7 +219,7 @@ class Ui_MainWindow(object):
         self.TFV_HSI_1_H_Min = QLabel(self.HSI)
         self.TFV_HSI_1_H_Min.setGeometry(QRect(10, 56, 51, 20))
         self.TFV_HSI_1_H_Min.setText("0º")
-        self.TFV_HSI_1_H_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+        # self.TFV_HSI_1_H_Min.setAlignment(Qt.AlignLeading | Qt.AlignLeft | Qt.AlignVCenter)
 
         self.TFV_HSI_1_H = QLabel(self.HSI)
         self.TFV_HSI_1_H.setGeometry(QRect(250, 56, 51, 20))
@@ -230,7 +230,7 @@ class Ui_MainWindow(object):
         self.TFV_HSI_1_H_Max = QLabel(self.HSI)
         self.TFV_HSI_1_H_Max.setGeometry(QRect(510, 56, 51, 20))
         self.TFV_HSI_1_H_Max.setText("360º")
-        self.TFV_HSI_1_H_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_HSI_1_H_Max.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
 
         self.TFL_HSI_2_S = QLabel(self.HSI)
         self.TFL_HSI_2_S.setGeometry(QRect(8, 80, 440, 17))
@@ -243,7 +243,7 @@ class Ui_MainWindow(object):
         self.HSI_Sat_Gradient_BG.setGeometry(QRect(8, 100, 552, 24))
         self.HSI_Sat_Gradient_BG.setFrameShape(QFrame.NoFrame)
         self.HSI_Sat_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.HSI_Sat_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+        self.HSI_Sat_Gradient_BG.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
         self.Slider_HSI_2_S = QSlider(self.HSI)
         self.Slider_HSI_2_S.setGeometry(QRect(9, 105, 551, 16))
@@ -255,7 +255,7 @@ class Ui_MainWindow(object):
         self.TFV_HSI_2_S_Min = QLabel(self.HSI)
         self.TFV_HSI_2_S_Min.setGeometry(QRect(10, 126, 51, 20))
         self.TFV_HSI_2_S_Min.setText("0%")
-        self.TFV_HSI_2_S_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+        # self.TFV_HSI_2_S_Min.setAlignment(Qt.AlignLeading | Qt.AlignLeft | Qt.AlignVCenter)
 
         self.TFV_HSI_2_S = QLabel(self.HSI)
         self.TFV_HSI_2_S.setGeometry(QRect(250, 126, 51, 20))
@@ -266,7 +266,7 @@ class Ui_MainWindow(object):
         self.TFV_HSI_2_S_Max = QLabel(self.HSI)
         self.TFV_HSI_2_S_Max.setGeometry(QRect(510, 126, 51, 20))
         self.TFV_HSI_2_S_Max.setText("100%")
-        self.TFV_HSI_2_S_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_HSI_2_S_Max.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
 
         self.TFL_HSI_3_L = QLabel(self.HSI)
         self.TFL_HSI_3_L.setGeometry(QRect(8, 150, 440, 17))
@@ -280,7 +280,7 @@ class Ui_MainWindow(object):
         self.HSI_Int_Gradient_BG.setGeometry(QRect(8, 170, 552, 24))
         self.HSI_Int_Gradient_BG.setFrameShape(QFrame.NoFrame)
         self.HSI_Int_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.HSI_Int_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+        self.HSI_Int_Gradient_BG.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
         self.Slider_HSI_3_L = QSlider(self.HSI)
         self.Slider_HSI_3_L.setGeometry(QRect(9, 175, 551, 16))
@@ -292,7 +292,7 @@ class Ui_MainWindow(object):
         self.TFV_HSI_3_L_Min = QLabel(self.HSI)
         self.TFV_HSI_3_L_Min.setGeometry(QRect(10, 196, 51, 20))
         self.TFV_HSI_3_L_Min.setText("0%")
-        self.TFV_HSI_3_L_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+        # self.TFV_HSI_3_L_Min.setAlignment(Qt.AlignLeading | Qt.AlignLeft | Qt.AlignVCenter)
 
         self.TFV_HSI_3_L = QLabel(self.HSI)
         self.TFV_HSI_3_L.setGeometry(QRect(250, 196, 51, 20))
@@ -303,7 +303,7 @@ class Ui_MainWindow(object):
         self.TFV_HSI_3_L_Max = QLabel(self.HSI)
         self.TFV_HSI_3_L_Max.setGeometry(QRect(510, 196, 51, 20))
         self.TFV_HSI_3_L_Max.setText("100%")
-        self.TFV_HSI_3_L_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_HSI_3_L_Max.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
 
         # === >> THE SCENE TAB << ===
         self.ANM = QWidget()
@@ -321,7 +321,7 @@ class Ui_MainWindow(object):
         self.ANM_Brightness_Gradient_BG.setGeometry(QRect(8, 30, 552, 24))
         self.ANM_Brightness_Gradient_BG.setFrameShape(QFrame.NoFrame)
         self.ANM_Brightness_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.ANM_Brightness_Gradient_BG.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+        self.ANM_Brightness_Gradient_BG.setAlignment(Qt.AlignLeft | Qt.AlignTop)
 
         self.Slider_ANM_Brightness = QSlider(self.ANM)
         self.Slider_ANM_Brightness.setGeometry(QRect(9, 35, 551, 16))
@@ -333,17 +333,17 @@ class Ui_MainWindow(object):
         self.TFV_ANM_Brightness_Min = QLabel(self.ANM)
         self.TFV_ANM_Brightness_Min.setGeometry(QRect(10, 56, 51, 20))
         self.TFV_ANM_Brightness_Min.setText("0%")
-        self.TFV_ANM_Brightness_Min.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+        # self.TFV_ANM_Brightness_Min.setAlignment(Qt.AlignLeading | Qt.AlignLeft | Qt.AlignVCenter)
              
         self.TFV_ANM_Brightness = QLabel(self.ANM)
         self.TFV_ANM_Brightness.setGeometry(QRect(250, 56, 51, 20))
         self.TFV_ANM_Brightness.setText("100%")
-        self.TFV_ANM_Brightness.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_ANM_Brightness.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
 
         self.TFV_ANM_Brightness_Max = QLabel(self.ANM)
         self.TFV_ANM_Brightness_Max.setGeometry(QRect(510, 56, 51, 20))
         self.TFV_ANM_Brightness_Max.setText("100%")
-        self.TFV_ANM_Brightness_Max.setAlignment(Qt.AlignRight|Qt.AlignTrailing|Qt.AlignVCenter)
+        self.TFV_ANM_Brightness_Max.setAlignment(Qt.AlignRight | Qt.AlignTrailing | Qt.AlignVCenter)
 
         self.TFL_A_policeAnim = QLabel(self.ANM)
         self.TFL_A_policeAnim.setGeometry(QRect(10, 86, 40, 40))
