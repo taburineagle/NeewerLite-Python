@@ -1571,7 +1571,7 @@ try: # try to load the GUI
                 self.ColorModeTabWidget.setCurrentIndex(2)
 
                 self.Slider_ANM_Brightness.setValue(modeArgs["brightness"])
-                self.computeValueANM(modeArgs["scene"])
+                self.computeValueANM(modeArgs["animation"])
 except NameError:
     pass # could not load the GUI, but we have already logged an error message
 
@@ -1805,12 +1805,12 @@ def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
             elif customLightPresets[numOfPreset][0][1][0] == 6: # the preset is in ANM/SCENE mode
                 p_colorMode = "ANM"
                 p_brightness = customLightPresets[numOfPreset][0][1][1]
-                p_scene = customLightPresets[numOfPreset][0][1][2]
+                p_animation = customLightPresets[numOfPreset][0][1][2]
 
                 if updateGUI == True:
-                    mainWindow.setUpGUI(colorMode=p_colorMode, brightness=p_brightness, scene=p_scene)
+                    mainWindow.setUpGUI(colorMode=p_colorMode, brightness=p_brightness, animation=p_animation)
                 else:
-                    computedValue = calculateByteString(True, colorMode=p_colorMode, brightness=p_brightness, scene=p_scene)
+                    computedValue = calculateByteString(True, colorMode=p_colorMode, brightness=p_brightness, animation=p_animation)
 
             if updateGUI == False:
                 for b in range(len(availableLights)):
