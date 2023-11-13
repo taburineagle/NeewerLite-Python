@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. 0.13
+## NeewerLite-Python ver. 0.14
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -18,13 +18,13 @@ import os
 import sys
 import math # used for calculating the RGB values of color temperatures
 import tempfile
-
 import argparse
-import platform # used to determine which OS we're using for MAC address/GUID listing
-
 import asyncio
 import threading
 import time
+
+import platform # used to determine which OS we're using for MAC address/GUID listing
+from importlib import metadata as ilm # used to determine which version of Bleak we have running
 
 from datetime import datetime
 
@@ -2129,14 +2129,32 @@ def calculateChecksum(sendValue):
     checkSum = checkSum & 255
     return checkSum
 
+# Use this class to store information in a format that plays nicer with Bleak > 0.19 
+class UpdatedBLEInformation:
+    def __init__(self, name, address, rssi):
+        self.name = name
+        self.address = address
+        self.rssi = rssi
+
 # FIND NEW LIGHTS
 async def findDevices():
     global availableLights
     printDebugString("Searching for new lights")
-
     currentScan = [] # add all the current scan's lights detected to a standby array (to check against the main one)
-    devices = await BleakScanner.discover() # scan all available Bluetooth devices nearby
 
+    bleak_ver = ilm.version('bleak').split(".") # the version of Bleak that we're using
+
+    # after Bleak 0.19, RSSI information is stored in an Advertisement variable 
+    # instead of the BLEDevice itself, so it needs to be obtained differently!
+    if int(bleak_ver[0]) == 0 and int(bleak_ver[1]) < 19:
+        devices = await BleakScanner.discover() # scan all available Bluetooth devices nearby
+    else: 
+        devices = []
+        device_scan = await BleakScanner.discover(return_adv=True) # scan all available Bluetooth devices nearby and return Advertisement data
+    
+        for device, adv_data in device_scan.values():
+            devices.append(UpdatedBLEInformation(device.name, device.address, adv_data.rssi))
+        
     for d in devices: # go through all of the devices Bleak just found
         if d.address in whiteListedMACs: # if the MAC address is in the list of whitelisted addresses, add this device
             printDebugString("Matching whitelisted address found - " + returnMACname() + " " + d.address + ", adding to the list")
@@ -2270,17 +2288,18 @@ async def connectToLight(selectedLight, updateGUI=True):
     lightName = availableLights[selectedLight][0].name # the Name of the light (for status updates)
     lightMAC = availableLights[selectedLight][0].address # the MAC address of the light (to keep track of the light even if the index number changes)
 
+    lightIdx = returnLightIndexesFromMacAddress(lightMAC)[0]
     createNewBleakInstance = False
 
     # CHECK TO SEE IF A BLEAK OBJECT EXISTS
-    if availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1] == "":
+    if availableLights[lightIdx][1] == "":
         createNewBleakInstance = True
     else: # if the object exists, but nothing is connected to it, then make a new instance
-        if not availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1].is_connected:
+        if not availableLights[lightIdx][1].is_connected:
             createNewBleakInstance = True
 
     if createNewBleakInstance == True: # FILL THE [1] ELEMENT OF THE availableLights ARRAY WITH A NEW BLEAK CONNECTION OBJECT
-        availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1] = BleakClient(availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][0])
+        availableLights[lightIdx][1] = BleakClient(availableLights[lightIdx][0].address)
         await asyncio.sleep(0.25) # wait just a short time before trying to connect
 
     # TRY TO CONNECT TO THE LIGHT SEVERAL TIMES BEFORE GIVING UP THE LINK
@@ -2289,9 +2308,9 @@ async def connectToLight(selectedLight, updateGUI=True):
     while isConnected == False and currentAttempt <= maxNumOfAttempts:
         if threadAction != "quit":
             try:
-                if not availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1].is_connected: # if the current device isn't linked to Bluetooth
+                if not availableLights[lightIdx][1].is_connected: # if the current device isn't linked to Bluetooth
                     printDebugString("Attempting to link to light [" + lightName + "] " + returnMACname() + " " + lightMAC + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
-                    isConnected = await availableLights[returnLightIndexesFromMacAddress(lightMAC)[0]][1].connect() # try connecting it (and return the connection status)
+                    isConnected = await availableLights[lightIdx][1].connect() # try connecting it (and return the connection status)
                 else:
                     isConnected = True # the light is already connected, so mark it as being connected
             except Exception as e:
@@ -2299,7 +2318,7 @@ async def connectToLight(selectedLight, updateGUI=True):
               
                 if updateGUI == True:
                     if currentAttempt < maxNumOfAttempts:
-                        mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], returnLightIndexesFromMacAddress(lightMAC)[0]) # there was an issue connecting this specific light to Bluetooth, so show that
+                        mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], lightIdx) # there was an issue connecting this specific light to Bluetooth, so show that
                 else:
                     returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
 
@@ -2315,12 +2334,12 @@ async def connectToLight(selectedLight, updateGUI=True):
             printDebugString("Successful link on light [" + lightName + "] " + returnMACname() + " " + lightMAC)
 
             if updateGUI == True:
-                mainWindow.setTheTable(["", "", "LINKED", "Waiting to send..."], returnLightIndexesFromMacAddress(lightMAC)[0]) # if it's successful, show that in the table
+                mainWindow.setTheTable(["", "", "LINKED", "Waiting to send..."], lightIdx) # if it's successful, show that in the table
             else:
                 returnValue = True  # if we're in CLI mode, and there is no error connecting to the light, return True
         else:
             if updateGUI == True:
-                mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light"], returnLightIndexesFromMacAddress(lightMAC)[0]) # there was an issue connecting this specific light to Bluetooh, so show that
+                mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light"], lightIdx) # there was an issue connecting this specific light to Bluetooh, so show that
 
             returnValue = False # the light is not connected
 
@@ -3136,7 +3155,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.13 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.14 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3185,7 +3204,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
             self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.13</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.14</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3320,7 +3339,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. 0.13")
+    print("             NeewerLite-Python ver. 0.14")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3373,7 +3392,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.13 by Zach Glenwright")
+            print("NeewerLite-Python 0.14 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
