@@ -2178,8 +2178,13 @@ async def findDevices():
             printDebugString("Matching whitelisted address found - " + returnMACname() + " " + d.address + ", adding to the list")
             currentScan.append(d)
         else: # if this device is not whitelisted, check to see if it's valid (contains "NEEWER" in the name)
-            if d.name != None and "NEEWER" in d.name: # if Bleak returned a proper string, and the string has "NEEWER" in the name
-                currentScan.append(d) # add this light to this session's available lights            
+            if d.name != None:
+                acceptedPrefixes = ["NEEWER", "NW-", "SL", "NWR"]
+
+                for a in range(len(acceptedPrefixes)):
+                    if acceptedPrefixes[a] in d.name:
+                        currentScan.append(d)
+                        break
 
     for a in range(len(currentScan)): # scan the newly found NEEWER devices
         newLight = True # initially mark this light as a "new light"
