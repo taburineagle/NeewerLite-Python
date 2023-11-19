@@ -94,6 +94,7 @@ availableLights = [] # the list of Neewer lights currently available to control
 # [5] - Whether or not to send Brightness and Hue independently for old lights (boolean)
 # [6] - Whether or not this light has been manually turned ON/OFF (boolean)
 # [7] - The Power and Channel data returned for this light (list)
+# [8] - Whether or not this light uses the new Infinity light protocol (boolean)
 
 # Light Preset ***Default*** Settings (for sections below):
 # NOTE: The list is 0-based, so the preset itself is +1 from the subitem
@@ -2053,29 +2054,28 @@ def splitMACAddress(MACAddress, returnInt = False):
 def calculateByteString(returnValue = False, **modeArgs):
     if modeArgs["colorMode"] == "CCT":
         # We're in CCT (color balance) mode
-        computedValue = [120, 135, 2, 0, 0, 0]
+        computedValue = [120, 135, 2, 0, 0]
 
         computedValue[3] = int(modeArgs["brightness"]) # the brightness value
         computedValue[4] = int(modeArgs["temp"]) # the color temp value, ranging from 32(00K) to 85(00)K - some lights (like the SL-80) can go as high as 8500K
-        computedValue[5] = calculateChecksum(computedValue) # compute the checksum
     elif modeArgs["colorMode"] == "HSI":
         # We're in HSI (any color of the spectrum) mode
-        computedValue = [120, 134, 4, 0, 0, 0, 0, 0]
+        computedValue = [120, 134, 4, 0, 0, 0, 0]
 
         computedValue[3] = int(modeArgs["HSI_H"]) & 255 # hue value, up to 255
         computedValue[4] = (int(modeArgs["HSI_H"]) & 65280) >> 8 # offset value, computed from above value
         computedValue[5] = int(modeArgs["HSI_S"]) # saturation value
         computedValue[6] = int(modeArgs["HSI_I"]) # intensity value
-        computedValue[7] = calculateChecksum(computedValue) # compute the checksum
     elif modeArgs["colorMode"] == "ANM":
         # We're in ANM (animation) mode
-        computedValue = [120, 136, 2, 0, 0, 0]
+        computedValue = [120, 136, 2, 0, 0]
 
         computedValue[3] = int(modeArgs["brightness"]) # brightness value
         computedValue[4] = int(modeArgs["animation"]) # the number of animation you're going to run (check comments above)
-        computedValue[5] = calculateChecksum(computedValue) # compute the checksum
     else:
         computedValue = [0]
+
+    computedValue.append(calculateChecksum(computedValue)) # calculate the checksum
 
     if returnValue == False: # if we aren't supposed to return a value, then just set sendValue to the value returned from computedValue
         global sendValue
@@ -2099,7 +2099,19 @@ def calculateSeparateBytestrings(sendValue):
         return newValueHUE
     elif CCTSlider == 2: # return only the brightness value
         return newValueBRI
-        
+
+# CALCULATE THE CHECKSUM FROM A BYTESTRING
+def calculateChecksum(sendValue):
+    checkSum = 0
+
+    for a in range(len(sendValue)):
+        if sendValue[a] < 0:
+            checkSum = checkSum + int(sendValue[a] + 256)
+        else:
+            checkSum = checkSum + int(sendValue[a])
+
+    checkSum = checkSum & 255
+    return checkSum
 
 def setPowerBytestring(onOrOff):
     global sendValue
@@ -2133,19 +2145,6 @@ def updateStatus(splitString = False, customValue=False):
                 currentHexString = currentHexString + "  SCENE: " + str(customValue[4]) + " / BRI: " + str(customValue[3])
 
         return currentHexString
-
-# CALCULATE THE CHECKSUM FROM THE BYTESTRING
-def calculateChecksum(sendValue):
-    checkSum = 0
-
-    for a in range(len(sendValue) - 1):
-        if sendValue[a] < 0:
-            checkSum = checkSum + int(sendValue[a] + 256)
-        else:
-            checkSum = checkSum + int(sendValue[a])
-
-    checkSum = checkSum & 255
-    return checkSum
 
 # Use this class to store information in a format that plays nicer with Bleak > 0.19 
 class UpdatedBLEInformation:
@@ -2183,6 +2182,7 @@ async def findDevices():
 
                 for a in range(len(acceptedPrefixes)):
                     if acceptedPrefixes[a] in d.name:
+                        d.name = getCorrectedName(d.name) # fix the "newer" light names, like NW-20220057 with their correct names, like SL90 Pro
                         currentScan.append(d)
                         break
 
@@ -2205,10 +2205,10 @@ async def findDevices():
             printDebugString("Found new light! [" + currentScan[a].name + "] " + returnMACname() + " " + currentScan[a].address + " RSSI: " + str(currentScan[a].rssi) + " dBm")
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
 
-            if len(customPrefs) == 3: # we need to rename the light and set up CCT and color temp range
-                availableLights.append([currentScan[a], "", customPrefs[0], [120, 135, 2, 20, 56, 157], customPrefs[1], customPrefs[2], True, ["---", "---"], False]) # add it to the global list
-            elif len(customPrefs) == 4: # same as above, but we have previously stored parameters, so add them in as well
-                availableLights.append([currentScan[a], "", customPrefs[0], customPrefs[3], customPrefs[1], customPrefs[2], True, ["---", "---"], False]) # add it to the global list
+            if len(customPrefs) == 4: # we need to rename the light and set up CCT and color temp range
+                availableLights.append([currentScan[a], "", customPrefs[0], [120, 135, 2, 20, 56, 157], customPrefs[1], customPrefs[2], True, ["---", "---"], customPrefs[3]]) # add it to the global list
+            elif len(customPrefs) == 5: # same as above, but we have previously stored parameters, so add them in as well
+                availableLights.append([currentScan[a], "", customPrefs[0], customPrefs[3], customPrefs[1], customPrefs[2], True, ["---", "---"], customPrefs[4]]) # add it to the global list
 
     if threadAction != "quit":
         return "" # once the device scan is over, set the threadAction to nothing
@@ -2218,6 +2218,8 @@ async def findDevices():
 def getCustomLightPrefs(MACAddress, lightName = ""):
     customPrefsPath = splitMACAddress(MACAddress)
     customPrefsPath = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(customPrefsPath)
+
+    defaultPrefs = getLightSpecs(lightName)
 
     if os.path.exists(customPrefsPath):
         printDebugString("A custom preferences file was found for " + MACAddress + "!")
@@ -2231,25 +2233,24 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
         elif customPrefs[1] == "False": # original "non wider" preference set color temps to 3200-5600K
             customPrefs[1] = [3200, 5600]
         elif customPrefs[1] == "": # no entry means we need to get the default value for color temps
-            customPrefs[1] = getLightSpecs(lightName, "temp")
-        else: # we have a new version of preferences that directly specify the color temperatures
-            testPrefs = getLightSpecs(lightName, "temp")
+            customPrefs[1] = defaultPrefs[1]
+        else: # we have a new version of preferences that directly specify the color temperatures            
             colorTemps = customPrefs[1].replace(" ", "").split(",")
 
             # TEST TO MAKE SURE VALUES RETURNED FROM colorTemps ARE VALID INTEGER VALUES
             if len(colorTemps) == 2: # we NEED to have 2 values in the list, or it's not a correct declaration (min,max)
-                customPrefs[1] = [testValid("custom_preset_range_min", colorTemps[0], testPrefs[0], 1000, 5600, True),
-                                  testValid("custom_preset_range_max", colorTemps[1], testPrefs[1], 1000, 10000, True)]
+                customPrefs[1] = [testValid("custom_preset_range_min", colorTemps[0], defaultPrefs[0], 1000, 5600, True),
+                                  testValid("custom_preset_range_max", colorTemps[1], defaultPrefs[1], 1000, 10000, True)]
             else: # so if we have a different number of elements, we're wrong - revert to defaults
                 printDebugString("Custom color range defined in preferences is incorrect - falling back to default values!")
-                customPrefs[1] = testPrefs
+                customPrefs[1] = defaultPrefs[1]
 
         if customPrefs[2] == "True":
             customPrefs[2] = True # convert "True" as a string to an actual boolean value of True
         elif customPrefs[2] == "False":
             customPrefs[2] = False # convert "False" as a string to an actual boolean value of False
         else: # if we have no value, then get the default value for CCT enabling
-            customPrefs[2] = getLightSpecs(lightName, "CCT")
+            customPrefs[2] = defaultPrefs[2]
 
         if len(customPrefs) == 4: # if we have a 4th element (the last used parameters), then load them here
             customPrefs[3] = customPrefs[3].replace(" ", "").split(",") # split the last params into a list
@@ -2257,9 +2258,27 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
             for a in range(len(customPrefs[3])): # convert the string values to ints
                 customPrefs[3][a] = int(customPrefs[3][a])
 
+        customPrefs.append(defaultPrefs[3]) # append the Infinity flag to the custom prefs list
+
         return customPrefs
     else: # if there is no custom preferences file, still check the name against a list of per-light parameters
         return getLightSpecs(lightName) # get the factory default settings for this light
+
+# GET A MORE CORRECT VERSION OF THE NEWER LIGHT NAMES
+def getCorrectedName(lightName):
+    newLightNames = [
+        ["20220046", "RP19C"], ["20220051", "CB100C"], ["20220055", "CB300B"],
+        ["20220057", "SL90 Pro"], ["20230021", "BH-30S RGB"], ["20230025", "RGB1200"],
+        ["20230031", "TL120C"], ["20230050", "FS230 5600K"], ["20230051", "FS230B"],
+        ["20230052", "FS150 5600K"], ["20230064", "TL60 RGB"]
+    ]
+
+    for a in range(len(newLightNames)):
+        if newLightNames[a][0] in lightName:
+            lightName = newLightNames[a][1]
+            break
+
+    return lightName
 
 # RETURN THE DEFAULT FACTORY SPECIFICATIONS FOR LIGHTS
 def getLightSpecs(lightName, returnParam = "all"):
@@ -2276,7 +2295,7 @@ def getLightSpecs(lightName, returnParam = "all"):
         ["RGB C80", 2500, 10000, False, False], ["RGB CB60", 2500, 10000, False, False], ["RGB1000", 2500, 10000, False, False],
         ["RGB1200", 2500, 10000, False, False], ["RGB140", 2500, 10000, False, False], ["RGB168", 2500, 8500, False, False],
         ["RGB176 A1", 2500, 10000, False, False], ["RGB512", 2500, 10000, False, False], ["RGB800", 2500, 10000, False, False],
-        ["SL-90", 2500, 10000, False, False], ["RGB1", 3200, 5600, False, False], ["RGB176", 3200, 5600, False, False],
+        ["SL90 Pro", 2500, 10000, False, True], ["RGB1", 3200, 5600, False, False], ["RGB176", 3200, 5600, False, False],
         ["RGB18", 3200, 5600, False, False], ["RGB190", 3200, 5600, False, False], ["RGB450", 3200, 5600, False, False],
         ["RGB480", 3200, 5600, False, False], ["RGB530PRO", 3200, 5600, False, False], ["RGB530", 3200, 5600, False, False],
         ["RGB650", 3200, 5600, False, False], ["RGB660PRO", 3200, 5600, False, False], ["RGB660", 3200, 5600, False, False],
@@ -2287,13 +2306,14 @@ def getLightSpecs(lightName, returnParam = "all"):
     for a in range(len(masterNeewerLightList)): # scan the list of preset specs above to find the current light in them
         # the default list of preferences - no custom name, a color temp range from 3200-5600K, and RGB not restricted (False)
         # if we don't find the name of the light in the master list, we just return these default parameters
-        customPrefs = ["", [3200, 5600], False]
+        customPrefs = ["", [3200, 5600], False, False]
 
         # check the master list to see if the current light is found - if it is, then change the prefs to reflect the light's spec
-        if masterNeewerLightList[a][0] in lightName.replace(" ", ""):
+        if masterNeewerLightList[a][0] in lightName:
             # customPrefs[0] = masterNeewerLightList[a][0] # the name of the light (for testing purposes)
             customPrefs[1] = [masterNeewerLightList[a][1], masterNeewerLightList[a][2]] # the HSI color temp range
             customPrefs[2] = masterNeewerLightList[a][3] # whether or not to allow RGB commands
+            customPrefs[3] = masterNeewerLightList[a][4] # whether or not this light uses Infinity mode
             break # stop looking for the light!
 
     if returnParam == "all": # we want to return all information (the default)
@@ -2302,6 +2322,8 @@ def getLightSpecs(lightName, returnParam = "all"):
         return customPrefs[1]
     elif returnParam == "CCT": # we only want to return CCT-only status for this light
         return customPrefs[2]
+    elif returnParam == "Infinity": # we only want to return the Infinity mode for this light
+        return customPrefs[3]
 
 # CONNECT (LINK) TO A LIGHT
 async def connectToLight(selectedLight, updateGUI=True):
@@ -2532,9 +2554,36 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                         mainWindow.setTheTable(["", "", "", "This light can not use ANM/SCENE mode"], currentLightIdx)
                                     else:
                                         returnValue = True # we successfully wrote to the light (or tried to at least)
-                            else: # we're using a "newer" Neewer light, so just send the original calculated value
+                            else: # we're using a "newer" Neewer light
                                 if availableLights[currentLightIdx][8] == True: # we're using the newest kind of light, so we need to tweak the send value
-                                    pass
+                                    if currentSendValue[1] == 135 or currentSendValue[1] == 134: # we're in CCT or HSI modes
+                                        if currentSendValue[1]  == 135: # we're in CCT mode
+                                            infinitySendValue = [120, 144, 11]
+                                        elif currentSendValue[1] == 134: # we're in HSI mode
+                                            infinitySendValue = [120, 143, 11]
+
+                                        infinitySendValue.extend(splitMACAddress(availableLights[currentLightIdx][0].address, True))
+
+                                        # THE LAST 2 VALUES FOR CCT MODE ARE:
+                                        # G/M COMPENSATION (WIP)
+                                        # ...........4.  NOT REALLY SURE **WHY** IT'S 4, BUT... IT'S 4.
+                                        if currentSendValue[1]  == 135: # CCT mode
+                                            infinitySendValue.extend([currentSendValue[1],
+                                                                    currentSendValue[3],
+                                                                    currentSendValue[4],
+                                                                    50,
+                                                                    4])
+                                        elif currentSendValue[1] == 134: # HSI mode
+                                            infinitySendValue.extend([currentSendValue[1],
+                                                                    currentSendValue[3],
+                                                                    currentSendValue[4],
+                                                                    currentSendValue[5],
+                                                                    currentSendValue[6]])
+                                        
+                                        infinitySendValue.append(calculateChecksum(infinitySendValue)) # calculate the checksum
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(infinitySendValue), False)
+                                    else:
+                                        pass # we're in Scene mode, and a LOT more needs to be fleshed out in that department first
                                 else:
                                     await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
 
