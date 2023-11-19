@@ -429,7 +429,8 @@ try: # try to load the GUI
 
                     sortingList.append([availableLights[a][0], availableLights[a][1], availableLights[a][2], availableLights[a][3], \
                                         availableLights[a][4], availableLights[a][5], availableLights[a][6], availableLights[a][7], \
-                                        availableLights[a][0].name, availableLights[a][0].address, availableLights[a][0].rssi])
+                                        availableLights[a][0].name, availableLights[a][0].address, availableLights[a][0].rssi, \
+                                        availableLights[a][8]])
             else: # we clicked on the "Linked" or "Status" headers, which do not allow sorting
                 sortingField = -1
 
@@ -489,7 +490,8 @@ try: # try to load the GUI
 
                 for a in range(len(sortedList)): # rebuild the available lights list from the sorted list
                     availableLights.append([sortedList[a][0], sortedList[a][1], sortedList[a][2], sortedList[a][3], \
-                                            sortedList[a][4], sortedList[a][5], sortedList[a][6], sortedList[a][7]])
+                                            sortedList[a][4], sortedList[a][5], sortedList[a][6], sortedList[a][7], \
+                                            sortedList[a][11]])
                                         
                 self.updateLights(False) # redraw the table with the new light list
                 lastSortingField = sortingField # keep track of the last field used for sorting, so we know whether or not to switch to ascending
@@ -1660,7 +1662,7 @@ def saveLightPrefs(lightID, deleteFile = False): # save a sidecar file with the 
     createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
 
     # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
-    exportFileName = availableLights[lightID][0].address.split(":") # take the colons out of the MAC address
+    exportFileName = splitMACAddress(availableLights[lightID][0].address) # take the colons out of the MAC address
     exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
 
     if deleteFile == True:
@@ -2031,6 +2033,22 @@ def printDebugString(theString):
 
         print("[" + currentTime + "] - " + theString)
 
+def splitMACAddress(MACAddress, returnInt = False):
+    MACAddress = MACAddress.split(":")
+
+    if returnInt == False:
+        return MACAddress # return the MAC address as a list
+    else: # return the integer values of each part of the MAC address
+        MACReturn = []
+
+        if len(MACAddress) == 6:
+            for part in MACAddress:
+                MACReturn.append(int(part, 16))
+        else:
+            pass # if the MAC address doesn't correctly split, we need to deal with that here
+
+        return MACReturn
+
 # CALCULATE THE BYTESTRING TO SEND TO THE LIGHT
 def calculateByteString(returnValue = False, **modeArgs):
     if modeArgs["colorMode"] == "CCT":
@@ -2183,9 +2201,9 @@ async def findDevices():
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
 
             if len(customPrefs) == 3: # we need to rename the light and set up CCT and color temp range
-                availableLights.append([currentScan[a], "", customPrefs[0], [120, 135, 2, 20, 56, 157], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
+                availableLights.append([currentScan[a], "", customPrefs[0], [120, 135, 2, 20, 56, 157], customPrefs[1], customPrefs[2], True, ["---", "---"], False]) # add it to the global list
             elif len(customPrefs) == 4: # same as above, but we have previously stored parameters, so add them in as well
-                availableLights.append([currentScan[a], "", customPrefs[0], customPrefs[3], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
+                availableLights.append([currentScan[a], "", customPrefs[0], customPrefs[3], customPrefs[1], customPrefs[2], True, ["---", "---"], False]) # add it to the global list
 
     if threadAction != "quit":
         return "" # once the device scan is over, set the threadAction to nothing
@@ -2193,7 +2211,7 @@ async def findDevices():
         return "quit"
 
 def getCustomLightPrefs(MACAddress, lightName = ""):
-    customPrefsPath = MACAddress.split(":")
+    customPrefsPath = splitMACAddress(MACAddress)
     customPrefsPath = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(customPrefsPath)
 
     if os.path.exists(customPrefsPath):
@@ -2241,23 +2259,24 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
 # RETURN THE DEFAULT FACTORY SPECIFICATIONS FOR LIGHTS
 def getLightSpecs(lightName, returnParam = "all"):
     # the first section of lights here are LED only (can't use HSI), and the 2nd section are HSI-capable lights
-    # listed with their name, the max and min color temps available to use in CCT mode, and HSI only (True) or not (False)
+    # listed with their name, the max and min color temps available to use in CCT mode, HSI only (True) or not (False)
+    # and Infinity mode command structure needed (most False, use this for the newest series of lights)
     masterNeewerLightList = [
-        ["Apollo", 5600, 5600, True], ["GL1", 2900, 7000, True], ["NL140", 3200, 5600, True],
-        ["SNL1320", 3200, 5600, True], ["SNL1920", 3200, 5600, True], ["SNL480", 3200, 5600, True],
-        ["SNL530", 3200, 5600, True], ["SNL660", 3200, 5600, True], ["SNL960", 3200, 5600, True],
-        ["SRP16", 3200, 5600, True], ["SRP18", 3200, 5600, True], ["WRP18", 3200, 5600, True],
-        ["ZRP16", 3200, 5600, True],
-        ["BH30S", 2500, 10000, False], ["CB60", 2500, 6500, False], ["CL124", 2500, 10000, False],
-        ["RGB C80", 2500, 10000, False], ["RGB CB60", 2500, 10000, False], ["RGB1000", 2500, 10000, False],
-        ["RGB1200", 2500, 10000, False], ["RGB140", 2500, 10000, False], ["RGB168", 2500, 8500, False],
-        ["RGB176 A1", 2500, 10000, False], ["RGB512", 2500, 10000, False], ["RGB800", 2500, 10000, False],
-        ["SL-90", 2500, 10000, False], ["RGB1", 3200, 5600, False], ["RGB176", 3200, 5600, False],
-        ["RGB18", 3200, 5600, False], ["RGB190", 3200, 5600, False], ["RGB450", 3200, 5600, False],
-        ["RGB480", 3200, 5600, False], ["RGB530PRO", 3200, 5600, False], ["RGB530", 3200, 5600, False],
-        ["RGB650", 3200, 5600, False], ["RGB660PRO", 3200, 5600, False], ["RGB660", 3200, 5600, False],
-        ["RGB960", 3200, 5600, False], ["RGB-P200", 3200, 5600, False], ["RGB-P280", 3200, 5600, False],
-        ["SL70", 3200, 8500, False], ["SL80", 3200, 8500, False], ["ZK-RY", 5600, 5600, False]
+        ["Apollo", 5600, 5600, True, False], ["GL1", 2900, 7000, True, False], ["NL140", 3200, 5600, True, False],
+        ["SNL1320", 3200, 5600, True, False], ["SNL1920", 3200, 5600, True, False], ["SNL480", 3200, 5600, True, False],
+        ["SNL530", 3200, 5600, True, False], ["SNL660", 3200, 5600, True, False], ["SNL960", 3200, 5600, True, False],
+        ["SRP16", 3200, 5600, True, False], ["SRP18", 3200, 5600, True, False], ["WRP18", 3200, 5600, True, False],
+        ["ZRP16", 3200, 5600, True, False],
+        ["BH30S", 2500, 10000, False, False], ["CB60", 2500, 6500, False, False], ["CL124", 2500, 10000, False, False],
+        ["RGB C80", 2500, 10000, False, False], ["RGB CB60", 2500, 10000, False, False], ["RGB1000", 2500, 10000, False, False],
+        ["RGB1200", 2500, 10000, False, False], ["RGB140", 2500, 10000, False, False], ["RGB168", 2500, 8500, False, False],
+        ["RGB176 A1", 2500, 10000, False, False], ["RGB512", 2500, 10000, False, False], ["RGB800", 2500, 10000, False, False],
+        ["SL-90", 2500, 10000, False, False], ["RGB1", 3200, 5600, False, False], ["RGB176", 3200, 5600, False, False],
+        ["RGB18", 3200, 5600, False, False], ["RGB190", 3200, 5600, False, False], ["RGB450", 3200, 5600, False, False],
+        ["RGB480", 3200, 5600, False, False], ["RGB530PRO", 3200, 5600, False, False], ["RGB530", 3200, 5600, False, False],
+        ["RGB650", 3200, 5600, False, False], ["RGB660PRO", 3200, 5600, False, False], ["RGB660", 3200, 5600, False, False],
+        ["RGB960", 3200, 5600, False, False], ["RGB-P200", 3200, 5600, False, False], ["RGB-P280", 3200, 5600, False, False],
+        ["SL70", 3200, 8500, False, False], ["SL80", 3200, 8500, False, False], ["ZK-RY", 5600, 5600, False, False]
     ]
     
     for a in range(len(masterNeewerLightList)): # scan the list of preset specs above to find the current light in them
@@ -2469,74 +2488,79 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                 currentSendValue = sendValue # get this value before sending to multiple lights, to ensure the same value is sent to each one
 
                 for a in range(len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
+                    currentLightIdx = int(selectedLights[a])
+
                     # THIS SECTION IS FOR LOADING SNAPSHOT PRESET POWER STATES
                     if useGlobalValue == False: # if we're forcing the lights to use their stored parameters, then load that in here
-                        if availableLights[selectedLights[a]][3][0] == 0: # we want to turn the light off
-                            availableLights[selectedLights[a]][3][0] = 120 # reset the light's value to the normal value
+                        if availableLights[currentLightIdx][3][0] == 0: # we want to turn the light off
+                            availableLights[currentLightIdx][3][0] = 120 # reset the light's value to the normal value
                             currentSendValue = [120, 129, 1, 2, 252] # set the send value to turn the light off downstream
                         else: # we want to turn the light on and run a snapshot preset
-                            await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
-                            availableLights[int(selectedLights[a])][6] = True # set the ON flag of this light to True
+                            await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
+                            availableLights[currentLightIdx][6] = True # set the ON flag of this light to True
                             await asyncio.sleep(0.05)
 
-                            currentSendValue = availableLights[selectedLights[a]][3] # set the send value to set the preset downstream
+                            currentSendValue = availableLights[currentLightIdx][3] # set the send value to set the preset downstream
 
-                    if availableLights[selectedLights[a]][1] != "": # if a Bleak connection is there
+                    if availableLights[currentLightIdx][1] != "": # if a Bleak connection is there
                         try:
-                            if availableLights[(int(selectedLights[a]))][5] == True: # if we're using the old style of light
+                            if availableLights[currentLightIdx][5] == True: # if we're using the old style of light
                                 if currentSendValue[1] == 135: # if we're on CCT mode
                                     if CCTSlider == -1: # and we need to write both HUE and BRI to the light
                                         splitCommands = calculateSeparateBytestrings(currentSendValue) # get both commands from the converter
 
                                         # WRITE BOTH LUMINANCE AND HUE VALUES TOGETHER, BUT SEPARATELY
-                                        await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(splitCommands[0]), False)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(splitCommands[0]), False)
                                         await asyncio.sleep(0.05) # wait 1/20th of a second to give the Bluetooth bus a little time to recover
-                                        await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(splitCommands[1]), False)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(splitCommands[1]), False)
                                     else: # we're only writing either HUE or BRI independently
-                                        await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(calculateSeparateBytestrings(currentSendValue)), False)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(calculateSeparateBytestrings(currentSendValue)), False)
                                 elif currentSendValue[1] == 129: # we're using an old light, but we're either turning the light on or off
-                                    await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
+                                    await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
                                 elif currentSendValue[1] == 134: # we can't use HSI mode with this light, so show that
                                     if updateGUI == True:
-                                        mainWindow.setTheTable(["", "", "", "This light can not use HSI mode"], int(selectedLights[a]))
+                                        mainWindow.setTheTable(["", "", "", "This light can not use HSI mode"], currentLightIdx)
                                     else:
                                         returnValue = True # we successfully wrote to the light (or tried to at least)
                                 elif currentSendValue[1] == 136: # we can't use ANM/SCENE mode with this light, so show that
                                     if updateGUI == True:
-                                        mainWindow.setTheTable(["", "", "", "This light can not use ANM/SCENE mode"], int(selectedLights[a]))
+                                        mainWindow.setTheTable(["", "", "", "This light can not use ANM/SCENE mode"], currentLightIdx)
                                     else:
                                         returnValue = True # we successfully wrote to the light (or tried to at least)
                             else: # we're using a "newer" Neewer light, so just send the original calculated value
-                                await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
+                                if availableLights[currentLightIdx][8] == True: # we're using the newest kind of light, so we need to tweak the send value
+                                    pass
+                                else:
+                                    await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
 
                             if updateGUI == True:
                                 # if we're not looking at an old light, or if we are, we're not in either HSI or ANM modes, then update the status of that light
-                                if not (availableLights[(int(selectedLights[a]))][5] == True and (currentSendValue[1] == 134 or currentSendValue[1] == 136)):
+                                if not (availableLights[currentLightIdx][5] == True and (currentSendValue[1] == 134 or currentSendValue[1] == 136)):
                                     if currentSendValue[1] != 129: # if we're not turning the light on or off
-                                        mainWindow.setTheTable(["", "", "", updateStatus(True, currentSendValue)], int(selectedLights[a]))
+                                        mainWindow.setTheTable(["", "", "", updateStatus(True, currentSendValue)], currentLightIdx)
                                     else: # we ARE turning the light on or off
                                         if currentSendValue[3] == 1: # we turned the light on
-                                            availableLights[int(selectedLights[a])][6] = True # toggle the "light on" parameter of this light to ON
+                                            availableLights[currentLightIdx][6] = True # toggle the "light on" parameter of this light to ON
 
-                                            changeStatus = mainWindow.returnTableInfo(selectedLights[a], 2).replace("STBY", "ON")
-                                            mainWindow.setTheTable(["", "", changeStatus, "Light turned on"], int(selectedLights[a]))
+                                            changeStatus = mainWindow.returnTableInfo(currentLightIdx, 2).replace("STBY", "ON")
+                                            mainWindow.setTheTable(["", "", changeStatus, "Light turned on"], currentLightIdx)
 
                                         else: # we turned the light off
-                                            availableLights[int(selectedLights[a])][6] = False # toggle the "light on" parameter of this light to OFF
+                                            availableLights[currentLightIdx][6] = False # toggle the "light on" parameter of this light to OFF
 
-                                            changeStatus = mainWindow.returnTableInfo(selectedLights[a], 2).replace("ON", "STBY")
-                                            mainWindow.setTheTable(["", "", changeStatus, "Light turned off\nA long period of inactivity may require a re-link to the light"], int(selectedLights[a]))
+                                            changeStatus = mainWindow.returnTableInfo(currentLightIdx, 2).replace("ON", "STBY")
+                                            mainWindow.setTheTable(["", "", changeStatus, "Light turned off\nA long period of inactivity may require a re-link to the light"], currentLightIdx)
                             else:
                                 returnValue = True # we successfully wrote to the light
 
                             if currentSendValue[1] != 129: # if we didn't just send a command to turn the light on/off
-                                availableLights[selectedLights[a]][3] = currentSendValue # store the currenly sent value to recall later
+                                availableLights[currentLightIdx][3] = currentSendValue # store the currenly sent value to recall later
                         except Exception as e:
                             if updateGUI == True:
-                                mainWindow.setTheTable(["", "", "", "Error Sending to light!"], int(selectedLights[a]))
+                                mainWindow.setTheTable(["", "", "", "Error Sending to light!"], currentLightIdx)
                     else: # if there is no Bleak object associated with this light (otherwise, it's been found, but not linked)
                         if updateGUI == True:
-                            mainWindow.setTheTable(["", "", "", "Light isn't linked yet, can't send to it"], int(selectedLights[a]))
+                            mainWindow.setTheTable(["", "", "", "Light isn't linked yet, can't send to it"], currentLightIdx)
                         else:
                             returnValue = 0 # the light is not linked, even though it *should* be if it gets to this point, so this is an odd error
 
@@ -2550,7 +2574,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
             if updateGUI == True:
                 selectedLights = mainWindow.selectedLights() # re-acquire the current list of selected lights
     except Exception as e:
-        printDebugString("There was an error communicating with light " + str(selectedLights[a] + 1) + " [" + availableLights[selectedLights[a]][0].name + "] " + returnMACname() + " " + availableLights[selectedLights[a]][0].address)
+        printDebugString("There was an error communicating with light " + str(currentLightIdx + 1) + " [" + availableLights[currentLightIdx][0].name + "] " + returnMACname() + " " + availableLights[currentLightIdx][0].address)
         print(e)
 
         if updateGUI == True:
