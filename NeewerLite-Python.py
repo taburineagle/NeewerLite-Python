@@ -2267,6 +2267,7 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
 # GET A MORE CORRECT VERSION OF THE NEWER LIGHT NAMES
 def getCorrectedName(lightName):
     newLightNames = [
+        ["20200037", "SL90"],
         ["20220046", "RP19C"], ["20220051", "CB100C"], ["20220055", "CB300B"],
         ["20220057", "SL90 Pro"], ["20230021", "BH-30S RGB"], ["20230025", "RGB1200"],
         ["20230031", "TL120C"], ["20230050", "FS230 5600K"], ["20230051", "FS230B"],
@@ -2295,6 +2296,7 @@ def getLightSpecs(lightName, returnParam = "all"):
         ["RGB C80", 2500, 10000, False, False], ["RGB CB60", 2500, 10000, False, False], ["RGB1000", 2500, 10000, False, False],
         ["RGB1200", 2500, 10000, False, False], ["RGB140", 2500, 10000, False, False], ["RGB168", 2500, 8500, False, False],
         ["RGB176 A1", 2500, 10000, False, False], ["RGB512", 2500, 10000, False, False], ["RGB800", 2500, 10000, False, False],
+        ["SL90", 2500, 10000, False, True],
         ["SL90 Pro", 2500, 10000, False, True], ["RGB1", 3200, 5600, False, False], ["RGB176", 3200, 5600, False, False],
         ["RGB18", 3200, 5600, False, False], ["RGB190", 3200, 5600, False, False], ["RGB450", 3200, 5600, False, False],
         ["RGB480", 3200, 5600, False, False], ["RGB530PRO", 3200, 5600, False, False], ["RGB530", 3200, 5600, False, False],
