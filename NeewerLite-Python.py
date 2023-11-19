@@ -2651,8 +2651,10 @@ async def connectToOneLight(MACAddress):
 
     try:
         currentLightToAdd = await BleakScanner.find_device_by_address(MACAddress)
+        currentLightToAdd.name = getCorrectedName(currentLightToAdd.name)
         customLightPrefs = getCustomLightPrefs(currentLightToAdd.address, currentLightToAdd.name)
-        availableLights = [[currentLightToAdd, "", customLightPrefs[0], [], customLightPrefs[1], customLightPrefs[2], True]]
+
+        availableLights = [[currentLightToAdd, "", customLightPrefs[0], [], customLightPrefs[1], customLightPrefs[2], True, [], customLightPrefs[len(customLightPrefs) - 1]]]
     except Exception as e:
         printDebugString("Error finding the Neewer light with MAC address " + MACAddress)
         print(e)
