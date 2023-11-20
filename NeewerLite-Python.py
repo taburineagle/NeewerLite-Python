@@ -301,6 +301,7 @@ try: # try to load the GUI
 
             self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(1))
             self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(2))
+            self.Slider_CCT_GM.valueChanged.connect(lambda: self.computeValueCCT(3))
 
             self.Slider_HSI_1_H.valueChanged.connect(lambda: self.computeValueHSI(1))
             self.Slider_HSI_2_S.valueChanged.connect(lambda: self.computeValueHSI(2))
@@ -1055,6 +1056,21 @@ try: # try to load the GUI
                         self.ColorModeTabWidget.setTabEnabled(1, True) # enable the HSI mode tab
                         self.ColorModeTabWidget.setTabEnabled(2, True) # enable the ANM/SCENE tab
 
+                    if availableLights[selectedRows[0]][8] == True: # if this light can use Infinity mode, then turn the GM slider on
+                        self.TFL_CCT_GM.setVisible(True)
+                        self.CCT_GM_Gradient_BG.setVisible(True)
+                        self.Slider_CCT_GM.setVisible(True)
+                        self.TFV_CCT_GM_Min.setVisible(True)
+                        self.TFV_CCT_GM.setVisible(True)
+                        self.TFV_CCT_GM_Max.setVisible(True)
+                    else:
+                        self.TFL_CCT_GM.setVisible(False)
+                        self.CCT_GM_Gradient_BG.setVisible(False)
+                        self.Slider_CCT_GM.setVisible(False)
+                        self.TFV_CCT_GM_Min.setVisible(False)
+                        self.TFV_CCT_GM.setVisible(False)
+                        self.TFV_CCT_GM_Max.setVisible(False)                        
+
                     currentlySelectedRow = selectedRows[0] # get the row index of the 1 selected item
                     self.checkLightTab(currentlySelectedRow) # if we're on CCT, check to see if this light can use extended values + on Prefs, update Prefs
 
@@ -1087,10 +1103,19 @@ try: # try to load the GUI
                     self.turnOnButton.setText("Turn Light(s) On")
                     self.turnOnButton.setEnabled(True)
 
+                    # ENABLE ALL OF THE TABS BELOW
                     self.ColorModeTabWidget.setTabEnabled(0, True)
                     self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSI" mode tab
                     self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
                     self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have multiple lights selected
+
+                    # TURN ON THE GM SLIDER ON THE CCT TAB
+                    self.TFL_CCT_GM.setVisible(True)
+                    self.CCT_GM_Gradient_BG.setVisible(True)
+                    self.Slider_CCT_GM.setVisible(True)
+                    self.TFV_CCT_GM_Min.setVisible(True)
+                    self.TFV_CCT_GM.setVisible(True)
+                    self.TFV_CCT_GM_Max.setVisible(True)
             else: # the selection has been cleared or there are no lights to select
                 currentTab = self.ColorModeTabWidget.currentIndex() # get the currently selected tab (so when we disable the tabs, we stick on the current one)
                 self.tryConnectButton.setEnabled(False) # if we have no lights selected, disable the Connect button
@@ -1211,12 +1236,15 @@ try: # try to load the GUI
 
             if CCTSlider == 1: # we dragged the color temperature slider
                 self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
-            else: # we dragged the brightness slider
+            elif CCTSlider == 2: # we dragged the brightness slider
                 self.TFV_CCT_Bright.setText(str(self.Slider_CCT_Bright.value()) + "%")
+            else:
+                self.TFV_CCT_GM.setText(str(self.Slider_CCT_GM.value() - 50))
 
             calculateByteString(colorMode="CCT",\
                                 temp=str(int(self.Slider_CCT_Hue.value())),\
-                                brightness=str(int(self.Slider_CCT_Bright.value())))
+                                brightness=str(int(self.Slider_CCT_Bright.value())),
+                                gm=str(int(self.Slider_CCT_GM.value())))
 
             self.statusBar.showMessage("Current value (CCT Mode): " + updateStatus())
             self.startSend()
@@ -2054,28 +2082,27 @@ def splitMACAddress(MACAddress, returnInt = False):
 def calculateByteString(returnValue = False, **modeArgs):
     if modeArgs["colorMode"] == "CCT":
         # We're in CCT (color balance) mode
-        computedValue = [120, 135, 2, 0, 0]
+        computedValue = [120, 135, 2]
 
-        computedValue[3] = int(modeArgs["brightness"]) # the brightness value
-        computedValue[4] = int(modeArgs["temp"]) # the color temp value, ranging from 32(00K) to 85(00)K - some lights (like the SL-80) can go as high as 8500K
+        computedValue.append(int(modeArgs["brightness"])) # the brightness value
+        computedValue.append(int(modeArgs["temp"])) # the color temp value, ranging from 32(00K) to 85(00)K - some lights (like the SL-80) can go as high as 8500K
+        computedValue.append(int(modeArgs["gm"])) # the GM compensation value, from -50 to 50
     elif modeArgs["colorMode"] == "HSI":
         # We're in HSI (any color of the spectrum) mode
-        computedValue = [120, 134, 4, 0, 0, 0, 0]
+        computedValue = [120, 134, 4]
 
-        computedValue[3] = int(modeArgs["HSI_H"]) & 255 # hue value, up to 255
-        computedValue[4] = (int(modeArgs["HSI_H"]) & 65280) >> 8 # offset value, computed from above value
-        computedValue[5] = int(modeArgs["HSI_S"]) # saturation value
-        computedValue[6] = int(modeArgs["HSI_I"]) # intensity value
+        computedValue.append(int(modeArgs["HSI_H"]) & 255) # hue value, up to 255
+        computedValue.append((int(modeArgs["HSI_H"]) & 65280) >> 8) # offset value, computed from above value
+        computedValue.append(int(modeArgs["HSI_S"])) # saturation value
+        computedValue.append(int(modeArgs["HSI_I"])) # intensity value
     elif modeArgs["colorMode"] == "ANM":
         # We're in ANM (animation) mode
-        computedValue = [120, 136, 2, 0, 0]
+        computedValue = [120, 136, 2]
 
-        computedValue[3] = int(modeArgs["brightness"]) # brightness value
-        computedValue[4] = int(modeArgs["animation"]) # the number of animation you're going to run (check comments above)
+        computedValue.append(int(modeArgs["brightness"])) # brightness value
+        computedValue.append(int(modeArgs["animation"])) # the number of animation you're going to run (check comments above)
     else:
         computedValue = [0]
-
-    computedValue.append(calculateChecksum(computedValue)) # calculate the checksum
 
     if returnValue == False: # if we aren't supposed to return a value, then just set sendValue to the value returned from computedValue
         global sendValue
@@ -2086,13 +2113,11 @@ def calculateByteString(returnValue = False, **modeArgs):
 # RECALCULATE THE BYTESTRING FOR CCT-ONLY NEEWER LIGHTS INTO HUE AND BRIGHTNESS SEPARATELY
 def calculateSeparateBytestrings(sendValue):
     # CALCULATE BRIGHTNESS ONLY PARAMETER FROM MAIN PARAMETER
-    newValueBRI = [120, 130, 1, sendValue[3], 0]
-    newValueBRI[4] = calculateChecksum(newValueBRI)
-
+    newValueBRI = [120, 130, 1, sendValue[3]]
+    
     # CALCULATE HUE ONLY PARAMETER FROM MAIN PARAMETER
-    newValueHUE = [120, 131, 1, sendValue[4], 0]
-    newValueHUE[4] = calculateChecksum(newValueHUE)
-
+    newValueHUE = [120, 131, 1, sendValue[4]]
+    
     if CCTSlider == -1: # return both newly computed values
         return [newValueBRI, newValueHUE]
     elif CCTSlider == 1: # return only the color temperature value
@@ -2100,8 +2125,8 @@ def calculateSeparateBytestrings(sendValue):
     elif CCTSlider == 2: # return only the brightness value
         return newValueBRI
 
-# CALCULATE THE CHECKSUM FROM A BYTESTRING
-def calculateChecksum(sendValue):
+# CALCULATE THE CHECKSUM FROM A BYTESTRING AND ADD IT TO THE END OF THE LIST
+def tagChecksum(sendValue):
     checkSum = 0
 
     for a in range(len(sendValue)):
@@ -2111,7 +2136,9 @@ def calculateChecksum(sendValue):
             checkSum = checkSum + int(sendValue[a])
 
     checkSum = checkSum & 255
-    return checkSum
+    sendValue.append(checkSum)
+    
+    return sendValue
 
 def setPowerBytestring(onOrOff):
     global sendValue
@@ -2295,17 +2322,17 @@ def getLightSpecs(lightName, returnParam = "all"):
         ["SNL530", 3200, 5600, True, False], ["SNL660", 3200, 5600, True, False], ["SNL960", 3200, 5600, True, False],
         ["SRP16", 3200, 5600, True, False], ["SRP18", 3200, 5600, True, False], ["WRP18", 3200, 5600, True, False],
         ["ZRP16", 3200, 5600, True, False],
-        ["BH30S", 2500, 10000, False, False], ["CB60", 2500, 6500, False, False], ["CL124", 2500, 10000, False, False],
-        ["RGB C80", 2500, 10000, False, False], ["RGB CB60", 2500, 10000, False, False], ["RGB1000", 2500, 10000, False, False],
-        ["RGB1200", 2500, 10000, False, False], ["RGB140", 2500, 10000, False, False], ["RGB168", 2500, 8500, False, False],
-        ["RGB176 A1", 2500, 10000, False, False], ["RGB512", 2500, 10000, False, False], ["RGB800", 2500, 10000, False, False],
-        ["SL90", 2500, 10000, False, True],
-        ["SL90 Pro", 2500, 10000, False, True], ["RGB1", 3200, 5600, False, False], ["RGB176", 3200, 5600, False, False],
-        ["RGB18", 3200, 5600, False, False], ["RGB190", 3200, 5600, False, False], ["RGB450", 3200, 5600, False, False],
-        ["RGB480", 3200, 5600, False, False], ["RGB530PRO", 3200, 5600, False, False], ["RGB530", 3200, 5600, False, False],
-        ["RGB650", 3200, 5600, False, False], ["RGB660PRO", 3200, 5600, False, False], ["RGB660", 3200, 5600, False, False],
-        ["RGB960", 3200, 5600, False, False], ["RGB-P200", 3200, 5600, False, False], ["RGB-P280", 3200, 5600, False, False],
-        ["SL70", 3200, 8500, False, False], ["SL80", 3200, 8500, False, False], ["ZK-RY", 5600, 5600, False, False]
+        ["BH-30S RGB", 2500, 10000, False, True], ["CB60 RGB", 2500, 6500, False, True], ["CL124", 2500, 10000, False, False],
+        ["RGB C80", 2500, 10000, False, True], ["RGB CB60", 2500, 10000, False, True], ["RGB1000", 2500, 10000, False, True],
+        ["RGB1200", 2500, 10000, False, True], ["RGB140", 2500, 10000, False, True], ["RGB168", 2500, 8500, False, False],
+        ["RGB176 A1", 2500, 10000, False, False], ["RGB512", 2500, 10000, False, True], ["RGB800", 2500, 10000, False, True],
+        ["SL90", 2500, 10000, False, True], ["SL90 Pro", 2500, 10000, False, True], ["RGB1", 3200, 5600, False, True],
+        ["RGB176", 3200, 5600, False, False], ["RGB18", 3200, 5600, False, False], ["RGB190", 3200, 5600, False, False], 
+        ["RGB450", 3200, 5600, False, False], ["RGB480", 3200, 5600, False, False], ["RGB530PRO", 3200, 5600, False, False], 
+        ["RGB530", 3200, 5600, False, False], ["RGB650", 3200, 5600, False, False], ["RGB660PRO", 3200, 5600, False, False], 
+        ["RGB660", 3200, 5600, False, False], ["RGB960", 3200, 5600, False, False], ["RGB-P200", 3200, 5600, False, False], 
+        ["RGB-P280", 3200, 5600, False, False], ["SL70", 3200, 8500, False, False], ["SL80", 3200, 8500, False, False], 
+        ["ZK-RY", 5600, 5600, False, False]
     ]
     
     for a in range(len(masterNeewerLightList)): # scan the list of preset specs above to find the current light in them
@@ -2542,13 +2569,13 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                         splitCommands = calculateSeparateBytestrings(currentSendValue) # get both commands from the converter
 
                                         # WRITE BOTH LUMINANCE AND HUE VALUES TOGETHER, BUT SEPARATELY
-                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(splitCommands[0]), False)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(splitCommands[0])), False)
                                         await asyncio.sleep(0.05) # wait 1/20th of a second to give the Bluetooth bus a little time to recover
-                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(splitCommands[1]), False)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(splitCommands[1])), False)
                                     else: # we're only writing either HUE or BRI independently
-                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(calculateSeparateBytestrings(currentSendValue)), False)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(calculateSeparateBytestrings(currentSendValue))), False)
                                 elif currentSendValue[1] == 129: # we're using an old light, but we're either turning the light on or off
-                                    await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
+                                    await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(currentSendValue)), False)
                                 elif currentSendValue[1] == 134: # we can't use HSI mode with this light, so show that
                                     if updateGUI == True:
                                         mainWindow.setTheTable(["", "", "", "This light can not use HSI mode"], currentLightIdx)
@@ -2576,7 +2603,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                             infinitySendValue.extend([currentSendValue[1],
                                                                     currentSendValue[3],
                                                                     currentSendValue[4],
-                                                                    50,
+                                                                    currentSendValue[5],
                                                                     4])
                                         elif currentSendValue[1] == 134: # HSI mode
                                             infinitySendValue.extend([currentSendValue[1],
@@ -2585,12 +2612,14 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                                                     currentSendValue[5],
                                                                     currentSendValue[6]])
                                         
-                                        infinitySendValue.append(calculateChecksum(infinitySendValue)) # calculate the checksum
-                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(infinitySendValue), False)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(infinitySendValue)), False)
                                     else:
                                         pass # we're in Scene mode, and a LOT more needs to be fleshed out in that department first
                                 else:
-                                    await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
+                                    if currentSendValue[1] == 135: # if we're in CCT mode
+                                        currentSendValue = currentSendValue[0:5] # take the GM value off before sending a normal CCT command
+
+                                    await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(currentSendValue)), False)
 
                             if updateGUI == True:
                                 # if we're not looking at an old light, or if we are, we're not in either HSI or ANM modes, then update the status of that light

@@ -38,6 +38,12 @@ class Ui_MainWindow(object):
         gradient_RGB.setColorAt(0.83, QColor(255, 0, 255, 255))
         gradient_RGB.setColorAt(1.0, QColor(255, 0, 0, 255))
 
+        # THE GM COLOR PICKER'S GRADIENT
+        gradient_GM = QLinearGradient(0, 0, 532, 31)
+        gradient_GM.setColorAt(0.0, QColor(255, 0, 255, 255)) # Full Magenta
+        gradient_GM.setColorAt(0.5, QColor(255, 255, 255, 255)) # White
+        gradient_GM.setColorAt(1.0, QColor(0, 255, 0, 255)) # Full Green
+
         MainWindow.setFixedSize(590, 670) # the main window should be this size at launch, and no bigger
         MainWindow.setWindowTitle("NeewerLite-Python 0.14 by Zach Glenwright")
 
@@ -167,7 +173,7 @@ class Ui_MainWindow(object):
         self.TFV_CCT_Hue_Max.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
 
         self.TFL_CCT_Bright = QLabel(self.CCT)
-        self.TFL_CCT_Bright.setGeometry(QRect(8, 86, 440, 17))
+        self.TFL_CCT_Bright.setGeometry(QRect(8, 80, 440, 17))
         self.TFL_CCT_Bright.setText("Brightness")
         self.TFL_CCT_Bright.setFont(mainFont)
 
@@ -175,33 +181,70 @@ class Ui_MainWindow(object):
         mySceneCCT_Bri.setBackgroundBrush(gradient_Bri)
 
         self.CCT_Bright_Gradient_BG = QGraphicsView(mySceneCCT_Bri, self.CCT)
-        self.CCT_Bright_Gradient_BG.setGeometry(QRect(8, 106, 552, 24))
+        self.CCT_Bright_Gradient_BG.setGeometry(QRect(8, 100, 552, 24))
         self.CCT_Bright_Gradient_BG.setFrameShape(QFrame.NoFrame)
         self.CCT_Bright_Gradient_BG.setFrameShadow(QFrame.Sunken)
 
         self.CCT_Bright_Gradient_BG.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignLeft, Qt.AlignTop])))
 
         self.Slider_CCT_Bright = QSlider(self.CCT)
-        self.Slider_CCT_Bright.setGeometry(QRect(9, 111, 551, 16))
+        self.Slider_CCT_Bright.setGeometry(QRect(9, 105, 551, 16))
         self.Slider_CCT_Bright.setMinimum(0)
         self.Slider_CCT_Bright.setMaximum(100)
         self.Slider_CCT_Bright.setValue(100)
         self.Slider_CCT_Bright.setOrientation(Qt.Horizontal)
 
         self.TFV_CCT_Bright_Min = QLabel(self.CCT)
-        self.TFV_CCT_Bright_Min.setGeometry(QRect(10, 132, 51, 20))
+        self.TFV_CCT_Bright_Min.setGeometry(QRect(10, 126, 51, 20))
         self.TFV_CCT_Bright_Min.setText("0%")
 
         self.TFV_CCT_Bright = QLabel(self.CCT)
-        self.TFV_CCT_Bright.setGeometry(QRect(250, 132, 51, 20))
+        self.TFV_CCT_Bright.setGeometry(QRect(250, 126, 51, 20))
         self.TFV_CCT_Bright.setText("100")
         self.TFV_CCT_Bright.setFont(mainFont)
         self.TFV_CCT_Bright.setAlignment(Qt.AlignCenter)
 
         self.TFV_CCT_Bright_Max = QLabel(self.CCT)
-        self.TFV_CCT_Bright_Max.setGeometry(QRect(510, 132, 51, 20))
+        self.TFV_CCT_Bright_Max.setGeometry(QRect(510, 126, 51, 20))
         self.TFV_CCT_Bright_Max.setText("100%")
         self.TFV_CCT_Bright_Max.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
+
+        self.TFL_CCT_GM = QLabel(self.CCT)
+        self.TFL_CCT_GM.setGeometry(QRect(8, 150, 440, 17))
+        self.TFL_CCT_GM.setText("Green/Magenta Compensation")
+        self.TFL_CCT_GM.setFont(mainFont)
+
+        mySceneCCT_GM = QGraphicsScene(self)
+        mySceneCCT_GM.setBackgroundBrush(gradient_GM)
+
+        self.CCT_GM_Gradient_BG = QGraphicsView(mySceneCCT_GM, self.CCT)
+        self.CCT_GM_Gradient_BG.setGeometry(QRect(8, 170, 552, 24))
+        self.CCT_GM_Gradient_BG.setFrameShape(QFrame.NoFrame)
+        self.CCT_GM_Gradient_BG.setFrameShadow(QFrame.Sunken)
+
+        self.CCT_GM_Gradient_BG.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignLeft, Qt.AlignTop])))
+
+        self.Slider_CCT_GM = QSlider(self.CCT)
+        self.Slider_CCT_GM.setGeometry(QRect(9, 175, 551, 16))
+        self.Slider_CCT_GM.setMinimum(0)
+        self.Slider_CCT_GM.setMaximum(100)
+        self.Slider_CCT_GM.setValue(50)
+        self.Slider_CCT_GM.setOrientation(Qt.Horizontal)
+
+        self.TFV_CCT_GM_Min = QLabel(self.CCT)
+        self.TFV_CCT_GM_Min.setGeometry(QRect(10, 196, 51, 20))
+        self.TFV_CCT_GM_Min.setText("-50")
+
+        self.TFV_CCT_GM = QLabel(self.CCT)
+        self.TFV_CCT_GM.setGeometry(QRect(250, 196, 51, 20))
+        self.TFV_CCT_GM.setText("0")
+        self.TFV_CCT_GM.setFont(mainFont)
+        self.TFV_CCT_GM.setAlignment(Qt.AlignCenter)
+
+        self.TFV_CCT_GM_Max = QLabel(self.CCT)
+        self.TFV_CCT_GM_Max.setGeometry(QRect(518, 196, 51, 20))
+        self.TFV_CCT_GM_Max.setText("50")
+        self.TFV_CCT_GM_Max.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
 
         # === >> THE HSI TAB << ===
         self.HSI = QWidget()
