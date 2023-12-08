@@ -1,9 +1,15 @@
 from PySide2.QtCore import QRect, Signal, Qt
 from PySide2.QtGui import QFont, QLinearGradient, QColor, QKeySequence
 from PySide2.QtWidgets import QFormLayout, QGridLayout, QKeySequenceEdit, QWidget, QPushButton, QTableWidget, QTableWidgetItem, QAbstractScrollArea, QAbstractItemView, \
-                              QTabWidget, QGraphicsScene, QGraphicsView, QFrame, QSlider, QLabel, QLineEdit, QCheckBox, QStatusBar, QScrollArea, QTextEdit
+                              QTabWidget, QGraphicsScene, QGraphicsView, QFrame, QSlider, QLabel, QLineEdit, QCheckBox, QStatusBar, QScrollArea, QTextEdit, \
+                              QComboBox, QButtonGroup, QHBoxLayout
 
+import math # for gradient generation
 import platform # for selecting specific fonts for specific systems
+
+mainFont = QFont()
+mainFont.setBold(True)
+mainFont.setWeight(75)
 
 def combinePySide2Values(theValues):
     # ADDED THIS TO FIX PySide2 VERSIONS < 5.15 
@@ -19,33 +25,8 @@ def combinePySide2Values(theValues):
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         # ============ FONTS, GRADIENTS AND OTHER WINDOW SPECIFICS ============
-        mainFont = QFont()
-        mainFont.setBold(True)
-        mainFont.setWeight(75)
-
-        # THE "DARK TO LIGHT" GRADIENT FOR BRIGHTNESS/INTENSITY
-        gradient_Bri = QLinearGradient(0, 0, 532, 31)
-        gradient_Bri.setColorAt(0.0, QColor(0, 0, 0, 255)) # Dark
-        gradient_Bri.setColorAt(1.0, QColor(255, 255, 255, 255)) # Light
-
-        # THE "RGB" COLOR PICKER'S GRADIENT
-        gradient_RGB = QLinearGradient(0, 0, 532, 31)
-        gradient_RGB.setColorAt(0.0, QColor(255, 0, 0, 255))
-        gradient_RGB.setColorAt(0.16, QColor(255, 255, 0, 255))
-        gradient_RGB.setColorAt(0.33, QColor(0, 255, 0, 255))
-        gradient_RGB.setColorAt(0.49, QColor(0, 255, 255, 255))
-        gradient_RGB.setColorAt(0.66, QColor(0, 0, 255, 255))
-        gradient_RGB.setColorAt(0.83, QColor(255, 0, 255, 255))
-        gradient_RGB.setColorAt(1.0, QColor(255, 0, 0, 255))
-
-        # THE GM COLOR PICKER'S GRADIENT
-        gradient_GM = QLinearGradient(0, 0, 532, 31)
-        gradient_GM.setColorAt(0.0, QColor(255, 0, 255, 255)) # Full Magenta
-        gradient_GM.setColorAt(0.5, QColor(255, 255, 255, 255)) # White
-        gradient_GM.setColorAt(1.0, QColor(0, 255, 0, 255)) # Full Green
-
         MainWindow.setFixedSize(590, 670) # the main window should be this size at launch, and no bigger
-        MainWindow.setWindowTitle("NeewerLite-Python 0.14 by Zach Glenwright")
+        MainWindow.setWindowTitle("NeewerLite-Python 0.15-RC-120823 by Zach Glenwright")
 
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
@@ -131,311 +112,62 @@ class Ui_MainWindow(object):
         self.ColorModeTabWidget = QTabWidget(self.centralwidget)
         self.ColorModeTabWidget.setGeometry(QRect(10, 385, 571, 254))
 
-        # === >> THE CCT TAB << ===
+        # === >> MAIN TAB WIDGETS << ===
         self.CCT = QWidget()
-
-        self.TFL_CCT_Hue = QLabel(self.CCT)
-        self.TFL_CCT_Hue.setGeometry(QRect(8, 10, 440, 17))
-        self.TFL_CCT_Hue.setText("Color Temperature")
-        self.TFL_CCT_Hue.setFont(mainFont)
-
-        # DRAW THE LINEAR GRADIENT TO INDICATE THE COLOR TEMPERATURE VALUE IN THE CCT TAB
-        # NEW DEFAULT OF 5600K FOR LIGHTS THAT DON'T SCALE UP TO 8500K
-        mySceneCCT_Temp = QGraphicsScene(self) # make a scene (ha, right) and don't fill it yet - do that on loading a light
-
-        self.CCT_Temp_Gradient_BG = QGraphicsView(mySceneCCT_Temp, self.CCT)
-        self.CCT_Temp_Gradient_BG.setGeometry(QRect(8, 30, 552, 24))
-        self.CCT_Temp_Gradient_BG.setFrameShape(QFrame.NoFrame)
-        self.CCT_Temp_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.CCT_Temp_Gradient_BG.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignLeft, Qt.AlignTop])))
-
-        self.Slider_CCT_Hue = QSlider(self.CCT)
-        self.Slider_CCT_Hue.setGeometry(QRect(9, 35, 551, 16))
-        self.Slider_CCT_Hue.setMinimum(32)
-        self.Slider_CCT_Hue.setMaximum(56)
-        self.Slider_CCT_Hue.setValue(56)
-        self.Slider_CCT_Hue.setOrientation(Qt.Horizontal)
-
-        self.TFV_CCT_Hue_Min = QLabel(self.CCT)
-        self.TFV_CCT_Hue_Min.setGeometry(QRect(10, 56, 51, 20))
-        self.TFV_CCT_Hue_Min.setText("")
-
-        self.TFV_CCT_Hue = QLabel(self.CCT)
-        self.TFV_CCT_Hue.setGeometry(QRect(250, 56, 51, 20))
-        self.TFV_CCT_Hue.setText("5600K")
-        self.TFV_CCT_Hue.setFont(mainFont)
-        self.TFV_CCT_Hue.setAlignment(Qt.AlignCenter)
-
-        self.TFV_CCT_Hue_Max = QLabel(self.CCT)
-        self.TFV_CCT_Hue_Max.setGeometry(QRect(510, 56, 51, 20))
-        self.TFV_CCT_Hue_Max.setText("")
-
-        self.TFV_CCT_Hue_Max.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
-
-        self.TFL_CCT_Bright = QLabel(self.CCT)
-        self.TFL_CCT_Bright.setGeometry(QRect(8, 80, 440, 17))
-        self.TFL_CCT_Bright.setText("Brightness")
-        self.TFL_CCT_Bright.setFont(mainFont)
-
-        mySceneCCT_Bri = QGraphicsScene(self)
-        mySceneCCT_Bri.setBackgroundBrush(gradient_Bri)
-
-        self.CCT_Bright_Gradient_BG = QGraphicsView(mySceneCCT_Bri, self.CCT)
-        self.CCT_Bright_Gradient_BG.setGeometry(QRect(8, 100, 552, 24))
-        self.CCT_Bright_Gradient_BG.setFrameShape(QFrame.NoFrame)
-        self.CCT_Bright_Gradient_BG.setFrameShadow(QFrame.Sunken)
-
-        self.CCT_Bright_Gradient_BG.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignLeft, Qt.AlignTop])))
-
-        self.Slider_CCT_Bright = QSlider(self.CCT)
-        self.Slider_CCT_Bright.setGeometry(QRect(9, 105, 551, 16))
-        self.Slider_CCT_Bright.setMinimum(0)
-        self.Slider_CCT_Bright.setMaximum(100)
-        self.Slider_CCT_Bright.setValue(100)
-        self.Slider_CCT_Bright.setOrientation(Qt.Horizontal)
-
-        self.TFV_CCT_Bright_Min = QLabel(self.CCT)
-        self.TFV_CCT_Bright_Min.setGeometry(QRect(10, 126, 51, 20))
-        self.TFV_CCT_Bright_Min.setText("0%")
-
-        self.TFV_CCT_Bright = QLabel(self.CCT)
-        self.TFV_CCT_Bright.setGeometry(QRect(250, 126, 51, 20))
-        self.TFV_CCT_Bright.setText("100")
-        self.TFV_CCT_Bright.setFont(mainFont)
-        self.TFV_CCT_Bright.setAlignment(Qt.AlignCenter)
-
-        self.TFV_CCT_Bright_Max = QLabel(self.CCT)
-        self.TFV_CCT_Bright_Max.setGeometry(QRect(510, 126, 51, 20))
-        self.TFV_CCT_Bright_Max.setText("100%")
-        self.TFV_CCT_Bright_Max.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
-
-        self.TFL_CCT_GM = QLabel(self.CCT)
-        self.TFL_CCT_GM.setGeometry(QRect(8, 150, 440, 17))
-        self.TFL_CCT_GM.setText("Green/Magenta Compensation")
-        self.TFL_CCT_GM.setFont(mainFont)
-
-        mySceneCCT_GM = QGraphicsScene(self)
-        mySceneCCT_GM.setBackgroundBrush(gradient_GM)
-
-        self.CCT_GM_Gradient_BG = QGraphicsView(mySceneCCT_GM, self.CCT)
-        self.CCT_GM_Gradient_BG.setGeometry(QRect(8, 170, 552, 24))
-        self.CCT_GM_Gradient_BG.setFrameShape(QFrame.NoFrame)
-        self.CCT_GM_Gradient_BG.setFrameShadow(QFrame.Sunken)
-
-        self.CCT_GM_Gradient_BG.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignLeft, Qt.AlignTop])))
-
-        self.Slider_CCT_GM = QSlider(self.CCT)
-        self.Slider_CCT_GM.setGeometry(QRect(9, 175, 551, 16))
-        self.Slider_CCT_GM.setMinimum(0)
-        self.Slider_CCT_GM.setMaximum(100)
-        self.Slider_CCT_GM.setValue(50)
-        self.Slider_CCT_GM.setOrientation(Qt.Horizontal)
-
-        self.TFV_CCT_GM_Min = QLabel(self.CCT)
-        self.TFV_CCT_GM_Min.setGeometry(QRect(10, 196, 51, 20))
-        self.TFV_CCT_GM_Min.setText("-50")
-
-        self.TFV_CCT_GM = QLabel(self.CCT)
-        self.TFV_CCT_GM.setGeometry(QRect(250, 196, 51, 20))
-        self.TFV_CCT_GM.setText("0")
-        self.TFV_CCT_GM.setFont(mainFont)
-        self.TFV_CCT_GM.setAlignment(Qt.AlignCenter)
-
-        self.TFV_CCT_GM_Max = QLabel(self.CCT)
-        self.TFV_CCT_GM_Max.setGeometry(QRect(518, 196, 51, 20))
-        self.TFV_CCT_GM_Max.setText("50")
-        self.TFV_CCT_GM_Max.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
-
-        # === >> THE HSI TAB << ===
         self.HSI = QWidget()
-
-        self.TFL_HSI_1_H = QLabel(self.HSI)
-        self.TFL_HSI_1_H.setGeometry(QRect(8, 10, 440, 17))
-        self.TFL_HSI_1_H.setText("Hue")
-        self.TFL_HSI_1_H.setFont(mainFont)
-
-        mySceneHSI_Hue = QGraphicsScene(self)
-        mySceneHSI_Hue.setBackgroundBrush(gradient_RGB)
-
-        self.HSI_Hue_Gradient_BG = QGraphicsView(mySceneHSI_Hue, self.HSI)
-        self.HSI_Hue_Gradient_BG.setGeometry(QRect(8, 30, 552, 24))
-        self.HSI_Hue_Gradient_BG.setFrameShape(QFrame.NoFrame)
-        self.HSI_Hue_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.HSI_Hue_Gradient_BG.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignLeft, Qt.AlignTop])))
-
-        self.Slider_HSI_1_H = QSlider(self.HSI)
-        self.Slider_HSI_1_H.setGeometry(QRect(9, 35, 551, 16))
-        self.Slider_HSI_1_H.setMinimum(0)
-        self.Slider_HSI_1_H.setMaximum(360)
-        self.Slider_HSI_1_H.setValue(240)
-        self.Slider_HSI_1_H.setOrientation(Qt.Horizontal)
-
-        self.TFV_HSI_1_H_Min = QLabel(self.HSI)
-        self.TFV_HSI_1_H_Min.setGeometry(QRect(10, 56, 51, 20))
-        self.TFV_HSI_1_H_Min.setText("0º")
-
-        self.TFV_HSI_1_H = QLabel(self.HSI)
-        self.TFV_HSI_1_H.setGeometry(QRect(250, 56, 51, 20))
-        self.TFV_HSI_1_H.setText("240º")
-        self.TFV_HSI_1_H.setFont(mainFont)
-        self.TFV_HSI_1_H.setAlignment(Qt.AlignCenter)
-
-        self.TFV_HSI_1_H_Max = QLabel(self.HSI)
-        self.TFV_HSI_1_H_Max.setGeometry(QRect(510, 56, 51, 20))
-        self.TFV_HSI_1_H_Max.setText("360º")
-        self.TFV_HSI_1_H_Max.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
-
-        self.TFL_HSI_2_S = QLabel(self.HSI)
-        self.TFL_HSI_2_S.setGeometry(QRect(8, 80, 440, 17))
-        self.TFL_HSI_2_S.setText("Saturation")
-        self.TFL_HSI_2_S.setFont(mainFont)
-
-        mySceneHSI_Sat = QGraphicsScene(self)
-        
-        self.HSI_Sat_Gradient_BG = QGraphicsView(mySceneHSI_Sat, self.HSI)
-        self.HSI_Sat_Gradient_BG.setGeometry(QRect(8, 100, 552, 24))
-        self.HSI_Sat_Gradient_BG.setFrameShape(QFrame.NoFrame)
-        self.HSI_Sat_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.HSI_Sat_Gradient_BG.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignLeft, Qt.AlignTop])))
-
-        self.Slider_HSI_2_S = QSlider(self.HSI)
-        self.Slider_HSI_2_S.setGeometry(QRect(9, 105, 551, 16))
-        self.Slider_HSI_2_S.setMinimum(0)
-        self.Slider_HSI_2_S.setMaximum(100)
-        self.Slider_HSI_2_S.setValue(100)
-        self.Slider_HSI_2_S.setOrientation(Qt.Horizontal)
-
-        self.TFV_HSI_2_S_Min = QLabel(self.HSI)
-        self.TFV_HSI_2_S_Min.setGeometry(QRect(10, 126, 51, 20))
-        self.TFV_HSI_2_S_Min.setText("0%")
-
-        self.TFV_HSI_2_S = QLabel(self.HSI)
-        self.TFV_HSI_2_S.setGeometry(QRect(250, 126, 51, 20))
-        self.TFV_HSI_2_S.setText("100%")
-        self.TFV_HSI_2_S.setFont(mainFont)
-        self.TFV_HSI_2_S.setAlignment(Qt.AlignCenter)
-
-        self.TFV_HSI_2_S_Max = QLabel(self.HSI)
-        self.TFV_HSI_2_S_Max.setGeometry(QRect(510, 126, 51, 20))
-        self.TFV_HSI_2_S_Max.setText("100%")
-        self.TFV_HSI_2_S_Max.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
-
-        self.TFL_HSI_3_L = QLabel(self.HSI)
-        self.TFL_HSI_3_L.setGeometry(QRect(8, 150, 440, 17))
-        self.TFL_HSI_3_L.setText("Intensity (Brightness)")
-        self.TFL_HSI_3_L.setFont(mainFont)
-
-        mySceneHSI_Int = QGraphicsScene(self)
-        mySceneHSI_Int.setBackgroundBrush(gradient_Bri)
-
-        self.HSI_Int_Gradient_BG = QGraphicsView(mySceneHSI_Int, self.HSI)
-        self.HSI_Int_Gradient_BG.setGeometry(QRect(8, 170, 552, 24))
-        self.HSI_Int_Gradient_BG.setFrameShape(QFrame.NoFrame)
-        self.HSI_Int_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.HSI_Int_Gradient_BG.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignLeft, Qt.AlignTop])))
-
-        self.Slider_HSI_3_L = QSlider(self.HSI)
-        self.Slider_HSI_3_L.setGeometry(QRect(9, 175, 551, 16))
-        self.Slider_HSI_3_L.setMinimum(0)
-        self.Slider_HSI_3_L.setMaximum(100)
-        self.Slider_HSI_3_L.setValue(100)
-        self.Slider_HSI_3_L.setOrientation(Qt.Horizontal)
-
-        self.TFV_HSI_3_L_Min = QLabel(self.HSI)
-        self.TFV_HSI_3_L_Min.setGeometry(QRect(10, 196, 51, 20))
-        self.TFV_HSI_3_L_Min.setText("0%")
-
-        self.TFV_HSI_3_L = QLabel(self.HSI)
-        self.TFV_HSI_3_L.setGeometry(QRect(250, 196, 51, 20))
-        self.TFV_HSI_3_L.setText("100%")
-        self.TFV_HSI_3_L.setFont(mainFont)
-        self.TFV_HSI_3_L.setAlignment(Qt.AlignCenter)
-
-        self.TFV_HSI_3_L_Max = QLabel(self.HSI)
-        self.TFV_HSI_3_L_Max.setGeometry(QRect(510, 196, 51, 20))
-        self.TFV_HSI_3_L_Max.setText("100%")
-        self.TFV_HSI_3_L_Max.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
-
-        # === >> THE SCENE TAB << ===
         self.ANM = QWidget()
+        
+        # ============ SINGLE SLIDER WIDGET DEFINITIONS ============
 
-        self.TFL_ANM_Brightness = QLabel(self.ANM)
-        self.TFL_ANM_Brightness.setGeometry(QRect(8, 10, 300, 17))
-        self.TFL_ANM_Brightness.setText("Brightness")
-        self.TFL_ANM_Brightness.setFont(mainFont)
+        self.colorTempSlider = parameterWidget(title="Color Temperature", gradient="TEMP", 
+                                               sliderMin=32, sliderMax=72, sliderVal=56, prefix="00K")
+        self.brightSlider = parameterWidget(title="Brightness", gradient="BRI")
+        self.GMSlider = parameterWidget(title="GM Compensation", gradient="GM", sliderOffset=-50, sliderVal=50, prefix="")
+        
+        self.RGBSlider = parameterWidget(title="Hue", gradient="RGB", sliderMin=0, sliderMax=360, sliderVal=180, prefix="º")
+        self.colorSatSlider = parameterWidget(title="Saturation", gradient="SAT", sliderVal=100)
 
-        mySceneAnm = QGraphicsScene(self)
-        mySceneAnm.setBackgroundBrush(gradient_Bri)
+        # change the saturation gradient when the RGB slider changes
+        self.RGBSlider.valueChanged.connect(self.colorSatSlider.adjustSatGradient)
+        
+        self.speedSlider = parameterWidget(title="Speed", gradient="SPEED", sliderMin=0, sliderMax=10, sliderVal=5, prefix="")
+        self.sparksSlider = parameterWidget(title="Sparks", gradient="SPARKS", sliderMin=0, sliderMax=10, sliderVal=5, prefix="")
 
-        self.ANM_Brightness_Gradient_BG = QGraphicsView(mySceneAnm, self.ANM)
-        self.ANM_Brightness_Gradient_BG.setObjectName(u"ANM_Brightness_Gradient_BG")
-        self.ANM_Brightness_Gradient_BG.setGeometry(QRect(8, 30, 552, 24))
-        self.ANM_Brightness_Gradient_BG.setFrameShape(QFrame.NoFrame)
-        self.ANM_Brightness_Gradient_BG.setFrameShadow(QFrame.Sunken)
-        self.ANM_Brightness_Gradient_BG.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignLeft, Qt.AlignTop])))
+        # ============ DOUBLE SLIDER WIDGET DEFINITIONS ============
 
-        self.Slider_ANM_Brightness = QSlider(self.ANM)
-        self.Slider_ANM_Brightness.setGeometry(QRect(9, 35, 551, 16))
-        self.Slider_ANM_Brightness.setMinimum(0)
-        self.Slider_ANM_Brightness.setMaximum(100)
-        self.Slider_ANM_Brightness.setSliderPosition(100)
-        self.Slider_ANM_Brightness.setOrientation(Qt.Horizontal)
+        self.brightDoubleSlider = doubleSlider(sliderType="BRI")
+        self.RGBDoubleSlider = doubleSlider(sliderType="RGB")
+        self.colorTempDoubleSlider = doubleSlider(sliderType="TEMP")
+        
+        # ============ FX CHOOSER DEFINITIONS ============
 
-        self.TFV_ANM_Brightness_Min = QLabel(self.ANM)
-        self.TFV_ANM_Brightness_Min.setGeometry(QRect(10, 56, 51, 20))
-        self.TFV_ANM_Brightness_Min.setText("0%")
-             
-        self.TFV_ANM_Brightness = QLabel(self.ANM)
-        self.TFV_ANM_Brightness.setGeometry(QRect(250, 56, 51, 20))
-        self.TFV_ANM_Brightness.setText("100%")
-        self.TFV_ANM_Brightness.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
+        self.effectChooser_Title = QLabel(self.ANM, text="Choose an effect:")
+        self.effectChooser_Title.setGeometry(QRect(8, 6, 120, 20))
+        self.effectChooser_Title.setFont(mainFont)
 
-        self.TFV_ANM_Brightness_Max = QLabel(self.ANM)
-        self.TFV_ANM_Brightness_Max.setGeometry(QRect(510, 56, 51, 20))
-        self.TFV_ANM_Brightness_Max.setText("100%")
-        self.TFV_ANM_Brightness_Max.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignRight, Qt.AlignTrailing, Qt.AlignVCenter])))
+        self.effectChooser = QComboBox(self.ANM)
+        self.effectChooser.setGeometry(QRect(125, 6, 430, 22))
 
-        self.TFL_A_policeAnim = QLabel(self.ANM)
-        self.TFL_A_policeAnim.setGeometry(QRect(10, 86, 40, 40))
-        self.TFL_A_policeAnim.setText("<html><head/><body><p><font size=\"8\">&#x1F6A8;</font></p></body></html>")
+        # ============ FX CHOOSER DEFINITIONS ============
 
-        self.Button_1_police_A = QPushButton(self.ANM)
-        self.Button_1_police_A.setGeometry(QRect(50, 90, 160, 31))
-        self.Button_1_police_A.setText("(1) Squad Car")
-        self.Button_1_police_B = QPushButton(self.ANM)
-        self.Button_1_police_B.setGeometry(QRect(220, 90, 160, 31))
-        self.Button_1_police_B.setText("(2) Ambulance")
-        self.Button_1_police_C = QPushButton(self.ANM)
-        self.Button_1_police_C.setGeometry(QRect(390, 90, 160, 31))
-        self.Button_1_police_C.setText("(3) Fire Engine")
+        self.specialOptionsSection = QWidget(self.ANM)
 
-        self.TFL_B_partyAnim = QLabel(self.ANM)
-        self.TFL_B_partyAnim.setGeometry(QRect(10, 136, 40, 40))
-        self.TFL_B_partyAnim.setText("<html><head/><body><p><font size=\"8\">&#x1F389;</font></p></body></html>")
+        self.specialOptions_Title = QLabel(self.specialOptionsSection, text="Choose a color option:")
+        self.specialOptions_Title.setFont(mainFont)
+        self.specialOptions_Title.setGeometry(0, 0, 250, 20)
 
-        self.Button_2_party_A = QPushButton(self.ANM)
-        self.Button_2_party_A.setGeometry(QRect(50, 140, 160, 31))
-        self.Button_2_party_A.setText("(4) Fireworks")
-        self.Button_2_party_B = QPushButton(self.ANM)
-        self.Button_2_party_B.setGeometry(QRect(220, 140, 160, 31))
-        self.Button_2_party_B.setText("(5) Party")
-        self.Button_2_party_C = QPushButton(self.ANM)
-        self.Button_2_party_C.setGeometry(QRect(390, 140, 160, 31))
-        self.Button_2_party_C.setText("(6) Candle Light")
+        self.specialOptionsChooser = QComboBox(self.specialOptionsSection)
+        self.specialOptionsChooser.setGeometry(QRect(0, 20, self.ColorModeTabWidget.width() - 16, 22))
 
-        self.TFL_C_lightningAnim = QLabel(self.ANM)
-        self.TFL_C_lightningAnim.setGeometry(QRect(10, 184, 40, 40))
-        self.TFL_C_lightningAnim.setText("<html><head/><body><p><font size=\"8\">&#x26A1;</font></p></body></html>")
+        self.specialOptionsSection.hide()
 
-        self.Button_3_lightning_A = QPushButton(self.ANM)
-        self.Button_3_lightning_A.setGeometry(QRect(50, 190, 160, 31))
-        self.Button_3_lightning_A.setText("(7) Lightning")
-        self.Button_3_lightning_B = QPushButton(self.ANM)
-        self.Button_3_lightning_B.setGeometry(QRect(220, 190, 160, 31))
-        self.Button_3_lightning_B.setText("(8) Paparazzi")
-        self.Button_3_lightning_C = QPushButton(self.ANM)
-        self.Button_3_lightning_C.setGeometry(QRect(390, 190, 160, 31))
-        self.Button_3_lightning_C.setText("(9) Screen")
+        # self.specialOptionsChooser.addItems(["Red", "Blue", "Red and Blue", "White and Blue", "Red, Blue and White"])
+        # self.specialOptionsChooser.setCurrentIndex(2)
+
+        # self.specialOptionsSetion.setParent(self.CCT)
+        # self.specialOptionsSetion.move(8, 20)
+
+        # =============================================================================
 
         # === >> THE LIGHT PREFS TAB << ===
         self.lightPrefs = QWidget()
@@ -652,7 +384,296 @@ class Ui_MainWindow(object):
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusBar = QStatusBar(MainWindow)
         MainWindow.setStatusBar(self.statusBar)
+
+class parameterWidget(QWidget):
+    valueChanged = Signal(int) # return the value that's been changed
+
+    def __init__(self, **kwargs):
+        super(parameterWidget, self).__init__()
+
+        if 'prefix' in kwargs:
+            self.thePrefix = kwargs['prefix']
+        else:
+            self.thePrefix = "%"
         
+        self.widgetTitle = QLabel(self)
+        self.widgetTitle.setFont(mainFont)
+        self.widgetTitle.setGeometry(0, 0, 440, 17)
+
+        if 'title' in kwargs:
+            self.widgetTitle.setText(kwargs['title'])    
+        
+        self.bgGradient = QGraphicsView(QGraphicsScene(self), self)
+        self.bgGradient.setGeometry(0, 20, 552, 24)
+        self.bgGradient.setFrameShape(QFrame.NoFrame)
+        self.bgGradient.setFrameShadow(QFrame.Sunken)
+        self.bgGradient.setAlignment(Qt.Alignment(combinePySide2Values([Qt.AlignLeft, Qt.AlignTop])))
+
+        self.slider = QSlider(self)
+        self.slider.setGeometry(0, 25, 552, 16)
+
+        if 'sliderOffset' in kwargs:
+            self.sliderOffset = kwargs['sliderOffset']
+        else:
+            self.sliderOffset = 0
+
+        if 'sliderMin' in kwargs:
+            self.slider.setMinimum(kwargs['sliderMin'])
+        else:
+            self.slider.setMinimum(0)
+
+        if 'sliderMax' in kwargs:
+            self.slider.setMaximum(kwargs['sliderMax'])
+        else:
+            self.slider.setMaximum(100)
+
+        if 'sliderVal' in kwargs:
+            self.slider.setValue(kwargs['sliderVal'])
+        else:
+            self.slider.setValue(50)
+
+        if 'gradient' in kwargs:
+            self.gradient = kwargs['gradient']
+            self.bgGradient.setBackgroundBrush(self.renderGradient(self.gradient)) 
+
+        self.slider.setOrientation(Qt.Horizontal)
+        self.slider.valueChanged.connect(self.sliderValueChanged)
+
+        self.minTF = QLabel(self, text=str(self.slider.minimum() + self.sliderOffset) + self.thePrefix)
+        self.minTF.setGeometry(0, 46, 184, 20)
+        self.minTF.setAlignment(Qt.AlignLeft)
+
+        self.valueTF = QLabel(self, text=str(self.slider.value() + self.sliderOffset) + self.thePrefix)
+        self.valueTF.setFont(mainFont)
+        self.valueTF.setGeometry(185, 42, 184, 20)
+        self.valueTF.setAlignment(Qt.AlignCenter)
+
+        self.maxTF = QLabel(self, text=str(self.slider.maximum() + self.sliderOffset) + self.thePrefix)
+        self.maxTF.setGeometry(370, 46, 184, 20)
+        self.maxTF.setAlignment(Qt.AlignRight)
+    
+    def value(self):
+        return self.slider.value()
+
+    def setValue(self, theValue):
+        self.slider.setValue(int(theValue))
+
+    def setRangeText(self, min, max):
+        self.widgetTitle.setText("Range: " + str(min) + self.thePrefix + "-" + str(max) + self.thePrefix)
+
+    def changeSliderRange(self, newRange):
+        self.slider.setMinimum(newRange[0])
+        self.slider.setMaximum(newRange[1])
+        self.minTF.setText(str(newRange[0]) + self.thePrefix)
+        self.maxTF.setText(str(newRange[1]) + self.thePrefix)
+
+        if self.gradient == "TEMP":
+            self.bgGradient.setBackgroundBrush(self.renderGradient(self.gradient))
+
+    def sliderValueChanged(self, changeValue):
+        self.valueTF.setText(str(changeValue  + self.sliderOffset) + self.thePrefix)
+        self.valueChanged.emit(changeValue)
+
+    def adjustSatGradient(self, hue):
+        self.bgGradient.setBackgroundBrush(self.renderGradient("SAT", hue))
+
+    def presentMe(self, parent, posX, posY, halfSize = False):
+        self.setParent(parent) # move the control to a different tab parent
+
+        if halfSize == False: # check all the sizes to make sure they're correct
+            if self.widgetTitle.geometry() != QRect(0, 0, 440, 17):
+                self.widgetTitle.setGeometry(0, 0, 440, 17)
+            if self.bgGradient.geometry() != QRect(0, 20, 552, 24):
+                self.bgGradient.setGeometry(0, 20, 552, 24)
+            if self.slider.geometry() != QRect(0, 25, 552, 16):
+                self.slider.setGeometry(0, 25, 552, 16)
+            if self.minTF.geometry() != QRect(0, 46, 184, 20):
+                self.minTF.setGeometry(0, 46, 184, 20)
+            if self.valueTF.geometry() != QRect(185, 42, 184, 20):
+                self.valueTF.setGeometry(185, 42, 184, 20)
+            if self.maxTF.geometry() != QRect(370, 46, 184, 20):
+                self.maxTF.setGeometry(370, 46, 184, 20)
+        else:
+            if self.widgetTitle.geometry() != QRect(0, 0, 216, 17):
+                self.widgetTitle.setGeometry(0, 0, 216, 17)
+            if self.bgGradient.geometry() != QRect(0, 20, 272, 24):
+                self.bgGradient.setGeometry(0, 20, 272, 24)
+            if self.slider.geometry() != QRect(0, 25, 272, 16):
+                self.slider.setGeometry(0, 25, 272, 16)
+            if self.minTF.geometry() != QRect(0, 46, 90, 20):
+                self.minTF.setGeometry(0, 46, 90, 20)
+            if self.valueTF.geometry() != QRect(90, 42, 90, 20):
+                self.valueTF.setGeometry(90, 42, 90, 20)
+            if self.maxTF.geometry() != QRect(180, 46, 90, 20):
+                self.maxTF.setGeometry(180, 46, 90, 20)
+
+        # finally move the entire control to a position and display it
+        self.move(posX, posY)
+        self.show()
+
+    def renderGradient(self, gradientType, hue=180):
+        returnGradient = QLinearGradient(0, 0, 1, 0)
+        returnGradient.setCoordinateMode(returnGradient.ObjectMode)
+
+        if gradientType == "TEMP": # color temperature gradient (calculate new gradient with new bounds)
+            min = self.slider.minimum() * 100
+            max = self.slider.maximum() * 100
+
+            rangeStep = (max - min) / 4 # figure out how much in between steps of the gradient
+
+            for i in range(5): # fill the gradient with a new set of colors
+                rgbValues = self.convert_K_to_RGB(min + (rangeStep * i))                
+                returnGradient.setColorAt((0.25 * i), QColor(rgbValues[0], rgbValues[1], rgbValues[2]))
+        elif gradientType == "BRI": # brightness gradient
+            returnGradient.setColorAt(0.0, QColor(0, 0, 0, 255)) # Dark
+            returnGradient.setColorAt(1.0, QColor(255, 255, 255, 255)) # Light
+        elif gradientType == "GM": # GM adjustment gradient
+            returnGradient.setColorAt(0.0, QColor(255, 0, 255, 255)) # Full Magenta
+            returnGradient.setColorAt(0.5, QColor(255, 255, 255, 255)) # White
+            returnGradient.setColorAt(1.0, QColor(0, 255, 0, 255)) # Full Green
+        elif gradientType == "RGB": # RGB 360º gradient
+            returnGradient.setColorAt(0.0, QColor(255, 0, 0, 255))
+            returnGradient.setColorAt(0.16, QColor(255, 255, 0, 255))
+            returnGradient.setColorAt(0.33, QColor(0, 255, 0, 255))
+            returnGradient.setColorAt(0.49, QColor(0, 255, 255, 255))
+            returnGradient.setColorAt(0.66, QColor(0, 0, 255, 255))
+            returnGradient.setColorAt(0.83, QColor(255, 0, 255, 255))
+            returnGradient.setColorAt(1.0, QColor(255, 0, 0, 255))
+        elif gradientType == "SAT": # color saturation gradient (calculate new gradient with base hue)
+            returnGradient.setColorAt(0, QColor(255, 255, 255))
+            newColor = self.convert_HSI_to_RGB(hue / 360)
+            returnGradient.setColorAt(1, QColor(newColor[0], newColor[1], newColor[2]))
+        elif gradientType == "SPEED": # speed setting gradient
+            returnGradient.setColorAt(0.0, QColor(255, 255, 255, 255))
+            returnGradient.setColorAt(1.0, QColor(0, 0, 255, 255))
+        elif gradientType == "SPARKS": # sparks setting gradient
+            returnGradient.setColorAt(0.0, QColor(255, 255, 255, 255))
+            returnGradient.setColorAt(1.0, QColor(255, 0, 0, 255))
+
+        return returnGradient
+    
+    # CALCULATE THE RGB VALUE OF COLOR TEMPERATURE
+    def convert_K_to_RGB(self, Ktemp):
+        # Based on this script: https://gist.github.com/petrklus/b1f427accdf7438606a6
+        # from @petrklus on GitHub (his source was from http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/)
+
+        tmp_internal = Ktemp / 100.0
+        
+        # red 
+        if tmp_internal <= 66:
+            red = 255
+        else:
+            tmp_red = 329.698727446 * math.pow(tmp_internal - 60, -0.1332047592)
+
+            if tmp_red < 0:
+                red = 0
+            elif tmp_red > 255:
+                red = 255
+            else:
+                red = tmp_red
+        
+        # green
+        if tmp_internal <= 66:
+            tmp_green = 99.4708025861 * math.log(tmp_internal) - 161.1195681661
+
+            if tmp_green < 0:
+                green = 0
+            elif tmp_green > 255:
+                green = 255
+            else:
+                green = tmp_green
+        else:
+            tmp_green = 288.1221695283 * math.pow(tmp_internal - 60, -0.0755148492)
+
+            if tmp_green < 0:
+                green = 0
+            elif tmp_green > 255:
+                green = 255
+            else:
+                green = tmp_green
+        
+        # blue
+        if tmp_internal >= 66:
+            blue = 255
+        elif tmp_internal <= 19:
+            blue = 0
+        else:
+            tmp_blue = 138.5177312231 * math.log(tmp_internal - 10) - 305.0447927307
+            if tmp_blue < 0:
+                blue = 0
+            elif tmp_blue > 255:
+                blue = 255
+            else:
+                blue = tmp_blue
+        
+        return int(red), int(green), int(blue) # return the integer value for each part of the RGB values for this step
+
+    def convert_HSI_to_RGB(self, h, s = 1, v = 1):
+        # Taken from this StackOverflow page, which is an articulation of the colorsys code to
+        # convert HSV values (not HSI, but close, as I'm keeping S and V locked to 1) to RGB:
+        # https://stackoverflow.com/posts/26856771/revisions
+
+        if s == 0.0: v*=255; return (v, v, v)
+        i = int(h*6.) # XXX assume int() truncates!
+        f = (h*6.)-i; p,q,t = int(255*(v*(1.-s))), int(255*(v*(1.-s*f))), int(255*(v*(1.-s*(1.-f)))); v*=255; i%=6
+        if i == 0: return (v, t, p)
+        if i == 1: return (q, v, p)
+        if i == 2: return (p, v, t)
+        if i == 3: return (p, q, v)
+        if i == 4: return (t, p, v)
+        if i == 5: return (v, p, q)
+
+class doubleSlider(QWidget):
+    valueChanged = Signal(int, int) # return left value, right value
+
+    def __init__(self, **kwargs):
+        super(doubleSlider, self).__init__()
+
+        if 'sliderType' in kwargs:
+            self.sliderType = kwargs['sliderType']
+        else:
+            self.sliderType = "RGB"
+
+        if self.sliderType == "RGB":
+            self.leftSlider = parameterWidget(title="Hue Limits", gradient="RGB", sliderMin=0, sliderVal=0, sliderMax=360, prefix="º")
+            self.rightSlider = parameterWidget(title="Range: 0º-360º", gradient="RGB", sliderMin=0, sliderVal=360, sliderMax=360, prefix="º")
+        elif self.sliderType == "BRI":
+            self.leftSlider = parameterWidget(title="Brightness Limits", gradient="BRI", sliderMin=0, sliderVal=0, sliderMax=100, prefix="%")
+            self.rightSlider = parameterWidget(title="Range: 0%-100%", gradient="BRI", sliderMin=0, sliderVal=100, sliderMax=100, prefix="%")
+        elif self.sliderType == "TEMP":
+            self.leftSlider = parameterWidget(title="Color Temperature Limits", gradient="TEMP", sliderMin=32, sliderVal=32, sliderMax=72, prefix="00K")
+            self.rightSlider = parameterWidget(title="Range: 3200K-5600K", gradient="TEMP", sliderMin=32, sliderVal=72, sliderMax=72, prefix="00K")
+    
+        self.leftSlider.valueChanged.connect(self.doubleSliderValueChanged)
+        self.rightSlider.valueChanged.connect(self.doubleSliderValueChanged)
+
+        self.leftSlider.presentMe(self, 0, 0, True)
+        self.rightSlider.presentMe(self, 282, 0, True)
+
+    def doubleSliderValueChanged(self):
+        leftSliderValue = self.leftSlider.value()
+        rightSliderValue = self.rightSlider.value()
+
+        if leftSliderValue > rightSliderValue:
+            self.rightSlider.setValue(leftSliderValue)
+        if rightSliderValue < leftSliderValue:
+            self.leftSlider.setValue(rightSliderValue)
+
+        self.rightSlider.setRangeText(leftSliderValue, rightSliderValue)
+        self.valueChanged.emit(leftSliderValue, rightSliderValue)
+
+    def changeSliderRange(self, newRange):
+        self.leftSlider.changeSliderRange(newRange)
+        self.rightSlider.changeSliderRange(newRange)
+
+    def value(self):
+        return([self.leftSlider.value(), self.rightSlider.value()])
+
+    def presentMe(self, parent, posX, posY):
+        self.setParent(parent)
+        self.move(posX, posY)
+        self.show()
+
 class customPresetButton(QLabel):
     clicked = Signal() # signal sent when you click on the button
     rightclicked = Signal() # signal sent when you right-click on the button
