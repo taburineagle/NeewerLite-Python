@@ -2,7 +2,7 @@ from PySide2.QtCore import QRect, Signal, Qt
 from PySide2.QtGui import QFont, QLinearGradient, QColor, QKeySequence
 from PySide2.QtWidgets import QFormLayout, QGridLayout, QKeySequenceEdit, QWidget, QPushButton, QTableWidget, QTableWidgetItem, QAbstractScrollArea, QAbstractItemView, \
                               QTabWidget, QGraphicsScene, QGraphicsView, QFrame, QSlider, QLabel, QLineEdit, QCheckBox, QStatusBar, QScrollArea, QTextEdit, \
-                              QComboBox, QButtonGroup, QHBoxLayout
+                              QComboBox
 
 import math # for gradient generation
 import platform # for selecting specific fonts for specific systems
@@ -26,7 +26,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         # ============ FONTS, GRADIENTS AND OTHER WINDOW SPECIFICS ============
         MainWindow.setFixedSize(590, 670) # the main window should be this size at launch, and no bigger
-        MainWindow.setWindowTitle("NeewerLite-Python 0.15-RC-120823 by Zach Glenwright")
+        MainWindow.setWindowTitle("NeewerLite-Python 0.15-RC-010924 by Zach Glenwright")
 
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
@@ -411,7 +411,22 @@ class parameterWidget(QWidget):
 
         self.slider = QSlider(self)
         self.slider.setGeometry(0, 25, 552, 16)
-
+        self.slider.setStyleSheet("QSlider::groove:horizontal" 
+                                  "{"
+                                  "border: 2px solid transparent;"
+                                  "height: 12px;"
+                                  "background: transparent;"
+                                  "margin: 2px 0;"
+                                  "}"
+                                  "QSlider::handle:horizontal {"
+                                  "background-color: rgba(255, 255, 255, 0.5);"
+                                  "opacity:0.3;"
+                                  "border: 2px solid #5c5c5c;"
+                                  "width: 12px;"
+                                  "margin: -2px 0;"
+                                  "border-radius: 3px;"
+                                  "}")
+        
         if 'sliderOffset' in kwargs:
             self.sliderOffset = kwargs['sliderOffset']
         else:
@@ -668,6 +683,12 @@ class doubleSlider(QWidget):
 
     def value(self):
         return([self.leftSlider.value(), self.rightSlider.value()])
+    
+    def setValue(self, theSlider, theValue):
+        if theSlider == "left":
+            self.leftSlider.setValue(theValue)
+        elif theSlider == "right":
+            self.rightSlider.setValue(theValue)
 
     def presentMe(self, parent, posX, posY):
         self.setParent(parent)
