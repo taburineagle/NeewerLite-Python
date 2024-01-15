@@ -26,7 +26,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         # ============ FONTS, GRADIENTS AND OTHER WINDOW SPECIFICS ============
         MainWindow.setFixedSize(590, 670) # the main window should be this size at launch, and no bigger
-        MainWindow.setWindowTitle("NeewerLite-Python 0.15-RC-010924 by Zach Glenwright")
+        MainWindow.setWindowTitle("NeewerLite-Python 0.15-RC-01-15-24 by Zach Glenwright")
 
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
@@ -419,7 +419,7 @@ class parameterWidget(QWidget):
                                   "margin: 2px 0;"
                                   "}"
                                   "QSlider::handle:horizontal {"
-                                  "background-color: rgba(255, 255, 255, 0.5);"
+                                  "background-color: rgba(255, 255, 255, 0.75);"
                                   "opacity:0.3;"
                                   "border: 2px solid #5c5c5c;"
                                   "width: 12px;"

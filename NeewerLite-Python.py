@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. 0.15-RC-010924
+## NeewerLite-Python ver. 0.15-RC-01-15-24
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -13,16 +13,6 @@
 ## Originally based on the NeewerLight project by @keefo
 ##      > https://github.com/keefo/NeewerLite <
 ############################################################
-
-''' 
-NOTE! NOTE! NOTE! NOTE! NOTE! THIS BRANCH IS A WIP (work-in-progress) BRANCH - 
-THAT MEANS IT'S NOT 100% PRODUCTION READY, SO USE AT YOUR OWN RISK.  YOU HAVE
-BEEN WARRRRRRRRRRRNNNEEDD... NOW:
-
-Things to do!
-    - Sort out all of the LEMURs in the script
-    - Re-write all of the "turn on/off" logic to work with Infinity lights
-'''
 
 import os
 import sys
@@ -1432,13 +1422,11 @@ try: # try to load the GUI
             self.statusBar.showMessage("Current value: " + updateStatus())                                        
             self.startSend()
 
-        # LEMUR! Check out the turn on value for the Infinity lights
         def turnLightOn(self):
             setPowerBytestring("ON")
             self.statusBar.showMessage("Turning light on")
             self.startSend()
 
-        # LEMUR! Check out the turn off value for the Infinity lights
         def turnLightOff(self):
             setPowerBytestring("OFF")
             self.statusBar.showMessage("Turning light off")
@@ -2213,9 +2201,9 @@ def setPowerBytestring(onOrOff):
     global sendValue
 
     if onOrOff == "ON":
-        sendValue = [120, 129, 1, 1, 251] # return the "turn on" bytestring
+        sendValue = [120, 129, 1, 1] # return the "turn on" bytestring
     else:
-        sendValue = [120, 129, 1, 2, 252] # return the "turn off" bytestring
+        sendValue = [120, 129, 1, 2] # return the "turn off" bytestring
 
 def translateByteString(customValue = None):
     if customValue == None:
@@ -2223,17 +2211,22 @@ def translateByteString(customValue = None):
 
     translatedByteString = {}
 
-    if customValue[1] == 134:
+    if customValue[1] == 129: # we're turning the light on or off
+        if customValue[3] == 1:
+            translatedByteString["colorMode"] = "ON"
+        elif customValue[3] == 2:
+            translatedByteString["colorMode"] = "OFF"
+    elif customValue[1] == 134: # we're in HSI mode
         translatedByteString["colorMode"] = "HSI"
         translatedByteString["hue"] = customValue[3] + (256 * customValue[4])
         translatedByteString["saturation"] = customValue[5]
         translatedByteString["brightness"] = customValue[6]
-    elif customValue[1] == 135:
+    elif customValue[1] == 135: # we're in CCT mode
         translatedByteString["colorMode"] = "CCT"
         translatedByteString["brightness"] = customValue[3]
         translatedByteString["temp"] = customValue[4]
         translatedByteString["GM"] = customValue[5]
-    elif customValue[1] == 136:
+    elif customValue[1] == 136: # we're in FX/ANM/SCENE mode
         FX = customValue[3]
 
         translatedByteString["colorMode"] = "ANM"
@@ -2335,19 +2328,22 @@ def updateStatus(splitString = "", customValue = None):
     if splitString != "":
         splitString = "\n"
 
-    returnStatus = "(" + statusInfo["colorMode"] + " Mode):" + splitString
+    if statusInfo["colorMode"] == "OFF" or statusInfo["colorMode"] == "ON":
+        returnStatus = "(" + statusInfo["colorMode"] + ")"
+    else:
+        returnStatus = "(" + statusInfo["colorMode"] + " Mode):" + splitString
 
-    if statusInfo["colorMode"] == "HSI":
-        returnStatus += "  H: " + str(statusInfo["hue"]) + u'\N{DEGREE SIGN}'
-        returnStatus += " / S: " + str(statusInfo["saturation"])
-        returnStatus += " / I: " + str(statusInfo["brightness"])
-    elif statusInfo["colorMode"] == "CCT":
-        returnStatus += "  TEMP: " + str(statusInfo["temp"]) + "00K"
-        returnStatus += " / BRI: " + str(statusInfo["brightness"])
-        returnStatus += " / GM: " + str(statusInfo["GM"] - 50)
-    elif statusInfo["colorMode"] == "ANM":
-        returnStatus += "  FX: " + str(statusInfo["effect"])
-        # returnStatus += " / BRI:" + str(statusInfo["brightness"])
+        if statusInfo["colorMode"] == "HSI":
+            returnStatus += "  H: " + str(statusInfo["hue"]) + u'\N{DEGREE SIGN}'
+            returnStatus += " / S: " + str(statusInfo["saturation"])
+            returnStatus += " / I: " + str(statusInfo["brightness"])
+        elif statusInfo["colorMode"] == "CCT":
+            returnStatus += "  TEMP: " + str(statusInfo["temp"]) + "00K"
+            returnStatus += " / BRI: " + str(statusInfo["brightness"])
+            returnStatus += " / GM: " + str(statusInfo["GM"] - 50)
+        elif statusInfo["colorMode"] == "ANM":
+            returnStatus += "  FX: " + str(statusInfo["effect"])
+            # returnStatus += " / BRI:" + str(statusInfo["brightness"])
 
     return returnStatus
 
@@ -2361,9 +2357,14 @@ class UpdatedBLEInformation:
         self.HWMACaddr = HWMACaddr # the exact MAC address (needed for MacOS) of this device
         
 # FIND NEW LIGHTS
-async def findDevices():
+async def findDevices(limitToDevices = None):
     global availableLights
-    printDebugString("Searching for new lights")
+
+    if limitToDevices == None:
+        printDebugString("Searching for new lights...")
+    else:
+        printDebugString("Searching for the lights you requested...")
+    
     currentScan = [] # add all the current scan's lights detected to a standby array (to check against the main one)
 
     bleak_ver = ilm.version('bleak').split(".") # the version of Bleak that we're using
@@ -2377,25 +2378,30 @@ async def findDevices():
         for d in device_scan:
             devices.append(UpdatedBLEInformation(d.name, d.address, d.rssi))
     else: 
-        
         device_scan = await BleakScanner.discover(return_adv=True) # scan all available Bluetooth devices nearby and return Advertisement data
 
         for device, adv_data in device_scan.values():
             devices.append(UpdatedBLEInformation(device.name, device.address, adv_data.rssi))
-        
+    
     for d in devices: # go through all of the devices Bleak just found
-        if d.address in whiteListedMACs: # if the MAC address is in the list of whitelisted addresses, add this device
-            printDebugString("Matching whitelisted address found - " + returnMACname() + " " + d.address + ", adding to the list")
-            currentScan.append(d)
-        else: # if this device is not whitelisted, check to see if it's valid (contains "NEEWER" in the name)
-            if d.name != None:
-                acceptedPrefixes = ["NEEWER", "NW-", "SL", "NWR"]
+        if limitToDevices != None: # we're looking for devices using the CLI, so we need *specific* MAC addresses/GUIDs
+            if d.address in limitToDevices:
+                d.name = getCorrectedName(d.name)
+                currentScan.append(d)
+        else: # we're doing a normal device discovery/re-discovery scan
+            if d.address in whiteListedMACs: # if the MAC address is in the list of whitelisted addresses, add this device
+                printDebugString("Matching whitelisted address found - " + returnMACname() + " " + d.address + ", adding to the list")
+                d.name = getCorrectedName(d.name)
+                currentScan.append(d)
+            else: # if this device is not whitelisted, check to see if it's valid (contains "NEEWER" in the name)
+                if d.name != None:
+                    acceptedPrefixes = ["NEEWER", "NW-", "SL", "NWR"]
 
-                for a in range(len(acceptedPrefixes)):
-                    if acceptedPrefixes[a] in d.name:
-                        d.name = getCorrectedName(d.name) # fix the "newer" light names, like NW-20220057 with their correct names, like SL90 Pro
-                        currentScan.append(d)
-                        break
+                    for a in range(len(acceptedPrefixes)):
+                        if acceptedPrefixes[a] in d.name:
+                            d.name = getCorrectedName(d.name) # fix the "newer" light names, like NW-20220057 with their correct names, like SL90 Pro
+                            currentScan.append(d)
+                            break
 
     for a in range(len(currentScan)): # scan the newly found NEEWER devices
         newLight = True # initially mark this light as a "new light"
@@ -2756,19 +2762,22 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
 
                     # THIS SECTION IS FOR LOADING SNAPSHOT PRESET POWER STATES
                     if useGlobalValue == False: # if we're forcing the lights to use their stored parameters, then load that in here
-                        # LEMUR! This is the code that before turned lights on or off during snapshot presets - take a look at this!
-                        '''
                         if availableLights[currentLightIdx][3][0] == 0: # we want to turn the light off
                             availableLights[currentLightIdx][3][0] = 120 # reset the light's value to the normal value
-                            currentSendValue = [120, 129, 1, 2, 252] # set the send value to turn the light off downstream
+                            currentSendValue = [120, 129, 1, 2] # set the send value to turn the light off downstream
                         else: # we want to turn the light on and run a snapshot preset
-                            await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
+                            if availableLights[currentLightIdx][8] == False: # we're using an old style of light
+                                await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
+                            else: # we're using an Infinity light
+                                infinitySendValue = [120, 141, 8]
+                                infinitySendValue.extend(splitMACAddress(availableLights[currentLightIdx][0].HWMACaddr, True))
+                                infinitySendValue.extend([129, currentSendValue[3]])
+                                await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(infinitySendValue)), False)
+
                             availableLights[currentLightIdx][6] = True # set the ON flag of this light to True
                             await asyncio.sleep(0.05)
-                        '''
+                        
                         currentSendValue = availableLights[currentLightIdx][3] # set the send value to set the preset downstream
-                       
-                    print(f'Current Send Value: {currentLightIdx} / {currentSendValue}')
                     
                     if availableLights[currentLightIdx][1] != "": # if a Bleak connection is there
                         try:
@@ -2803,6 +2812,8 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                         infinitySendValue = [120, 143, 11]
                                     elif currentSendValue[1] == 136: # we're in SCENE/FX mode
                                         infinitySendValue = [120, 145, 6 + (len(currentSendValue) - 2)]
+                                    elif currentSendValue[1] == 129: # we need to turn the light on or off
+                                        infinitySendValue = [120, 141, 8]
 
                                     infinitySendValue.extend(splitMACAddress(availableLights[currentLightIdx][0].HWMACaddr, True))
 
@@ -2850,7 +2861,9 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
 
                                         for i in range(4, len(currentSendValue)):
                                             infinitySendValue.append(currentSendValue[i])
-                                    
+                                    elif currentSendValue[1] == 129: # we need to turn the light on or off
+                                        infinitySendValue.extend([129, currentSendValue[3]])
+                                        
                                     await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(infinitySendValue)), False)
                                 else:
                                     if currentSendValue[1] == 135: # if we're in CCT mode (and using a normal light), don't take the GM value
@@ -2943,20 +2956,6 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
             returnValue = "quit"
 
     return returnValue
-
-# USE THIS FUNCTION TO CONNECT TO ONE LIGHT (for CLI mode) AND RETRIEVE ANY CUSTOM PREFS (necessary for lights like the SNL-660)
-async def connectToOneLight(MACAddress):
-    global availableLights
-
-    try:
-        currentLightToAdd = await BleakScanner.find_device_by_address(MACAddress)
-        currentLightToAdd.name = getCorrectedName(currentLightToAdd.name)
-        customLightPrefs = getCustomLightPrefs(currentLightToAdd.address, currentLightToAdd.name)
-
-        availableLights = [[currentLightToAdd, "", customLightPrefs[0], [], customLightPrefs[1], customLightPrefs[2], True, [], customLightPrefs[len(customLightPrefs) - 1]]]
-    except Exception as e:
-        printDebugString("Error finding the Neewer light with MAC address " + MACAddress)
-        print(e)
 
 # THE BACKGROUND WORKER THREAD
 def workerThread(_loop):
@@ -3076,7 +3075,7 @@ def processCommands(listToProcess=[]):
 
     # ARGUMENTS EACH MODE HAS ACCESS TO
     acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity",
-                            "--scene", "--animation", "--list", "--on", "--off", "--force_instance"]
+                            "gm", "--scene", "--animation", "--list", "--on", "--off", "--force_instance"]
 
     # MODE-SPECIFIC ARGUMENTS
     if inStartupMode == True: # if we're using the GUI or CLI, then add these arguments to the list
@@ -3147,7 +3146,8 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--hue", default="240", help="[DEFAULT: 240] (HSI mode) - the hue (0-360 degrees) to set the light to")
     parser.add_argument("--sat", "--saturation", default="100", help="[DEFAULT: 100] (HSI mode) The saturation (how vibrant the color is) to set the light to")
     parser.add_argument("--bri", "--brightness", "--intensity", default="100", help="[DEFAULT: 100] (CCT/HSI/ANM mode) The brightness (intensity) to set the light to")
-    parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation (1-9) to use in Scene mode")
+    parser.add_argument("--gm", "--GM", default="0", help="[DEFAULT:0] (CCT mode) The GM Compensation adjustment (-50 to 50) to set the light to (for Infinity lights)")
+    parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation to use in Scene mode")
 
     args = parser.parse_args(listToProcess)
 
@@ -3209,10 +3209,13 @@ def processCommands(listToProcess=[]):
             printDebugString(" >> Improper mode selected with --mode command - valid entries are")
             printDebugString(" >> CCT, HSI or either ANM or SCENE, so rolling back to CCT mode.")
 
+        GM = 50 + int(args.gm)
+
         # RETURN CCT MODE PARAMETERS IN CCT/ALL OTHER CASES
         return [args.cli, args.silent, args.light, "CCT",
                 testValid("temp", args.temp, 56, 32, 85),
-                testValid("bri", args.bri, 100, 0, 100)]
+                testValid("bri", args.bri, 100, 0, 100),
+                testValid("GM", GM, 50, 0, 100)]
 
 def processHTMLCommands(paramsList, loop):
     global threadAction
@@ -3249,11 +3252,11 @@ def processHTMLCommands(paramsList, loop):
 
             else: # we want to write a value to a specific light
                 if paramsList[3] == "CCT": # calculate CCT bytestring
-                    calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
+                    calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5], GM=cmdReturn[6])
                 elif paramsList[3] == "HSI": # calculate HSI bytestring
                     calculateByteString(colorMode=paramsList[3], hue=paramsList[4], saturation=paramsList[5], brightness=paramsList[6])
                 elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
-                    calculateByteString(colorMode=paramsList[3], animation=paramsList[4], brightness=paramsList[5])
+                    calculateByteString(colorMode=paramsList[3], effect=paramsList[4], brightness=paramsList[5])
                 elif paramsList[3] == "ON": # turn the light(s) on
                     setPowerBytestring("ON")
                 elif paramsList[3] == "OFF": # turn the light(s) off
@@ -3536,7 +3539,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.15-RC-010924 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.15-RC-01-15-24 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3585,7 +3588,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
             self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.15-RC-010924</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.15-RC-01-15-24</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3720,7 +3723,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. 0.15-RC-010924")
+    print("             NeewerLite-Python ver. 0.15-RC-01-15-24")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3773,7 +3776,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.15-RC-010924 by Zach Glenwright")
+            print("NeewerLite-Python 0.15-RC-01-15-24 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
@@ -3823,8 +3826,13 @@ if __name__ == '__main__':
         printDebugString(" > Mode: " + cmdReturn[3])
 
         if cmdReturn[3] == "CCT":
+            # if the default value for GM returned is "0", then the actual value is "50", so reset that
+            if int(cmdReturn[6]) == 0:
+                cmdReturn[6] = 50
+
             printDebugString(" > Color Temperature: " + str(cmdReturn[4]) + "00K")
             printDebugString(" > Brightness: " + str(cmdReturn[5]))
+            printDebugString(" > GM Compensation: " + str(int(cmdReturn[6]) - 50))
         elif cmdReturn[3] == "HSI":
             printDebugString(" > Hue: " + str(cmdReturn[4]))
             printDebugString(" > Saturation: " + str(cmdReturn[5]))
@@ -3835,10 +3843,17 @@ if __name__ == '__main__':
 
         if cmdReturn[0] == False: # if we're not showing the GUI, we need to specify a MAC address
             if cmdReturn[2] != "":
-                printDebugString("-------------------------------------------------------------------------------------")
-                printDebugString(" > CLI >> MAC Address of light to send command to: " + cmdReturn[2].upper())
+                MACAddresses = cmdReturn[2].upper().split(",") # uppercase and split list of mutliple MAC addresses
 
-                asyncioEventLoop.run_until_complete(connectToOneLight(cmdReturn[2])) # get Bleak object linking to this specific light and getting custom prefs
+                printDebugString("-------------------------------------------------------------------------------------")
+                printDebugString(" > CLI >> MAC Addresses/UUIDs of lights to send command to: ")
+
+                for a in range(len(MACAddresses)):
+                    printDebugString(f'            {MACAddresses[a]}')
+
+                printDebugString("-------------------------------------------------------------------------------------")
+
+                asyncioEventLoop.run_until_complete(findDevices(limitToDevices = MACAddresses)) # get Bleak object linking to this specific light and getting custom prefs
             else:
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> You did not specify a light to send the command to - use the --light switch")
@@ -3870,9 +3885,8 @@ if __name__ == '__main__':
 
                 # SET UP GUI BASED ON COMMAND LINE ARGUMENTS
                 if len(cmdReturn) > 1:
-                    # LEMUR! Check out how setUpGUI() needs modeArgs here
                     if cmdReturn[3] == "CCT": # set up the GUI in CCT mode with specified parameters (or default, if none)
-                        mainWindow.setUpGUI(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
+                        mainWindow.setUpGUI(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5], GM=cmdReturn[6])
                     elif cmdReturn[3] == "HSI": # set up the GUI in HSI mode with specified parameters (or default, if none)
                         mainWindow.setUpGUI(colorMode=cmdReturn[3], hue=cmdReturn[4], saturation=cmdReturn[5], brightness=cmdReturn[6])
                     elif cmdReturn[3] == "ANM": # set up the GUI in ANM mode with specified parameters (or default, if none)
@@ -3915,64 +3929,47 @@ if __name__ == '__main__':
     else: # don't launch the GUI, send command to a light/lights and quit out
         if len(cmdReturn) > 1:
             if cmdReturn[3] == "CCT": # calculate CCT bytestring
-                calculateByteString(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
+                calculateByteString(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5], GM=cmdReturn[6])
             elif cmdReturn[3] == "HSI": # calculate HSI bytestring
                 calculateByteString(colorMode=cmdReturn[3], hue=cmdReturn[4], saturation=cmdReturn[5], brightness=cmdReturn[6])
             elif cmdReturn[3] == "ANM": # calculate ANM/SCENE bytestring
-                calculateByteString(colorMode=cmdReturn[3], animation=cmdReturn[4], brightness=cmdReturn[5])
+                calculateByteString(colorMode=cmdReturn[3], effect=cmdReturn[4], brightness=cmdReturn[5])
             elif cmdReturn[3] == "ON": # turn the light on
                 setPowerBytestring("ON")
             elif cmdReturn[3] == "OFF": # turn the light off
                 setPowerBytestring("OFF")
 
         if availableLights != []:
-            printDebugString(" > CLI >> Bytestring to send to light:" + updateStatus())
+            for a in range(len(availableLights)):
+                availableLights[a][3] = sendValue # use the specified parameters in every light's "last used parameters" value
 
-            # CONNECT TO THE LIGHT AND SEND INFORMATION TO IT
-            isFinished = False
-            numOfAttempts = 1
+            printDebugString("-------------------------------------------------------------------------------------")
+            printDebugString(" > CLI >> Configuration to send to light: " + updateStatus())
+            printDebugString("-------------------------------------------------------------------------------------")
+            printDebugString(" > CLI >> Attempting to connect to lights...")
+            printDebugString("-------------------------------------------------------------------------------------")
+            
+            asyncioEventLoop.run_until_complete(parallelAction("connect", [-1], False)) # connect to each available light in parallel
 
-            while isFinished == False:
-                printDebugString("-------------------------------------------------------------------------------------")
-                printDebugString(" > CLI >> Attempting to connect to light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
-                printDebugString("-------------------------------------------------------------------------------------")
-                isFinished = asyncioEventLoop.run_until_complete(connectToLight(0, False))
+            printDebugString("-------------------------------------------------------------------------------------")
+            printDebugString(" > CLI >> Attempting to write to lights, sending commands in 3 passes...")
+            printDebugString("-------------------------------------------------------------------------------------")
 
-                if numOfAttempts < maxNumOfAttempts:
-                    numOfAttempts = numOfAttempts + 1
-                else:
-                    printDebugString("Error connecting to light " + str(maxNumOfAttempts) + " times - quitting out")
-                    singleInstanceUnlockandQuit(1) # delete the lock file and quit out
+            multipleSendString = "send"
 
-            isFinished = False
-            numOfAttempts = 1
+            for a in range(len(availableLights)):
+                multipleSendString += "|" + str(a) # add all lights to the list of lights to send commands to
 
-            while isFinished == False:
-                printDebugString("-------------------------------------------------------------------------------------")
-                printDebugString(" > CLI >> Attempting to write to light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
-                printDebugString("-------------------------------------------------------------------------------------")
-                isFinished = asyncioEventLoop.run_until_complete(writeToLight(0, False))
+            for iteration in range(3):
+                printDebugString(f'Sending command to light (Pass {iteration + 1} of 3)...')
+                processMultipleSends(asyncioEventLoop, multipleSendString, False)
+            
+            printDebugString("-------------------------------------------------------------------------------------")
+            printDebugString(" > CLI >> Attempting to disconnect from lights...")
+            printDebugString("-------------------------------------------------------------------------------------")
 
-                if numOfAttempts < maxNumOfAttempts:
-                    numOfAttempts = numOfAttempts + 1
-                else:
-                    printDebugString("Error writing to light " + str(maxNumOfAttempts) + " times - quitting out")
-                    singleInstanceUnlockandQuit(1) # delete the lock file and quit out
-
-            isFinished = False
-            numOfAttempts = 1
-
-            while isFinished == False:
-                printDebugString("-------------------------------------------------------------------------------------")
-                printDebugString(" > CLI >> Attempting to disconnect from light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
-                printDebugString("-------------------------------------------------------------------------------------")
-                isFinished = asyncioEventLoop.run_until_complete(disconnectFromLight(0, updateGUI = False))
-
-                if numOfAttempts < maxNumOfAttempts:
-                    numOfAttempts = numOfAttempts + 1
-                else:
-                    printDebugString("Error disconnecting from light " + str(maxNumOfAttempts) + " times - quitting out")
-                    singleInstanceUnlockandQuit(1) # delete the lock file and quit out
+            asyncioEventLoop.run_until_complete(parallelAction("disconnect", [-1], False)) # disconnect from each available light in parallel
+            singleInstanceUnlockandQuit(0) # delete the lock file and quit out
         else:
             printDebugString("-------------------------------------------------------------------------------------")
             printDebugString(" > CLI >> Calculated bytestring:" + updateStatus())
