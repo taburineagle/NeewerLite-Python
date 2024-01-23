@@ -1936,8 +1936,6 @@ def saveCustomPreset(presetType, numOfPreset, selectedLights = []):
         else: # add only the selected lights to the snapshot preset
             for a in range(len(selectedLights)):
                 listConstructor.append([availableLights[selectedLights[a]][0].address, availableLights[selectedLights[a]][3]])
-        
-        print(listConstructor)
 
         customLightPresets[numOfPreset] = listConstructor
 
@@ -1971,6 +1969,9 @@ def loadCustomPresets():
             # convert all values after the MAC address to integer values
             for c in range(1, len(currentParams)):
                 currentParams[c] = int(currentParams[c])
+
+            if currentParams[0] == "-1":
+                currentParams[0] = -1 # convert to an integer to denote GLOBAL presets
 
             # add all of the current light's parameters to the parameters list
             paramsList.append([currentParams[0], currentParams[1:]])
@@ -2139,23 +2140,23 @@ def calculateByteString(returnValue = False, **modeArgs):
 
         # OLD EFFECT PARAMETERS RETROFITTED WITH INFINITY COMMANDS
         elif effect == 21: # OLD EFFECT: Cop Car
-            computedValue.extend([effect, brightness, 3, 5])
-        elif effect == 22: # OLD EFFECT: Ambulance
-            computedValue.extend([effect, brightness, 3, 5]) # find matching Infinity preset that looks like old style FX
-        elif effect == 23: # OLD EFFECT: Fire Engine
-            computedValue.extend([effect, brightness, 3, 5]) # find matching Infinity preset that looks like old style FX
-        elif effect == 24: # OLD EFFECT: Fireworks
-            computedValue.extend([effect, brightness, 2, 5, 5])
-        elif effect == 25: # OLD EFFECT: Party
             computedValue.extend([effect, brightness, 2, 5])
+        elif effect == 22: # OLD EFFECT: Ambulance
+            computedValue.extend([effect, brightness, 75, 50, 5])
+        elif effect == 23: # OLD EFFECT: Fire Engine
+            computedValue.extend([effect, brightness, 0, 0, 55, 0, 10]) # this doesn't *exactly* match the old FX, but it's close
+        elif effect == 24: # OLD EFFECT: Fireworks
+            computedValue.extend([effect, brightness, 49, 0, 20, 1, 8]) # HUE LOOP actually matches more closely to the old FX
+        elif effect == 25: # OLD EFFECT: Party
+            computedValue.extend([effect, brightness, 1, 10])
         elif effect == 26: # OLD EFFECT: Candlelight
-            computedValue.extend([effect, 10, brightness, 56, 50, 5, 5])
+            computedValue.extend([effect, 2, brightness, 32, 50, 10, 4])
         elif effect == 27: # OLD EFFECT: Lightning
-            computedValue.extend([effect, brightness, 32, 5])
+            computedValue.extend([effect, brightness, 75, 10])
         elif effect == 28: # OLD EFFECT: Paparazzi
-            computedValue.extend([effect, brightness, 32, 50, 5])
+            computedValue.extend([effect, brightness, 75, 50, 10])
         elif effect == 29: # OLD EFFECT: TV Screen
-            computedValue.extend([effect, 10, brightness, 32, 50, 5])
+            computedValue.extend([effect, 2, brightness, 75, 50, 10])
     else:
         computedValue = [0]
 
@@ -2278,7 +2279,6 @@ def translateByteString(customValue = None):
             translatedByteString["temp_max"] = customValue[6]
             translatedByteString["speed"] = customValue[7]
         elif FX == 14:
-            print(customValue)
             loopMode = customValue[4] # get whether we're in CCT or HSI mode with loopMode
 
             translatedByteString["bright_min"] = customValue[5]
@@ -2311,6 +2311,8 @@ def translateByteString(customValue = None):
             translatedByteString["specialOptions"] = customValue[5]
             translatedByteString["speed"] = customValue[6]
         else:
+            print(customValue)
+
             if FX == 26 or FX == 29:
                 translatedByteString["brightness"] = customValue[5]
             else:
@@ -2841,11 +2843,11 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                             if effectNum == 21:
                                                 infinitySendValue.append(10)
                                             elif effectNum == 22:
-                                                infinitySendValue.append(10) # find matching Infinity preset that looks like old style FX
+                                                infinitySendValue.append(8)
                                             elif effectNum == 23:
-                                                infinitySendValue.append(10) # find matching Infinity preset that looks like old style FX
+                                                infinitySendValue.append(12)
                                             elif effectNum == 24:
-                                                infinitySendValue.append(16)
+                                                infinitySendValue.append(12)
                                             elif effectNum == 25:
                                                 infinitySendValue.append(17)
                                             elif effectNum == 26:
