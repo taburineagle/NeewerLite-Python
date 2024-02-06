@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. 0.15-RC-01-15-24
+## NeewerLite-Python ver. 0.15-RC-02-06-24
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -1014,6 +1014,7 @@ try: # try to load the GUI
                     if availableLights[currentlySelectedRow][3] != []: # if the last set parameters aren't empty
                         if availableLights[currentlySelectedRow][6] != False: # if the light is listed as being turned ON
                             sendValue = translateByteString(availableLights[currentlySelectedRow][3]) # make the current "sendValue" the last set parameter so it doesn't re-send it on re-load
+                            sendValue["infinityMode"] = selectedRows[1]
                             self.setUpGUI(**sendValue)
                         else:
                             self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if the light is off and there ARE prior parameters
@@ -1071,12 +1072,12 @@ try: # try to load the GUI
             else:
                 if countOfCurrentEffects == 0 or countOfCurrentEffects == 9:
                     self.effectChooser.clear()
-                    self.effectChooser.addItems(["1 Lightning", "2 Paparazzi", "3 Defective Bulb",
-                                             "4 Explosion", "5 Welding", "6 CCT Flash",
-                                             "7 Hue Flash", "8 CCT Pulse", "9 Hue Pulse",
-                                             "10 Cop Car", "11 Candlelight", "12 Hue Loop",
-                                             "13 CCT Loop", "14 INT Loop (CCT)", "14 INT Loop (HSI)",
-                                             "15 TV Screen", "16 Fireworks", "17 Party"])
+                    self.effectChooser.addItems(["1 - Lightning", "2 - Paparazzi", "3 - Defective Bulb",
+                                             "4 - Explosion", "5 - Welding", "6 - CCT Flash",
+                                             "7 - Hue Flash", "8 - CCT Pulse", "9 - Hue Pulse",
+                                             "10 - Cop Car", "11 - Candlelight", "12 - Hue Loop",
+                                             "13 - CCT Loop", "14 - INT Loop (CCT)", "14 - INT Loop (HSI)",
+                                             "15 - TV Screen", "16 - Fireworks", "17 - Party"])
 
         # ADD A LIGHT TO THE TABLE VIEW
         def setTheTable(self, infoArray, rowToChange = -1):
@@ -1160,7 +1161,7 @@ try: # try to load the GUI
             wX = [8, 290] # X positions for widgets - [0], left half  [1], right half
             wY = [30, 95, 160] # Y positions for widgets - [0], first [1], 2nd [2], 3rd
             
-            if self.effectChooser.itemText(0) == "1 Lightning": # Infinity mode
+            if self.effectChooser.itemText(0) == "1 - Lightning": # Infinity mode
                 if effectID == 0: # Light(n)ing
                     self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
                     self.colorTempSlider.presentMe(self.ANM, wX[0], wY[1])
@@ -1298,7 +1299,7 @@ try: # try to load the GUI
             elif currentTab == 2:
                 currentEffect = self.effectChooser.currentIndex() + 1
 
-                if self.effectChooser.itemText(0) == "1 Lightning": # Infinity mode
+                if self.effectChooser.itemText(0) == "1 - Lightning": # Infinity mode
                     if currentEffect == 1:
                         calculateByteString(colorMode="ANM",\
                                             effect=currentEffect,\
@@ -1730,12 +1731,28 @@ try: # try to load the GUI
                 self.ColorModeTabWidget.setCurrentIndex(2)
                 FX = modeArgs["effect"]
 
-                if FX < 20:
-                    self.setInfinityMode(True)
-                    self.effectChooser.setCurrentIndex(modeArgs["effect"] - 1)
+                if "infinityMode" in modeArgs:
+                    infinityMode = modeArgs["infinityMode"]
+                    FX = convertFXIndex(infinityMode, FX)
                 else:
-                    self.setInfinityMode(False)
-                    self.effectChooser.setCurrentIndex(modeArgs["effect"] - 21)
+                    if FX < 20:
+                        infinityMode = True
+                    else:
+                        infinityMode = False
+                        FX = FX - 20
+
+                self.setInfinityMode(infinityMode)
+
+                if FX < 14:
+                    self.effectChooser.setCurrentIndex(FX - 1)
+                else: # if we're using Infinity presets and we have an FX index over 14, then we need to take special considerations
+                    if FX == 14:
+                        if "temp" in modeArgs: # INT Loop (CCT)
+                            self.effectChooser.setCurrentIndex(13)
+                        else: # INT Loop (HSI)
+                            self.effectChooser.setCurrentIndex(14)
+                    else:
+                        self.effectChooser.setCurrentIndex(FX)
                 
                 if "brightness" in modeArgs:
                     self.brightSlider.setValue(modeArgs["brightness"])
@@ -2285,34 +2302,27 @@ def translateByteString(customValue = None):
             translatedByteString["bright_max"] = customValue[6]
     
             if loopMode == 0: # if we're in CCT mode
-                translatedByteString["effect"] = 14
                 translatedByteString["temp"] = customValue[9]
             else: # we're in HSI mode
-                translatedByteString["effect"] = 15
                 translatedByteString["hue"] = customValue[7] + (256 * customValue[8]) # convert this from 2 values
 
             translatedByteString["speed"] = customValue[10]
         elif FX == 15:
-            translatedByteString["effect"] = 16
             translatedByteString["bright_min"] = customValue[4]
             translatedByteString["bright_max"] = customValue[5]
             translatedByteString["temp"] = customValue[6]
             translatedByteString["GM"] = customValue[7]
             translatedByteString["speed"] = customValue[8]
         elif FX == 16:
-            translatedByteString["effect"] = 17
             translatedByteString["brightness"] = customValue[4]
             translatedByteString["specialOptions"] = customValue[5]
             translatedByteString["speed"] = customValue[6]
             translatedByteString["sparks"] = customValue[7]
         elif FX == 17:
-            translatedByteString["effect"] = 18
             translatedByteString["brightness"] = customValue[4]
             translatedByteString["specialOptions"] = customValue[5]
             translatedByteString["speed"] = customValue[6]
         else:
-            print(customValue)
-
             if FX == 26 or FX == 29:
                 translatedByteString["brightness"] = customValue[5]
             else:
@@ -2321,14 +2331,14 @@ def translateByteString(customValue = None):
     return translatedByteString
     
 # MAKE CURRENT BYTESTRING INTO A STRING OF HEX CHARACTERS TO SHOW THE CURRENT VALUE BEING GENERATED BY THE PROGRAM
-def updateStatus(splitString = "", customValue = None):
+def updateStatus(splitString = "", infinityMode = False, customValue = None):
     if customValue == None:
         statusInfo = translateByteString(sendValue)
     else:
         statusInfo = translateByteString(customValue)
 
-    if splitString != "":
-        splitString = "\n"
+    if "effect" in statusInfo:
+        statusInfo["effect"] = convertFXIndex(infinityMode, statusInfo["effect"])
 
     if statusInfo["colorMode"] == "OFF" or statusInfo["colorMode"] == "ON":
         returnStatus = "(" + statusInfo["colorMode"] + ")"
@@ -2345,7 +2355,6 @@ def updateStatus(splitString = "", customValue = None):
             returnStatus += " / GM: " + str(statusInfo["GM"] - 50)
         elif statusInfo["colorMode"] == "ANM":
             returnStatus += "  FX: " + str(statusInfo["effect"])
-            # returnStatus += " / BRI:" + str(statusInfo["brightness"])
 
     return returnStatus
 
@@ -2736,6 +2745,51 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
 
     return returnValue
 
+# GET THE RIGHT FX # FOR PRESETS - CONVERT BETWEEN THE OLD FX INDEX AND THE INFINITY INDEX
+def convertFXIndex(infinityMode, effectNum):
+    if infinityMode == True: # we're getting the FX # for an Infinity style Neewer light
+        if effectNum > 20:
+            if effectNum == 21:
+                return 10
+            elif effectNum == 22:
+                return 8
+            elif effectNum == 23:
+                return 12
+            elif effectNum == 24:
+                return 12
+            elif effectNum == 25:
+                return 17
+            elif effectNum == 26:
+                return 11
+            elif effectNum == 27:
+                return 1
+            elif effectNum == 28:
+                return 2
+            elif effectNum == 29:
+                return 15
+        else:
+            return effectNum
+    else: # we're getting the FX # for an older style Neewer light
+        if effectNum < 20:
+            if effectNum == 10:
+                return 1
+            elif effectNum == 16:
+                return 4
+            elif effectNum == 17:
+                return 5
+            elif effectNum == 11:
+                return 6
+            elif effectNum == 1:
+                return 7
+            elif effectNum == 2:
+                return 8
+            elif effectNum == 15:
+                return 9
+            else: # we're in Ambulance or Fire Engine mode
+                return 10
+        else: # we're recalling a light preset designed for older lights
+            return effectNum - 20
+
 # WRITE TO A LIGHT - optional arguments for the CLI version (GUI version doesn't use either of these)
 async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
     global availableLights
@@ -2836,31 +2890,8 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                                                 currentSendValue[6]])
                                     elif currentSendValue[1] == 136: # SCENE/FX mode
                                         infinitySendValue.append(139)
-                                        effectNum = currentSendValue[3]
-
-                                        # if the effect we're recalling is an old light effect, then correct the # here
-                                        if effectNum > 20:
-                                            if effectNum == 21:
-                                                infinitySendValue.append(10)
-                                            elif effectNum == 22:
-                                                infinitySendValue.append(8)
-                                            elif effectNum == 23:
-                                                infinitySendValue.append(12)
-                                            elif effectNum == 24:
-                                                infinitySendValue.append(12)
-                                            elif effectNum == 25:
-                                                infinitySendValue.append(17)
-                                            elif effectNum == 26:
-                                                infinitySendValue.append(11)
-                                            elif effectNum == 27:
-                                                infinitySendValue.append(1)
-                                            elif effectNum == 28:
-                                                infinitySendValue.append(2)
-                                            elif effectNum == 29:
-                                                infinitySendValue.append(15)
-                                        else:
-                                            infinitySendValue.append(effectNum)
-
+                                        infinitySendValue.append(convertFXIndex(True, currentSendValue[3]))
+                                                                                
                                         for i in range(4, len(currentSendValue)):
                                             infinitySendValue.append(currentSendValue[i])
                                     elif currentSendValue[1] == 129: # we need to turn the light on or off
@@ -2876,28 +2907,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                         # SWITCH THE 2 ELEMENTS TO THE CORRECT ORDER FOR OLDER LIGHTS
                                         currentEffect = normalSceneCommand[3]
                                         normalSceneCommand[3] = normalSceneCommand[4]
-                                        normalSceneCommand[4] = currentEffect
-                                        
-                                        # if the effect we're recalling is an Infinity light preset, then fix the effect # for old lights
-                                        if normalSceneCommand[4] < 20:
-                                            if normalSceneCommand[4] == 10:
-                                                normalSceneCommand[4] = 1
-                                            elif normalSceneCommand[4] == 16:
-                                                normalSceneCommand[4] = 4
-                                            elif normalSceneCommand[4] == 17:
-                                                normalSceneCommand[4] = 5
-                                            elif normalSceneCommand[4] == 11:
-                                                normalSceneCommand[4] = 6
-                                            elif normalSceneCommand[4] == 1:
-                                                normalSceneCommand[4] = 7
-                                            elif normalSceneCommand[4] == 2:
-                                                normalSceneCommand[4] = 8
-                                            elif normalSceneCommand[4] == 15:
-                                                normalSceneCommand[4] = 9
-                                            else: # we're in Ambulance or Fire Engine mode
-                                                normalSceneCommand[4] = 10 # find matching Infinity preset that looks like old style FX
-                                        else: # we're recalling a light preset designed for older lights
-                                            normalSceneCommand[4] = normalSceneCommand[4] - 20 # subtract 20 from the effect to get the correct old effect #
+                                        normalSceneCommand[4] = convertFXIndex(False, currentEffect)
 
                                         await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(normalSceneCommand)), False)
                                     else:
@@ -2907,7 +2917,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                 # if we're not looking at an old light, or if we are, we're not in either HSI or ANM modes, then update the status of that light
                                 if not (availableLights[currentLightIdx][5] == True and (currentSendValue[1] == 134 or currentSendValue[1] == 136)):
                                     if currentSendValue[1] != 129: # if we're not turning the light on or off
-                                        mainWindow.setTheTable(["", "", "", updateStatus(True, currentSendValue)], currentLightIdx)
+                                        mainWindow.setTheTable(["", "", "", updateStatus(splitString="\n", infinityMode=availableLights[currentLightIdx][8], customValue=currentSendValue)], currentLightIdx)
                                     else: # we ARE turning the light on or off
                                         if currentSendValue[3] == 1: # we turned the light on
                                             availableLights[currentLightIdx][6] = True # toggle the "light on" parameter of this light to ON
@@ -3499,7 +3509,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                                 except Exception as e:
                                     self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + "<A HREF='doAction?link=" + str(a + 1) + "'>No</A></TD>\n", "utf-8")) # is the light linked?
 
-                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + updateStatus(False, availableLights[a][3]) + "</TD>\n", "utf-8")) # the last sent value to the light
+                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + updateStatus(customValue=availableLights[a][3]) + "</TD>\n", "utf-8")) # the last sent value to the light
                                 self.wfile.write(bytes("  </TR>\n", "utf-8"))
 
                             self.wfile.write(bytes("</TABLE>\n", "utf-8"))
@@ -3541,7 +3551,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.15-RC-01-15-24 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.15-RC-02-06-24 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3590,7 +3600,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
             self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.15-RC-01-15-24</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.15-RC-02-06-24</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3725,7 +3735,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. 0.15-RC-01-15-24")
+    print("             NeewerLite-Python ver. 0.15-RC-02-06-24")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3778,7 +3788,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.15-RC-01-15-24 by Zach Glenwright")
+            print("NeewerLite-Python 0.15-RC-02-06-24 by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 

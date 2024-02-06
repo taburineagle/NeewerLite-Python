@@ -26,7 +26,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         # ============ FONTS, GRADIENTS AND OTHER WINDOW SPECIFICS ============
         MainWindow.setFixedSize(590, 670) # the main window should be this size at launch, and no bigger
-        MainWindow.setWindowTitle("NeewerLite-Python 0.15-RC-01-15-24 by Zach Glenwright")
+        MainWindow.setWindowTitle("NeewerLite-Python 0.15-RC-02-06-24 by Zach Glenwright")
 
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
