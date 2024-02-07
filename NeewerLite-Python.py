@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. 0.15-RC-02-06-24
+## NeewerLite-Python ver. [2024-02-07-RC]
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -2223,6 +2223,17 @@ def setPowerBytestring(onOrOff):
     else:
         sendValue = [120, 129, 1, 2] # return the "turn off" bytestring
 
+def getInfinityPowerBytestring(onOrOff, lightMACAddress):
+    powerByteString = [120, 141, 8]
+    powerByteString.extend(splitMACAddress(lightMACAddress, True))
+
+    if onOrOff == "ON":
+        powerByteString.extend([129, 1])
+    else:
+        powerByteString.extend([129, 0])
+
+    return powerByteString
+
 def translateByteString(customValue = None):
     if customValue == None:
         customValue = sendValue
@@ -2825,10 +2836,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                             if availableLights[currentLightIdx][8] == False: # we're using an old style of light
                                 await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
                             else: # we're using an Infinity light
-                                infinitySendValue = [120, 141, 8]
-                                infinitySendValue.extend(splitMACAddress(availableLights[currentLightIdx][0].HWMACaddr, True))
-                                infinitySendValue.extend([129, currentSendValue[3]])
-                                await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(infinitySendValue)), False)
+                                await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("ON", availableLights[currentLightIdx][0].HWMACaddr))), False)
 
                             availableLights[currentLightIdx][6] = True # set the ON flag of this light to True
                             await asyncio.sleep(0.05)
@@ -2894,6 +2902,12 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                                                                 
                                         for i in range(4, len(currentSendValue)):
                                             infinitySendValue.append(currentSendValue[i])
+
+                                        # CYCLE POWER TO INFINITY LIGHT BEFORE SENDING THE ANIMATION PARAMETERS
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("OFF", availableLights[currentLightIdx][0].HWMACaddr))), False)
+                                        asyncio.sleep(0.05)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("ON", availableLights[currentLightIdx][0].HWMACaddr))), False)
+                                        asyncio.sleep(0.05)
                                     elif currentSendValue[1] == 129: # we need to turn the light on or off
                                         infinitySendValue.extend([129, currentSendValue[3]])
                                         
@@ -3551,7 +3565,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.15-RC-02-06-24 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-02-07-RC] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3600,7 +3614,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
             self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.15-RC-02-06-24</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-02-07-RC]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3735,7 +3749,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. 0.15-RC-02-06-24")
+    print("             NeewerLite-Python ver. [2024-02-07-RC]")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3788,7 +3802,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.15-RC-02-06-24 by Zach Glenwright")
+            print("NeewerLite-Python [2024-02-07-RC] by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
