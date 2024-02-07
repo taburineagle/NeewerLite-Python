@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. 0.14
+## NeewerLite-Python ver. [2024-02-07-RC]
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -16,7 +16,6 @@
 
 import os
 import sys
-import math # used for calculating the RGB values of color temperatures
 import tempfile
 import argparse
 import asyncio
@@ -25,6 +24,7 @@ import time
 
 import platform # used to determine which OS we're using for MAC address/GUID listing
 from importlib import metadata as ilm # used to determine which version of Bleak we have running
+from subprocess import run, PIPE # used to get MacOS Mac address
 
 from datetime import datetime
 
@@ -79,14 +79,13 @@ except Exception as e:
     pass # if there are any HTTP errors, don't do anything yet
 
 CCTSlider = -1 # the current slider moved in the CCT window - 1 - Brightness / 2 - Hue / -1 - Both Brightness and Hue
-sendValue = [120, 135, 2, 20, 56, 157] # an array to hold the values to be sent to the light - the default is CCT / 5600K / 20%
-lastAnimButtonPressed = 1 # which animation button you clicked last - if none, then it defaults to 1 (the police sirens)
+sendValue = [120, 135, 2, 50, 56, 50] # an array to hold the values to be sent to the light
 lastSelection = [] # the current light selection (this is for snapshot preset entering/leaving buttons)
 lastSortingField = -1 # the last field used for sorting purposes
 
 availableLights = [] # the list of Neewer lights currently available to control
 # List Subitems (for ^^^^^^):
-# [0] - Bleak Scan Object (can use .name / .rssi / .address to get specifics)
+# [0] - UpdatedBLEInformation object (replaces Bleak object, but retains information) Object (can use .name / .realname / .address / .rssi / .HWMACaddr to get specifics)
 # [1] - Bleak Connection (the actual Bluetooth connection to the light itself)
 # [2] - Custom Name for Light (string)
 # [3] - Last Used Parameters (list)
@@ -94,6 +93,7 @@ availableLights = [] # the list of Neewer lights currently available to control
 # [5] - Whether or not to send Brightness and Hue independently for old lights (boolean)
 # [6] - Whether or not this light has been manually turned ON/OFF (boolean)
 # [7] - The Power and Channel data returned for this light (list)
+# [8] - Whether or not this light uses the new Infinity light protocol (boolean)
 
 # Light Preset ***Default*** Settings (for sections below):
 # NOTE: The list is 0-based, so the preset itself is +1 from the subitem
@@ -106,29 +106,22 @@ availableLights = [] # the list of Neewer lights currently available to control
 # [6] - [HSI mode] - 300° hue / 100% saturation / 20% intensity (PURPLE)
 # [7] - [HSI mode] - 160° hue / 100% saturation / 20% intensity (CYAN)
 
+customLightPresets = [] # the list of custom light presets
 # The list of **default** light presets for restoring and checking against
 defaultLightPresets = [
-    [[-1, [5, 20, 56]]],
-    [[-1, [5, 20, 32]]],
-    [[-1, [5, 0, 56]]],
-    [[-1, [4, 20, 0, 100]]],
-    [[-1, [4, 20, 240, 100]]],
-    [[-1, [4, 20, 120, 100]]],
-    [[-1, [4, 20, 300, 100]]],
-    [[-1, [4, 20, 160, 100]]]    
+    [[-1, [120, 135, 2, 20, 56, 50]]],
+    [[-1, [120, 135, 2, 20, 32, 50]]],
+    [[-1, [120, 135, 2, 0, 56, 50]]],
+    [[-1, [120, 134, 4, 0, 0, 120, 20]]],
+    [[-1, [120, 134, 4, 240, 0, 100, 20]]],
+    [[-1, [120, 134, 4, 120, 0, 100, 20]]],
+    [[-1, [120, 134, 4, 44, 1, 100, 20]]],
+    [[-1, [120, 134, 4, 160, 0, 100, 20]]]
     ]
 
-# A list of preset mode settings - custom file will overwrite
-customLightPresets = [
-    [[-1, [5, 20, 56]]],
-    [[-1, [5, 20, 32]]],
-    [[-1, [5, 0, 56]]],
-    [[-1, [4, 20, 0, 100]]],
-    [[-1, [4, 20, 240, 100]]],
-    [[-1, [4, 20, 120, 100]]],
-    [[-1, [4, 20, 300, 100]]],
-    [[-1, [4, 20, 160, 100]]]    
-    ]
+# Initially fill the custom presets with the default preset parameters - custom file will overwrite these, if it exists
+for a in range(len(defaultLightPresets)):
+    customLightPresets.append(defaultLightPresets[a])
 
 threadAction = "" # the current action to take from the thread
 asyncioEventLoop = None # the current asyncio loop
@@ -258,6 +251,7 @@ try: # try to load the GUI
 
             self.ColorModeTabWidget.currentChanged.connect(self.tabChanged)
             self.lightTable.itemSelectionChanged.connect(self.selectionChanged)
+            self.effectChooser.currentIndexChanged.connect(self.effectChanged)
 
             # Allow clicking on the headers for sorting purposes
             horizHeaders = self.lightTable.horizontalHeader()
@@ -298,23 +292,18 @@ try: # try to load the GUI
             self.customPreset_7_Button.enteredWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7))
             self.customPreset_7_Button.leftWidget.connect(lambda: self.highlightLightsForSnapshotPreset(7, True))
 
-            self.Slider_CCT_Hue.valueChanged.connect(lambda: self.computeValueCCT(1))
-            self.Slider_CCT_Bright.valueChanged.connect(lambda: self.computeValueCCT(2))
-
-            self.Slider_HSI_1_H.valueChanged.connect(lambda: self.computeValueHSI(1))
-            self.Slider_HSI_2_S.valueChanged.connect(lambda: self.computeValueHSI(2))
-            self.Slider_HSI_3_L.valueChanged.connect(lambda: self.computeValueHSI(3))
-
-            self.Slider_ANM_Brightness.valueChanged.connect(lambda: self.computeValueANM(0))
-            self.Button_1_police_A.clicked.connect(lambda: self.computeValueANM(1))
-            self.Button_1_police_B.clicked.connect(lambda: self.computeValueANM(2))
-            self.Button_1_police_C.clicked.connect(lambda: self.computeValueANM(3))
-            self.Button_2_party_A.clicked.connect(lambda: self.computeValueANM(4))
-            self.Button_2_party_B.clicked.connect(lambda: self.computeValueANM(5))
-            self.Button_2_party_C.clicked.connect(lambda: self.computeValueANM(6))
-            self.Button_3_lightning_A.clicked.connect(lambda: self.computeValueANM(7))
-            self.Button_3_lightning_B.clicked.connect(lambda: self.computeValueANM(8))
-            self.Button_3_lightning_C.clicked.connect(lambda: self.computeValueANM(9))
+            # Connect the sliders to the computation function
+            self.colorTempSlider.valueChanged.connect(lambda: self.computeValues())
+            self.brightSlider.valueChanged.connect(lambda: self.computeValues())
+            self.GMSlider.valueChanged.connect(lambda: self.computeValues())
+            self.RGBSlider.valueChanged.connect(lambda: self.computeValues())
+            self.colorSatSlider.valueChanged.connect(lambda: self.computeValues())
+            self.brightDoubleSlider.valueChanged.connect(lambda: self.computeValues())
+            self.RGBDoubleSlider.valueChanged.connect(lambda: self.computeValues())
+            self.colorTempDoubleSlider.valueChanged.connect(lambda: self.computeValues())
+            self.speedSlider.valueChanged.connect(lambda: self.computeValues())
+            self.sparksSlider.valueChanged.connect(lambda: self.computeValues())
+            self.specialOptionsChooser.currentIndexChanged.connect(lambda: self.computeValues())
 
             # CHECKS TO SEE IF SPECIFIC FIELDS (and the save button) SHOULD BE ENABLED OR DISABLED
             self.customName.clicked.connect(self.checkLightPrefsEnables)
@@ -429,7 +418,8 @@ try: # try to load the GUI
 
                     sortingList.append([availableLights[a][0], availableLights[a][1], availableLights[a][2], availableLights[a][3], \
                                         availableLights[a][4], availableLights[a][5], availableLights[a][6], availableLights[a][7], \
-                                        availableLights[a][0].name, availableLights[a][0].address, availableLights[a][0].rssi])
+                                        availableLights[a][0].name, availableLights[a][0].address, availableLights[a][0].rssi, \
+                                        availableLights[a][8]])
             else: # we clicked on the "Linked" or "Status" headers, which do not allow sorting
                 sortingField = -1
 
@@ -489,7 +479,8 @@ try: # try to load the GUI
 
                 for a in range(len(sortedList)): # rebuild the available lights list from the sorted list
                     availableLights.append([sortedList[a][0], sortedList[a][1], sortedList[a][2], sortedList[a][3], \
-                                            sortedList[a][4], sortedList[a][5], sortedList[a][6], sortedList[a][7]])
+                                            sortedList[a][4], sortedList[a][5], sortedList[a][6], sortedList[a][7], \
+                                            sortedList[a][11]])
                                         
                 self.updateLights(False) # redraw the table with the new light list
                 lastSortingField = sortingField # keep track of the last field used for sorting, so we know whether or not to switch to ascending
@@ -505,110 +496,68 @@ try: # try to load the GUI
             # 7 AND 9 ADJUST THE FIRST SLIDER ON A TAB
             # 4 AND 6 ADJUST THE SECOND SLIDER ON A TAB
             # 1 AND 3 ADJUST THE THIRD SLIDER ON A TAB
-            # UNLESS WE'RE IN SCENE MODE, THEN THEY JUST SWITCH THE SCENE
             if theNumber == 1:
-                if self.ColorModeTabWidget.currentIndex() == 2: # if we're on the SCENE tab, then the number keys correspond to an animation
-                    self.computeValueANM(1)
-                else: # if we're not, adjust the slider
-                    if customKeys[16] == "1":
-                        self.changeSliderValue(3, -1) # decrement slider 3
+                if customKeys[16] == "1":
+                    self.changeSliderValue(3, -1) # decrement slider 3
             elif theNumber == 2:
-                if self.ColorModeTabWidget.currentIndex() == 2:
-                    self.computeValueANM(2)
+                pass
             elif theNumber == 3:
-                if self.ColorModeTabWidget.currentIndex() == 2:
-                    self.computeValueANM(3)
-                else:
-                    if customKeys[17] == "3":
+                if customKeys[17] == "3":
                         self.changeSliderValue(3, 1) # increment slider 3
             elif theNumber == 4:
-                if self.ColorModeTabWidget.currentIndex() == 2:
-                    self.computeValueANM(4)
-                else:
-                    if customKeys[14] == "4":
+                if customKeys[14] == "4":
                         self.changeSliderValue(2, -1) # decrement slider 2
             elif theNumber == 5:
-                if self.ColorModeTabWidget.currentIndex() == 2:
-                    self.computeValueANM(5)
+                pass
             elif theNumber == 6:
-                if self.ColorModeTabWidget.currentIndex() == 2:
-                    self.computeValueANM(6)
-                else:
-                    if customKeys[15] == "6":
+                if customKeys[15] == "6":
                         self.changeSliderValue(2, 1) # increment slider 2
             elif theNumber == 7:
-                if self.ColorModeTabWidget.currentIndex() == 2:
-                    self.computeValueANM(7)
-                else:
-                    if customKeys[12] == "7":
+                if customKeys[12] == "7":
                         self.changeSliderValue(1, -1) # decrement slider 1
             elif theNumber == 8:
-                if self.ColorModeTabWidget.currentIndex() == 2:
-                    self.computeValueANM(8)
+                pass
             elif theNumber == 9:
-                if self.ColorModeTabWidget.currentIndex() == 2:
-                    self.computeValueANM(9)
-                else:
-                    if customKeys[13] == "9":
+                if customKeys[13] == "9":
                         self.changeSliderValue(1, 1) # increment slider 1
 
         def changeSliderValue(self, sliderToChange, changeAmt):
             if self.ColorModeTabWidget.currentIndex() == 0: # we have 2 sliders in CCT mode
                 if sliderToChange == 1:
-                    self.Slider_CCT_Hue.setValue(self.Slider_CCT_Hue.value() + changeAmt)
+                    self.colorTempSlider.setValue(self.colorTempSlider.value() + changeAmt)
                 elif sliderToChange == 2 or sliderToChange == 0:
-                    self.Slider_CCT_Bright.setValue(self.Slider_CCT_Bright.value() + changeAmt)
+                    self.brightSlider.setValue(self.brightSlider.value() + changeAmt)
+                elif sliderToChange == 3:
+                    self.GMSlider.setValue(self.GMSlider.value() + changeAmt)
             elif self.ColorModeTabWidget.currentIndex() == 1: # we have 3 sliders in HSI mode
                 if sliderToChange == 1:
-                    self.Slider_HSI_1_H.setValue(self.Slider_HSI_1_H.value() + changeAmt)
+                    self.RGBSlider.setValue(self.RGBSlider.value() + changeAmt)
                 elif sliderToChange == 2:
-                    self.Slider_HSI_2_S.setValue(self.Slider_HSI_2_S.value() + changeAmt)
+                    self.colorSatSlider.setValue(self.colorSatSlider.value() + changeAmt)
                 elif sliderToChange == 3 or sliderToChange == 0:
-                    self.Slider_HSI_3_L.setValue(self.Slider_HSI_3_L.value() + changeAmt)
+                    self.brightSlider.setValue(self.brightSlider.value() + changeAmt)
             elif self.ColorModeTabWidget.currentIndex() == 2:
                 if sliderToChange == 0: # the only "slider" in SCENE mode is the brightness
                     self.Slider_ANM_Brightness.setValue(self.Slider_ANM_Brightness.value() + changeAmt)
 
         def checkLightTab(self, selectedLight = -1):
-            if self.ColorModeTabWidget.currentIndex() == 0: # if we're on the CCT tab, do the check
+            currentIdx = self.ColorModeTabWidget.currentIndex()
+
+            if currentIdx == 0 or currentIdx == 2: # if we're on the CCT or ANM tabs, do the check
                 if selectedLight == -1: # if we don't have a light selected
                     self.setupCCTBounds(3200, 5600) # restore the bounds to their default of 56(00)K
                 else: # set up the gradient to show the range of color temperatures available to the currently selected light
                     self.setupCCTBounds(availableLights[selectedLight][4][0], availableLights[selectedLight][4][1])
-
-            elif self.ColorModeTabWidget.currentIndex() == 3: # if we're on the Preferences tab instead
+            elif currentIdx == 3: # if we're on the Preferences tab instead
                 if selectedLight != -1: # if there is a specific selected light
                     self.setupLightPrefsTab(selectedLight) # update the Prefs tab with the information for that selected light
 
-        def getCCTTempGradient(self, startRange, endRange):
-            rangeStep = (endRange - startRange) / 4 # figure out how much in between steps of the gradient
-            gradient = QLinearGradient(0, 0, 532, 31) # make a new gradient
-
-            for i in range(5): # fill the gradient with a new set of colors
-                rgbValues = convert_K_to_RGB(startRange + (rangeStep * i))                
-                gradient.setColorAt((0.25 * i), QColor(rgbValues[0], rgbValues[1], rgbValues[2]))
-                # THIS LINE UNDERNEATH IS JUST FOR DEBUGGING THE GRADIENT GENERATOR (it shows the values from the calculations above)
-                # print(str(startRange + (rangeStep * i)) + " (" + str(0.25 * i) + "): " + str(rgbValues[0]) + " / " + str(rgbValues[1]) + " / " + str(rgbValues[2]))
-
-            return gradient # return the new gradient to switch the display out with
-
-        def getHSIHueGradient(self, hue):
-            gradient = QLinearGradient(0, 0, 532, 31) # make a new gradient
-
-            gradient.setColorAt(0, QColor(255, 255, 255))
-            newColor = convert_HSI_to_RGB(hue / 360)
-            gradient.setColorAt(1, QColor(newColor[0], newColor[1], newColor[2]))
-
-            return gradient # return the new gradient to switch the display out with
-
         def setupCCTBounds(self, startRange, endRange):
-            self.TFV_CCT_Hue_Min.setText(str(startRange) + "K")
-            self.TFV_CCT_Hue_Max.setText(str(endRange) + "K")
+            startRange = int(startRange / 100)
+            endRange = int(endRange / 100)
 
-            self.Slider_CCT_Hue.setMinimum(startRange / 100) # set the min value of the color temperature slider to the new min bounds
-            self.Slider_CCT_Hue.setMaximum(endRange / 100) # set the max value of the color temperature slider to the new max bounds
-            
-            self.CCT_Temp_Gradient_BG.scene().setBackgroundBrush(self.getCCTTempGradient(startRange, endRange)) # change the gradient to fit the new boundary
+            self.colorTempSlider.changeSliderRange([startRange, endRange])
+            self.colorTempDoubleSlider.changeSliderRange([startRange, endRange])
 
         def setupLightPrefsTab(self, selectedLight):
             # SET UP THE CUSTOM NAME TEXT BOX
@@ -800,7 +749,8 @@ try: # try to load the GUI
 
         def saveGlobalPrefs(self):
             # change these global values to the new values in Prefs
-            global customKeys, autoConnectToLights, printDebug, rememberLightsOnExit, rememberPresetsOnExit, maxNumOfAttempts, acceptable_HTTP_IPs, whiteListedMACs
+            global customKeys, autoConnectToLights, printDebug, rememberLightsOnExit, \
+                   rememberPresetsOnExit, maxNumOfAttempts, acceptable_HTTP_IPs, whiteListedMACs
 
             finalPrefs = [] # list of final prefs to merge together at the end
 
@@ -1029,12 +979,12 @@ try: # try to load the GUI
 
         # CHECK TO SEE WHETHER OR NOT TO ENABLE/DISABLE THE "Connect" BUTTON OR CHANGE THE PREFS TAB
         def selectionChanged(self):
-            selectedRows = self.selectedLights() # get the list of currently selected lights
+            selectedRows = self.selectedLights(True) # get the list of currently selected lights
 
-            if len(selectedRows) > 0: # if we have a selection
+            if len(selectedRows[0]) > 0: # if we have a selection
                 self.tryConnectButton.setEnabled(True) # if we have light(s) selected in the table, then enable the "Connect" button
 
-                if len(selectedRows) == 1: # we have exactly one light selected
+                if len(selectedRows[0]) == 1: # we have exactly one light selected
                     self.ColorModeTabWidget.setTabEnabled(3, True) # enable the "Preferences" tab for this light
 
                     # SWITCH THE TURN ON/OFF BUTTONS ON, AND CHANGE TEXT TO SINGLE BUTTON TEXT
@@ -1045,34 +995,27 @@ try: # try to load the GUI
 
                     self.ColorModeTabWidget.setTabEnabled(0, True)
 
-                    if availableLights[selectedRows[0]][5] == True: # if this light is CCT only, then disable the HSI and ANM tabs
+                    if availableLights[selectedRows[0][0]][5] == True: # if this light is CCT only, then disable the HSI and ANM tabs
                         self.ColorModeTabWidget.setTabEnabled(1, False) # disable the HSI mode tab
                         self.ColorModeTabWidget.setTabEnabled(2, False) # disable the ANM/SCENE tab
                     else: # we can use HSI and ANM/SCENE modes, so enable those tabs
                         self.ColorModeTabWidget.setTabEnabled(1, True) # enable the HSI mode tab
                         self.ColorModeTabWidget.setTabEnabled(2, True) # enable the ANM/SCENE tab
 
-                    currentlySelectedRow = selectedRows[0] # get the row index of the 1 selected item
+                    if selectedRows[1] == True:
+                        self.GMSlider.setVisible(True)
+                    else:
+                        self.GMSlider.setVisible(False)
+
+                    currentlySelectedRow = selectedRows[0][0] # get the row index of the 1 selected item
                     self.checkLightTab(currentlySelectedRow) # if we're on CCT, check to see if this light can use extended values + on Prefs, update Prefs
 
                     # RECALL LAST SENT SETTING FOR THIS PARTICULAR LIGHT, IF A SETTING EXISTS
                     if availableLights[currentlySelectedRow][3] != []: # if the last set parameters aren't empty
                         if availableLights[currentlySelectedRow][6] != False: # if the light is listed as being turned ON
-                            sendValue = availableLights[currentlySelectedRow][3] # make the current "sendValue" the last set parameter so it doesn't re-send it on re-load
-
-                            if sendValue[1] == 135: # the last parameter was a CCT mode change
-                                self.setUpGUI(colorMode="CCT",
-                                        brightness=sendValue[3],
-                                        temp=sendValue[4])
-                            elif sendValue[1] == 134: # the last parameter was a HSI mode change
-                                self.setUpGUI(colorMode="HSI",
-                                        hue=sendValue[3] + (256 * sendValue[4]),
-                                        sat=sendValue[5],
-                                        brightness=sendValue[6])
-                            elif sendValue[1] == 136: # the last parameter was a ANM/SCENE mode change
-                                self.setUpGUI(colorMode="ANM",
-                                        brightness=sendValue[3],
-                                        scene=sendValue[4])
+                            sendValue = translateByteString(availableLights[currentlySelectedRow][3]) # make the current "sendValue" the last set parameter so it doesn't re-send it on re-load
+                            sendValue["infinityMode"] = selectedRows[1]
+                            self.setUpGUI(**sendValue)
                         else:
                             self.ColorModeTabWidget.setCurrentIndex(0) # switch to the CCT tab if the light is off and there ARE prior parameters
                     else:
@@ -1084,10 +1027,16 @@ try: # try to load the GUI
                     self.turnOnButton.setText("Turn Light(s) On")
                     self.turnOnButton.setEnabled(True)
 
+                    # ENABLE ALL OF THE TABS BELOW
                     self.ColorModeTabWidget.setTabEnabled(0, True)
                     self.ColorModeTabWidget.setTabEnabled(1, True) # enable the "HSI" mode tab
                     self.ColorModeTabWidget.setTabEnabled(2, True) # enable the "ANM/SCENE" mode tab
                     self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have multiple lights selected
+
+                    if selectedRows[1] == True:
+                        self.GMSlider.setVisible(True)
+                    else:
+                        self.GMSlider.setVisible(False)
             else: # the selection has been cleared or there are no lights to select
                 currentTab = self.ColorModeTabWidget.currentIndex() # get the currently selected tab (so when we disable the tabs, we stick on the current one)
                 self.tryConnectButton.setEnabled(False) # if we have no lights selected, disable the Connect button
@@ -1101,14 +1050,34 @@ try: # try to load the GUI
                 self.ColorModeTabWidget.setTabEnabled(0, False) # disable the "CCT" mode tab
                 self.ColorModeTabWidget.setTabEnabled(1, False) # disable the "HSI" mode tab
                 self.ColorModeTabWidget.setTabEnabled(2, False) # disable the "ANM/SCENE" mode tab
-                self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Preferences" tab, as we have no lights selected
+                self.ColorModeTabWidget.setTabEnabled(3, False) # disable the "Light Preferences" tab, as we have no lights selected
 
-                if currentTab != 3:
-                    self.ColorModeTabWidget.setCurrentIndex(currentTab) # disable the tabs, but don't switch the current one shown
+                if currentTab < 2:
+                    self.ColorModeTabWidget.setCurrentIndex(currentTab) # disable the tabs, but don't switch (unless ANM or Preferences)
                 else:
                     self.ColorModeTabWidget.setCurrentIndex(0) # if we're on Prefs, then switch to the CCT tab
 
                 self.checkLightTab() # check to see if we're on the CCT tab - if we are, then restore order
+
+        # SET UP THE GUI FOR USING INFINITY MODE/SWITCHING EFFECTS LIST
+        def setInfinityMode(self, infinityMode = False):
+            countOfCurrentEffects = self.effectChooser.count()
+
+            if infinityMode == False:
+                if countOfCurrentEffects == 0 or countOfCurrentEffects == 18:
+                    self.effectChooser.clear()
+                    self.effectChooser.addItems(["1 - Cop Car", "2 - Ambulance", "3 - Fire Engine",
+                                             "4 - Fireworks", "5 - Party", "6 - Candlelight",
+                                             "7 - Lightning", "8 - Paparazzi", "9 - TV Screen"])
+            else:
+                if countOfCurrentEffects == 0 or countOfCurrentEffects == 9:
+                    self.effectChooser.clear()
+                    self.effectChooser.addItems(["1 - Lightning", "2 - Paparazzi", "3 - Defective Bulb",
+                                             "4 - Explosion", "5 - Welding", "6 - CCT Flash",
+                                             "7 - Hue Flash", "8 - CCT Pulse", "9 - Hue Pulse",
+                                             "10 - Cop Car", "11 - Candlelight", "12 - Hue Loop",
+                                             "13 - CCT Loop", "14 - INT Loop (CCT)", "14 - INT Loop (HSI)",
+                                             "15 - TV Screen", "16 - Fireworks", "17 - Party"])
 
         # ADD A LIGHT TO THE TABLE VIEW
         def setTheTable(self, infoArray, rowToChange = -1):
@@ -1171,127 +1140,287 @@ try: # try to load the GUI
             if threadAction == "":
                 threadAction = "send"
 
+        # CLEAR THE SCENE TABS OF ALL SLIDERS
+        def cleanSlate(self):
+            self.colorTempSlider.hide()
+            self.brightSlider.hide()
+            self.GMSlider.hide()
+            self.RGBSlider.hide()
+            self.colorSatSlider.hide()
+            self.brightDoubleSlider.hide()
+            self.RGBDoubleSlider.hide()
+            self.colorTempDoubleSlider.hide()
+            self.speedSlider.hide()
+            self.sparksSlider.hide()
+            self.specialOptionsSection.hide()
+
+        # CHANGING FX TYPES ON THE SCENE TAB
+        def effectChanged(self, effectID):
+            self.cleanSlate() # delete every slider off of the current tab
+            
+            wX = [8, 290] # X positions for widgets - [0], left half  [1], right half
+            wY = [30, 95, 160] # Y positions for widgets - [0], first [1], 2nd [2], 3rd
+            
+            if self.effectChooser.itemText(0) == "1 - Lightning": # Infinity mode
+                if effectID == 0: # Light(n)ing
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.colorTempSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.speedSlider.presentMe(self.ANM, wX[0], wY[2])
+                elif effectID == 1 or effectID == 2: # Paparazzi or Defective Bulb
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.colorTempSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.GMSlider.presentMe(self.ANM, wX[0], wY[2], True)
+                    self.speedSlider.presentMe(self.ANM, wX[1], wY[2], True)
+                elif effectID == 3: # Explosion
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.colorTempSlider.presentMe(self.ANM, wX[0], wY[1], True)
+                    self.GMSlider.presentMe(self.ANM, wX[1], wY[1], True)
+                    self.speedSlider.presentMe(self.ANM, wX[0], wY[2], True)
+                    self.sparksSlider.presentMe(self.ANM, wX[1], wY[2], True)
+                elif effectID == 4: # Welding
+                    self.brightDoubleSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.colorTempSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.GMSlider.presentMe(self.ANM, wX[0], wY[2], True)
+                    self.speedSlider.presentMe(self.ANM, wX[1], wY[2], True)
+                elif effectID == 5: # CCT Flash
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.colorTempSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.GMSlider.presentMe(self.ANM, wX[0], wY[2], True)
+                    self.speedSlider.presentMe(self.ANM, wX[1], wY[2], True)
+                elif effectID == 6: # Hue Flash
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.RGBSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.colorSatSlider.presentMe(self.ANM, wX[0], wY[2], True)
+                    self.speedSlider.presentMe(self.ANM, wX[1], wY[2], True)
+                elif effectID == 7: # CCT Pulse
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.colorTempSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.GMSlider.presentMe(self.ANM, wX[0], wY[2], True)
+                    self.speedSlider.presentMe(self.ANM, wX[1], wY[2], True)
+                elif effectID == 8: # Hue Pulse
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.RGBSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.colorSatSlider.presentMe(self.ANM, wX[0], wY[2], True)
+                    self.speedSlider.presentMe(self.ANM, wX[1], wY[2], True)
+                elif effectID == 9: # Cop Car
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.setUpColorOptions(effectID, 2, wX[0], wY[1] + 5)
+                    self.speedSlider.presentMe(self.ANM, wX[0], wY[2])
+                elif effectID == 10: # Candlelight
+                    self.brightDoubleSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.colorTempSlider.presentMe(self.ANM, wX[0], wY[1], True)
+                    self.GMSlider.presentMe(self.ANM, wX[1], wY[1], True)
+                    self.speedSlider.presentMe(self.ANM, wX[0], wY[2], True)
+                    self.sparksSlider.presentMe(self.ANM, wX[1], wY[2], True)
+                elif effectID == 11: # Hue Loop
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.RGBDoubleSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.speedSlider.presentMe(self.ANM, wX[0], wY[2])
+                elif effectID == 12: # CCT Loop
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.colorTempDoubleSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.speedSlider.presentMe(self.ANM, wX[0], wY[2])
+                elif effectID == 13: # INT Loop (CCT)
+                    self.brightDoubleSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.colorTempSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.speedSlider.presentMe(self.ANM, wX[0], wY[2])
+                elif effectID == 14: # INT Loop (HSI)
+                    self.brightDoubleSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.RGBSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.speedSlider.presentMe(self.ANM, wX[0], wY[2])
+                elif effectID == 15: # TV Screen
+                    self.brightDoubleSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.colorTempSlider.presentMe(self.ANM, wX[0], wY[1])
+                    self.GMSlider.presentMe(self.ANM, wX[0], wY[2], True)
+                    self.speedSlider.presentMe(self.ANM, wX[1], wY[2], True)
+                elif effectID == 16: # Fireworks
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.setUpColorOptions(effectID, 1, wX[0], wY[1] + 5)
+                    self.speedSlider.presentMe(self.ANM, wX[0], wY[2], True)
+                    self.sparksSlider.presentMe(self.ANM, wX[1], wY[2], True)
+                elif effectID == 17: # Party!
+                    self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+                    self.setUpColorOptions(effectID, 1, wX[0], wY[1] + 5)
+                    self.speedSlider.presentMe(self.ANM, wX[0], wY[2])
+            else: # we're using an older style Neewer light, so we don't need all the custom parameters
+                self.brightSlider.presentMe(self.ANM, wX[0], wY[0])
+
+        def setUpColorOptions(self, theTab, defaultEffect, posX, posY):
+            self.specialOptionsChooser.clear()
+
+            if theTab == 9: # Cop Car effect colors
+                self.specialOptionsChooser.addItems(["Red", "Blue", "Red and Blue", "White and Blue", "Red, Blue and White"])
+            else: # Fireworks and Party colors
+                self.specialOptionsChooser.addItems(["Single Color", "Multiple Colors", "Combined"])
+
+            self.specialOptionsChooser.setCurrentIndex(defaultEffect)
+            self.specialOptionsSection.move(posX, posY)
+            self.specialOptionsSection.show()
+
         # IF YOU CLICK ON ONE OF THE TABS, THIS WILL SWITCH THE VIEW/SEND A NEW SIGNAL FROM THAT SPECIFIC TAB
         def tabChanged(self, i):
-            currentSelection = self.selectedLights() # get the list of currently selected lights
+            currentSelection = self.selectedLights(True) # get the list of currently selected lights
+            
+            if i == 0:
+                self.colorTempSlider.presentMe(self.CCT, 8, 10)
+                self.brightSlider.presentMe(self.CCT, 8, 80)
+                self.GMSlider.presentMe(self.CCT, 8, 150)
 
-            if i == 0: # we clicked on the CCT tab
-                if len(currentSelection) > 0: # if we have something selected
-                    if len(currentSelection) == 1: # if we have just one light selected
-                        # CHECK THE CURRENT SELECTED LIGHT TO SEE IF IT CAN USE EXTENDED COLOR TEMPERATURES
-                        self.checkLightTab(currentSelection[0]) # set up the current light's CCT bounds
-
-                        if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update CCT value
-                            self.computeValueCCT() # calculate the current CCT value
-                    else: # if we have more than one light selected
-                        self.checkLightTab() # reset the bounds to the normal values (5600K)
-            elif i == 1: # we clicked on the HSI tab
-                if len(currentSelection) == 1: # if we have only one thing selected
-                    # if the "saturation" gradient isn't drawn yet, do that here
-                    if self.HSI_Sat_Gradient_BG.scene().backgroundBrush() == Qt.NoBrush:
-                        self.HSI_Sat_Gradient_BG.scene().setBackgroundBrush(self.getHSIHueGradient(self.Slider_HSI_1_H.value())) # change the gradient to fit the new boundary
-
-                    if availableLights[currentSelection[0]][6] != False: # if the light that's selected is off, then don't update HSI value
-                        self.computeValueHSI() # calculate the current HSI value
-            elif i == 2: # we clicked on the ANM tab
-                pass # skip this, we don't want the animation automatically triggering when we go to this page - but keep it for readability
+                if currentSelection[1] == True:
+                    self.GMSlider.setVisible(True)
+                else:
+                    self.GMSlider.setVisible(False)
+            elif i == 1:
+                self.RGBSlider.presentMe(self.HSI, 8, 10)
+                self.colorSatSlider.presentMe(self.HSI, 8, 80)
+                self.brightSlider.presentMe(self.HSI, 8, 150)
+            elif i == 2:
+                self.setInfinityMode(currentSelection[1])
+                self.effectChanged(self.effectChooser.currentIndex())
             elif i == 3: # we clicked on the PREFS tab
-                if len(currentSelection) == 1: # this tab function ^^ should *ONLY* call if we have just one light selected, but just in *case*
-                    self.setupLightPrefsTab(currentSelection[0])
+                if len(currentSelection[0]) == 1:
+                    self.setupLightPrefsTab(currentSelection[0][0])
             elif i == 4: # we clicked on the Global PREFS tab
                 self.setupGlobalLightPrefsTab()
+                
+        def computeValues(self):
+            currentTab = self.ColorModeTabWidget.currentIndex() # get the current tab that's active
 
-        # COMPUTE A BYTESTRING FOR THE CCT SECTION
-        def computeValueCCT(self, hueOrBrightness = -1):
-            global CCTSlider
-            CCTSlider = hueOrBrightness # set the global CCT "current slider" to the slider you just... slid
+            if currentTab == 0:
+                calculateByteString(colorMode="CCT",\
+                                    temp=self.colorTempSlider.value(),\
+                                    brightness=self.brightSlider.value(),\
+                                    GM=self.GMSlider.value())
+            elif currentTab == 1:
+                calculateByteString(colorMode="HSI",\
+                                    hue=self.RGBSlider.value(),\
+                                    saturation=self.colorSatSlider.value(),\
+                                    brightness=self.brightSlider.value())
+            elif currentTab == 2:
+                currentEffect = self.effectChooser.currentIndex() + 1
 
-            if CCTSlider == 1: # we dragged the color temperature slider
-                self.TFV_CCT_Hue.setText(str(self.Slider_CCT_Hue.value()) + "00K")
-            else: # we dragged the brightness slider
-                self.TFV_CCT_Bright.setText(str(self.Slider_CCT_Bright.value()) + "%")
+                if self.effectChooser.itemText(0) == "1 - Lightning": # Infinity mode
+                    if currentEffect == 1:
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            brightness=self.brightSlider.value(),\
+                                            temp=self.colorTempSlider.value(),\
+                                            speed=self.speedSlider.value())
+                    elif currentEffect == 2 or currentEffect == 3 or \
+                        currentEffect == 6 or currentEffect == 8:
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            brightness=self.brightSlider.value(),\
+                                            temp=self.colorTempSlider.value(),\
+                                            GM=self.GMSlider.value(),\
+                                            speed=self.speedSlider.value())
+                    elif currentEffect == 4:
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            brightness=self.brightSlider.value(),\
+                                            temp=self.colorTempSlider.value(),\
+                                            GM=self.GMSlider.value(),\
+                                            speed=self.speedSlider.value(),\
+                                            sparks=self.sparksSlider.value())
+                    elif currentEffect == 5:
+                        brightRange = self.brightDoubleSlider.value()
 
-            calculateByteString(colorMode="CCT",\
-                                temp=str(int(self.Slider_CCT_Hue.value())),\
-                                brightness=str(int(self.Slider_CCT_Bright.value())))
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            bright_min=brightRange[0],\
+                                            bright_max=brightRange[1],\
+                                            temp=self.colorTempSlider.value(),\
+                                            GM=self.GMSlider.value(),\
+                                            speed=self.speedSlider.value())
+                    elif currentEffect == 7 or currentEffect == 9:
+                        calculateByteString(colorMode="ANM",
+                                            effect=currentEffect,\
+                                            brightness=self.brightSlider.value(),\
+                                            hue=self.RGBSlider.value(),\
+                                            saturation=self.colorSatSlider.value(),\
+                                            speed=self.speedSlider.value())
+                    elif currentEffect == 10:
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            brightness=self.brightSlider.value(),\
+                                            specialOptions=self.specialOptionsChooser.currentIndex(),\
+                                            speed=self.speedSlider.value())
+                    elif currentEffect == 11:
+                        brightRange = self.brightDoubleSlider.value()
 
-            self.statusBar.showMessage("Current value (CCT Mode): " + updateStatus())
-            self.startSend()
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            bright_min=brightRange[0],\
+                                            bright_max=brightRange[1],\
+                                            temp=self.colorTempSlider.value(),\
+                                            GM=self.GMSlider.value(),\
+                                            speed=self.speedSlider.value(),
+                                            sparks=self.sparksSlider.value())
+                    elif currentEffect == 12:
+                        hueRange = self.RGBDoubleSlider.value()
 
-        # COMPUTE A BYTESTRING FOR THE HSI SECTION
-        def computeValueHSI(self, slidSlider = -1):
-            calculateByteString(colorMode="HSI",\
-                                HSI_H=str(int(self.Slider_HSI_1_H.value())),\
-                                HSI_S=str(int(self.Slider_HSI_2_S.value())),\
-                                HSI_I=str(int(self.Slider_HSI_3_L.value())))
+                        calculateByteString(colorMode="ANM",
+                                            effect=currentEffect,\
+                                            brightness=self.brightSlider.value(),\
+                                            hue_min=hueRange[0],\
+                                            hue_max=hueRange[1],\
+                                            speed=self.speedSlider.value())
+                    elif currentEffect == 13:
+                        tempRange = self.colorTempDoubleSlider.value()
 
-            if slidSlider == 1: # we dragged the hue slider
-                self.TFV_HSI_1_H.setText(str(int(self.Slider_HSI_1_H.value())) + "º")
-                self.HSI_Sat_Gradient_BG.scene().setBackgroundBrush(self.getHSIHueGradient(self.Slider_HSI_1_H.value())) # change the gradient to fit the new boundary
-                # BUILD THE GRADIENT HERE
-            elif slidSlider == 2: # we dragged the saturation slider
-                self.TFV_HSI_2_S.setText(str(int(self.Slider_HSI_2_S.value())) + "%")
-            elif slidSlider == 3: # we dragged the intensity slider
-                self.TFV_HSI_3_L.setText(str(int(self.Slider_HSI_3_L.value())) + "%")
-            
-            self.statusBar.showMessage("Current value (HSI Mode): " + updateStatus())
-            self.startSend()
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            brightness=self.brightSlider.value(),\
+                                            temp_min=tempRange[0],\
+                                            temp_max=tempRange[1],\
+                                            speed=self.speedSlider.value())
+                    elif currentEffect == 14:
+                        brightRange = self.brightDoubleSlider.value()
 
-        # COMPUTE A BYTESTRING FOR THE ANIM SECTION
-        def computeValueANM(self, buttonPressed):
-            global lastAnimButtonPressed
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            bright_min=brightRange[0],\
+                                            bright_max=brightRange[1],\
+                                            temp=self.colorTempSlider.value(),\
+                                            speed=self.speedSlider.value())
+                    elif currentEffect == 15:
+                        brightRange = self.brightDoubleSlider.value()
 
-            if buttonPressed == 0:
-                buttonPressed = lastAnimButtonPressed
-                self.TFV_ANM_Brightness.setText(str(int(self.Slider_ANM_Brightness.value())) + "%")
-            else:
-                # CHANGE THE OLD BUTTON COLOR BACK TO THE DEFAULT COLOR
-                if lastAnimButtonPressed == 1:
-                    self.Button_1_police_A.setStyleSheet("background-color : None")
-                elif lastAnimButtonPressed == 2:
-                    self.Button_1_police_B.setStyleSheet("background-color : None")
-                elif lastAnimButtonPressed == 3:
-                    self.Button_1_police_C.setStyleSheet("background-color : None")
-                elif lastAnimButtonPressed == 4:
-                    self.Button_2_party_A.setStyleSheet("background-color : None")
-                elif lastAnimButtonPressed == 5:
-                    self.Button_2_party_B.setStyleSheet("background-color : None")
-                elif lastAnimButtonPressed == 6:
-                    self.Button_2_party_C.setStyleSheet("background-color : None")
-                elif lastAnimButtonPressed == 7:
-                    self.Button_3_lightning_A.setStyleSheet("background-color : None")
-                elif lastAnimButtonPressed == 8:
-                    self.Button_3_lightning_B.setStyleSheet("background-color : None")
-                elif lastAnimButtonPressed == 9:
-                    self.Button_3_lightning_C.setStyleSheet("background-color : None")
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            bright_min=brightRange[0],\
+                                            bright_max=brightRange[1],\
+                                            hue=self.RGBSlider.value(),\
+                                            speed=self.speedSlider.value())
+                    elif currentEffect == 16:
+                        brightRange = self.brightDoubleSlider.value()
 
-                # CHANGE THE NEW BUTTON COLOR TO SHOW WHICH ANIMATION WE'RE CURRENTLY ON
-                if buttonPressed == 1:
-                    self.Button_1_police_A.setStyleSheet("background-color : aquamarine")
-                elif buttonPressed == 2:
-                    self.Button_1_police_B.setStyleSheet("background-color : aquamarine")
-                elif buttonPressed == 3:
-                    self.Button_1_police_C.setStyleSheet("background-color : aquamarine")
-                elif buttonPressed == 4:
-                    self.Button_2_party_A.setStyleSheet("background-color : aquamarine")
-                elif buttonPressed == 5:
-                    self.Button_2_party_B.setStyleSheet("background-color : aquamarine")
-                elif buttonPressed == 6:
-                    self.Button_2_party_C.setStyleSheet("background-color : aquamarine")
-                elif buttonPressed == 7:
-                    self.Button_3_lightning_A.setStyleSheet("background-color : aquamarine")
-                elif buttonPressed == 8:
-                    self.Button_3_lightning_B.setStyleSheet("background-color : aquamarine")
-                elif buttonPressed == 9:
-                    self.Button_3_lightning_C.setStyleSheet("background-color : aquamarine")
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            bright_min=brightRange[0],\
+                                            bright_max=brightRange[1],\
+                                            temp=self.colorTempSlider.value(),\
+                                            GM=self.GMSlider.value(),\
+                                            speed=self.speedSlider.value())
+                    elif currentEffect == 17:
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            brightness=self.brightSlider.value(),\
+                                            specialOptions=self.specialOptionsChooser.currentIndex(),\
+                                            speed=self.speedSlider.value(),\
+                                            sparks=self.sparksSlider.value())
+                    elif currentEffect == 18:
+                        calculateByteString(colorMode="ANM",\
+                                            effect=currentEffect,\
+                                            brightness=self.brightSlider.value(),\
+                                            specialOptions=self.specialOptionsChooser.currentIndex(),\
+                                            speed=self.speedSlider.value())
+                else:
+                    calculateByteString(colorMode="ANM",\
+                                        effect=(currentEffect + 20),\
+                                        brightness=self.brightSlider.value())
 
-                lastAnimButtonPressed = buttonPressed
-
-            calculateByteString(colorMode="ANM",\
-                                brightness=str(int(self.Slider_ANM_Brightness.value())),\
-                                animation=str(buttonPressed))
-
-            self.statusBar.showMessage("Current value (ANM Mode): " + updateStatus())
+            self.statusBar.showMessage("Current value: " + updateStatus())                                        
             self.startSend()
 
         def turnLightOn(self):
@@ -1309,8 +1438,10 @@ try: # try to load the GUI
         # ==============================================================
 
         # RETURN THE ROW INDEXES THAT ARE CURRENTLY HIGHLIGHTED IN THE TABLE VIEW
-        def selectedLights(self):
+        def selectedLights(self, returnExtraInformation = False):
             selectionList = []
+            infinityStatus = False
+            tempBounds = [3200, 5600] # the boundaries of color temps this selection can accomplish
 
             if threadAction != "quit":
                 currentSelection = self.lightTable.selectionModel().selectedRows()
@@ -1318,7 +1449,30 @@ try: # try to load the GUI
                 for a in range(len(currentSelection)):
                     selectionList.append(currentSelection[a].row()) # add the row index of the nth selected light to the selectionList array
 
-            return selectionList # return the row IDs that are currently selected, or an empty array ([]) otherwise
+                if returnExtraInformation == True:
+                    # check to see if any lights in the selection are Infinity control lights
+                    for a in range(len(selectionList)):
+                        if availableLights[selectionList[a]][8] == True:
+                            infinityStatus = True
+                            break
+                    
+                    # get the min and max CCT bounds for the current selection
+                    for a in range(len(selectionList)):
+                        currentBounds = availableLights[selectionList[a]][4]
+                        
+                        if currentBounds[0] < tempBounds[0]:
+                            tempBounds[0] = currentBounds[0]
+
+                        if currentBounds[1] > tempBounds[1]:
+                            tempBounds[1] = currentBounds[1]
+
+                    tempBounds[0] = int(tempBounds[0] / 100)
+                    tempBounds[1] = int(tempBounds[1] / 100)
+
+            if returnExtraInformation == False:
+                return selectionList # return the row IDs that are currently selected, or an empty array ([]) otherwise
+            else:
+                return [selectionList, infinityStatus, tempBounds] # return the row IDs, and a flag whether or not an Infinity light is selected
 
         # UPDATE THE TABLE WITH THE CURRENT INFORMATION FROM availableLights
         def updateLights(self, updateTaskbar = True):
@@ -1520,8 +1674,8 @@ try: # try to load the GUI
                 lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
                 
                 if lightsToHighlight != []:
-                    lastSelection = self.selectedLights() # store the current selection to restore it when leaving the control
-                    self.lightTable.clearSelection() # clear the current selection to allow the preset to shine
+                    # lastSelection = self.selectedLights() # store the current selection to restore it when leaving the control
+                    # self.lightTable.clearSelection() # clear the current selection to allow the preset to shine
 
                     for a in range(len(lightsToHighlight)):
                         for b in range(4):
@@ -1530,7 +1684,7 @@ try: # try to load the GUI
                 lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
                 
                 if lightsToHighlight != []:
-                    self.selectRows(lastSelection) # re-highlight the last selected lights on exit
+                    # self.selectRows(lastSelection) # re-highlight the last selected lights on exit
 
                     for a in range(len(lightsToHighlight)):
                         for b in range(4):
@@ -1553,25 +1707,84 @@ try: # try to load the GUI
         # SET UP THE GUI BASED ON COMMAND LINE ARGUMENTS
         def setUpGUI(self, **modeArgs):
             if modeArgs["colorMode"] == "CCT":
+                if "GM" in modeArgs:
+                    GM = int(modeArgs["GM"])
+                else:
+                    GM = 50
+
                 self.ColorModeTabWidget.setCurrentIndex(0)
 
-                self.Slider_CCT_Hue.setValue(modeArgs["temp"])
-                self.Slider_CCT_Bright.setValue(modeArgs["brightness"])
+                self.colorTempSlider.setValue(modeArgs["temp"])
+                self.brightSlider.setValue(modeArgs["brightness"])
+                self.GMSlider.setValue(GM)
 
-                self.computeValueCCT()
+                self.computeValues()
             elif modeArgs["colorMode"] == "HSI":
                 self.ColorModeTabWidget.setCurrentIndex(1)
 
-                self.Slider_HSI_1_H.setValue(modeArgs["hue"])
-                self.Slider_HSI_2_S.setValue(modeArgs["sat"])
-                self.Slider_HSI_3_L.setValue(modeArgs["brightness"])
+                self.RGBSlider.setValue(modeArgs["hue"])
+                self.colorSatSlider.setValue(modeArgs["saturation"])
+                self.brightSlider.setValue(modeArgs["brightness"])
 
-                self.computeValueHSI()
+                self.computeValues()
             elif modeArgs["colorMode"] == "ANM":
                 self.ColorModeTabWidget.setCurrentIndex(2)
+                FX = modeArgs["effect"]
 
-                self.Slider_ANM_Brightness.setValue(modeArgs["brightness"])
-                self.computeValueANM(modeArgs["animation"])
+                if "infinityMode" in modeArgs:
+                    infinityMode = modeArgs["infinityMode"]
+                    FX = convertFXIndex(infinityMode, FX)
+                else:
+                    if FX < 20:
+                        infinityMode = True
+                    else:
+                        infinityMode = False
+                        FX = FX - 20
+
+                self.setInfinityMode(infinityMode)
+
+                if FX < 14:
+                    self.effectChooser.setCurrentIndex(FX - 1)
+                else: # if we're using Infinity presets and we have an FX index over 14, then we need to take special considerations
+                    if FX == 14:
+                        if "temp" in modeArgs: # INT Loop (CCT)
+                            self.effectChooser.setCurrentIndex(13)
+                        else: # INT Loop (HSI)
+                            self.effectChooser.setCurrentIndex(14)
+                    else:
+                        self.effectChooser.setCurrentIndex(FX)
+                
+                if "brightness" in modeArgs:
+                    self.brightSlider.setValue(modeArgs["brightness"])
+                if "bright_min" in modeArgs:
+                    self.brightDoubleSlider.setValue("left", modeArgs["bright_min"])
+                if "bright_max" in modeArgs:
+                    self.brightDoubleSlider.setValue("right", modeArgs["bright_max"])                
+                if "temp" in modeArgs:
+                    self.colorTempSlider.setValue(modeArgs["temp"])
+                if "temp_min" in modeArgs:
+                    self.colorTempDoubleSlider.setValue("left", modeArgs["temp_min"])
+                if "temp_max" in modeArgs:
+                    self.colorTempDoubleSlider.setValue("right", modeArgs["temp_max"])
+                if "GM" in modeArgs:
+                    self.GMSlider.setValue(modeArgs["GM"])
+                if "hue" in modeArgs:
+                    self.RGBSlider.setValue(modeArgs["hue"])
+                if "hue_min" in modeArgs:
+                    self.RGBDoubleSlider.setValue("left", modeArgs["hue_min"])
+                if "hue_max" in modeArgs:
+                    self.RGBDoubleSlider.setValue("right", modeArgs["hue_max"])
+                if "saturation" in modeArgs:
+                    self.colorSatSlider.setValue(modeArgs["saturation"])
+                if "speed" in modeArgs:
+                    self.speedSlider.setValue(modeArgs["speed"])
+                if "sparks" in modeArgs:
+                    self.sparksSlider.setValue(modeArgs["sparks"])
+                if "specialOptions" in modeArgs:
+                    self.specialOptionsChooser.setCurrentIndex(modeArgs["specialOptions"])
+
+                self.effectChanged(FX)
+
 except NameError:
     pass # could not load the GUI, but we have already logged an error message
 
@@ -1585,82 +1798,11 @@ def setUpAsyncio():
 
     asyncio.set_event_loop(asyncioEventLoop)
 
-# CALCULATE THE RGB VALUE OF COLOR TEMPERATURE
-def convert_K_to_RGB(Ktemp):
-    # Based on this script: https://gist.github.com/petrklus/b1f427accdf7438606a6
-    # from @petrklus on GitHub (his source was from http://www.tannerhelland.com/4435/convert-temperature-rgb-algorithm-code/)
-
-    tmp_internal = Ktemp / 100.0
-    
-    # red 
-    if tmp_internal <= 66:
-        red = 255
-    else:
-        tmp_red = 329.698727446 * math.pow(tmp_internal - 60, -0.1332047592)
-
-        if tmp_red < 0:
-            red = 0
-        elif tmp_red > 255:
-            red = 255
-        else:
-            red = tmp_red
-    
-    # green
-    if tmp_internal <= 66:
-        tmp_green = 99.4708025861 * math.log(tmp_internal) - 161.1195681661
-
-        if tmp_green < 0:
-            green = 0
-        elif tmp_green > 255:
-            green = 255
-        else:
-            green = tmp_green
-    else:
-        tmp_green = 288.1221695283 * math.pow(tmp_internal - 60, -0.0755148492)
-
-        if tmp_green < 0:
-            green = 0
-        elif tmp_green > 255:
-            green = 255
-        else:
-            green = tmp_green
-    
-    # blue
-    if tmp_internal >= 66:
-        blue = 255
-    elif tmp_internal <= 19:
-        blue = 0
-    else:
-        tmp_blue = 138.5177312231 * math.log(tmp_internal - 10) - 305.0447927307
-        if tmp_blue < 0:
-            blue = 0
-        elif tmp_blue > 255:
-            blue = 255
-        else:
-            blue = tmp_blue
-    
-    return int(red), int(green), int(blue) # return the integer value for each part of the RGB values for this step
-
-def convert_HSI_to_RGB(h, s = 1, v = 1):
-    # Taken from this StackOverflow page, which is an articulation of the colorsys code to
-    # convert HSV values (not HSI, but close, as I'm keeping S and V locked to 1) to RGB:
-    # https://stackoverflow.com/posts/26856771/revisions
-
-    if s == 0.0: v*=255; return (v, v, v)
-    i = int(h*6.) # XXX assume int() truncates!
-    f = (h*6.)-i; p,q,t = int(255*(v*(1.-s))), int(255*(v*(1.-s*f))), int(255*(v*(1.-s*(1.-f)))); v*=255; i%=6
-    if i == 0: return (v, t, p)
-    if i == 1: return (q, v, p)
-    if i == 2: return (p, v, t)
-    if i == 3: return (p, q, v)
-    if i == 4: return (t, p, v)
-    if i == 5: return (v, p, q)
-
 def saveLightPrefs(lightID, deleteFile = False): # save a sidecar file with the preferences for a specific light
     createLightPrefsFolder() # create the light_prefs folder if it doesn't exist
 
     # GET THE CUSTOM FILENAME FOR THIS FILE, NOTED FROM THE MAC ADDRESS OF THE CURRENT LIGHT
-    exportFileName = availableLights[lightID][0].address.split(":") # take the colons out of the MAC address
+    exportFileName = splitMACAddress(availableLights[lightID][0].address) # take the colons out of the MAC address
     exportFileName = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(exportFileName)
 
     if deleteFile == True:
@@ -1735,26 +1877,7 @@ def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):
 
             toolTipBuilder.append(" " + customLightPresets[numOfPreset][a][0] + "") # this is a snapshot preset, and this specific preset controls this light
                     
-        if customLightPresets[numOfPreset][a][1][0] == 5:
-            if formatForHTTP == False:
-                toolTipBuilder.append(" > MODE: CCT / TEMP: " + str(customLightPresets[numOfPreset][a][1][2]) + "00K / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% < ")
-            else:
-                toolTipBuilder.append(" &gt; MODE: CCT / TEMP: " + str(customLightPresets[numOfPreset][a][1][2]) + "00K / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% &lt; ")
-        elif customLightPresets[numOfPreset][a][1][0] == 4:
-            if formatForHTTP == False:
-                toolTipBuilder.append(" > MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "º / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% < ")
-            else: # if we're sending this string back for the HTTP server, then replace the degree with the HTML version
-                toolTipBuilder.append(" &gt; MODE: HSI / H: " + str(customLightPresets[numOfPreset][a][1][2]) + "&#176; / S: " + str(customLightPresets[numOfPreset][a][1][3]) + "% / I: " + str(customLightPresets[numOfPreset][a][1][1]) + "% &lt; ")
-        elif customLightPresets[numOfPreset][a][1][0] == 6:
-            if formatForHTTP == False:
-                toolTipBuilder.append(" > MODE: SCENE / ANIMATION: " + str(customLightPresets[numOfPreset][a][1][2]) + " / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% < ")
-            else:
-                toolTipBuilder.append(" &gt; MODE: SCENE / ANIMATION: " + str(customLightPresets[numOfPreset][a][1][2]) + " / BRIGHTNESS: " + str(customLightPresets[numOfPreset][a][1][1]) + "% &lt; ")
-        else: # if we're set to turn the light off, show that here
-            if formatForHTTP == False:
-                toolTipBuilder.append(" > TURN THIS LIGHT OFF < ")
-            else:
-                toolTipBuilder.append(" &gt; TURN THIS LIGHT OFF &lt; ")
+        toolTipBuilder.append(updateStatus(customValue=customLightPresets[numOfPreset][a][1]))
 
         if numOfLights > 1 and a < (numOfLights - 1): # if we have any more lights, then separate each one
             if formatForHTTP == False:
@@ -1780,38 +1903,14 @@ def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
                 if mainWindow.selectedLights() == []: # and no lights are selected in the light selector
                     mainWindow.lightTable.selectAll() # select all of the lights available
                     time.sleep(0.2)
+
+            sendValue = translateByteString(customLightPresets[numOfPreset][0][1])
             
-            if customLightPresets[numOfPreset][0][1][0] == 5: # the preset is in CCT mode
-                p_colorMode = "CCT"
-                p_brightness = customLightPresets[numOfPreset][0][1][1]
-                p_temp = customLightPresets[numOfPreset][0][1][2]
-
-                if updateGUI == True:
-                    mainWindow.setUpGUI(colorMode=p_colorMode, brightness=p_brightness, temp=p_temp)
-                else:
-                    computedValue = calculateByteString(True, colorMode=p_colorMode, brightness=p_brightness, temp=p_temp)
-            elif customLightPresets[numOfPreset][0][1][0] == 4: # the preset is in HSI mode
-                p_colorMode = "HSI"
-                # Due to the way the custom presets store information (brightness is always first),
-                # this section is broken up into H, S and I portions for readability
-                p_hue = customLightPresets[numOfPreset][0][1][2]
-                p_sat = customLightPresets[numOfPreset][0][1][3]
-                p_int = customLightPresets[numOfPreset][0][1][1]
-
-                if updateGUI == True:
-                    mainWindow.setUpGUI(colorMode=p_colorMode, hue=p_hue, sat=p_sat, brightness=p_int)
-                else:
-                    computedValue = calculateByteString(True, colorMode=p_colorMode, HSI_H=p_hue, HSI_S=p_sat, HSI_I=p_int)
-            elif customLightPresets[numOfPreset][0][1][0] == 6: # the preset is in ANM/SCENE mode
-                p_colorMode = "ANM"
-                p_brightness = customLightPresets[numOfPreset][0][1][1]
-                p_animation = customLightPresets[numOfPreset][0][1][2]
-
-                if updateGUI == True:
-                    mainWindow.setUpGUI(colorMode=p_colorMode, brightness=p_brightness, animation=p_animation)
-                else:
-                    computedValue = calculateByteString(True, colorMode=p_colorMode, brightness=p_brightness, animation=p_animation)
-
+            if updateGUI == True:
+                mainWindow.setUpGUI(**sendValue)
+            else:
+                computedValue = calculateByteString(True, **sendValue)
+            
             if updateGUI == False:
                 for b in range(len(availableLights)):
                     changedLights.append(b) # add each light to changedLights
@@ -1821,30 +1920,11 @@ def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
             currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
 
             if currentLight != []: # if we have a match
-                # always refer to the light it found as currentLight[0]
-                if customLightPresets[numOfPreset][a][1][0] == 5 or customLightPresets[numOfPreset][a][1][0] == 8: # the preset is in CCT mode
-                    availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="CCT",\
-                                                            brightness=customLightPresets[numOfPreset][a][1][1],\
-                                                            temp=customLightPresets[numOfPreset][a][1][2])
+                # the original snapshot presets had options turning the lights off by having a mode ID# 3 higher than the
+                # normal mode number - take this into consideration - maybe a 2nd array element? [numOfPreset][a][2] ?
+                # or store the "120" as "121" ?
 
-                    if customLightPresets[numOfPreset][a][1][0] == 8: # if we want to turn the light off, let the send system know this
-                        availableLights[currentLight[0]][3][0] = 0
-                elif customLightPresets[numOfPreset][a][1][0] == 4 or customLightPresets[numOfPreset][a][1][0] == 7: # the preset is in HSI mode
-                    availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="HSI",\
-                                                            HSI_I=customLightPresets[numOfPreset][a][1][1],\
-                                                            HSI_H=customLightPresets[numOfPreset][a][1][2],\
-                                                            HSI_S=customLightPresets[numOfPreset][a][1][3])
-
-                    if customLightPresets[numOfPreset][a][1][0] == 7: # if we want to turn the light off, let the send system know this
-                        availableLights[currentLight[0]][3][0] = 0
-                elif customLightPresets[numOfPreset][a][1][0] == 6 or customLightPresets[numOfPreset][a][1][0] == 9: # the preset is in ANM/SCENE mode
-                    availableLights[currentLight[0]][3] = calculateByteString(True, colorMode="ANM",\
-                                                            brightness=customLightPresets[numOfPreset][a][1][1],\
-                                                            animation=customLightPresets[numOfPreset][a][1][2])
-                    
-                    if customLightPresets[numOfPreset][a][1][0] == 9: # if we want to turn the light off, let the send system know this
-                        availableLights[currentLight[0]][3][0] = 0
-                
+                availableLights[currentLight[0]][3] = customLightPresets[numOfPreset][a][1]
                 changedLights.append(currentLight[0])
 
     if changedLights != []:
@@ -1863,47 +1943,18 @@ def saveCustomPreset(presetType, numOfPreset, selectedLights = []):
     global customLightPresets
 
     if presetType == "global":
-        customLightPresets[numOfPreset] = [listBuilder(-1)]
+        customLightPresets[numOfPreset] = [[-1, sendValue]]
     elif presetType == "snapshot":
         listConstructor = []
         
         if selectedLights == []: # add all the lights to the snapshot preset
             for a in range(len(availableLights)): 
-                listConstructor.append(listBuilder(a))
+                listConstructor.append([availableLights[a][0].address, availableLights[a][3]])
         else: # add only the selected lights to the snapshot preset
             for a in range(len(selectedLights)):
-                listConstructor.append(listBuilder(selectedLights[a]))
+                listConstructor.append([availableLights[selectedLights[a]][0].address, availableLights[selectedLights[a]][3]])
 
         customLightPresets[numOfPreset] = listConstructor
-
-def listBuilder(selectedLight):
-    paramsListBuilder = [] # the cut-down list of parameters to return to the main preset constructor
-
-    if selectedLight == -1: # then we get the value from sendValue
-        lightMACAddress = -1 # this is a global preset
-        listToWorkWith = sendValue # we're using the last sent parameter on any light for this
-    else: # we're recalling the params for a specific light
-        lightMACAddress = availableLights[selectedLight][0].address # this is a snapshot preset
-        listToWorkWith = availableLights[selectedLight][3] # we're specificially using the last parameter for the specified light for this
-
-    if listToWorkWith != []: # if we have elements in this list, then sort them out
-        if availableLights[selectedLight][6] == False:
-            paramsListBuilder.append(listToWorkWith[1] - 127) # the first value is the mode, but -127 to simplify it (and mark it as being OFF)
-        else:
-            paramsListBuilder.append(listToWorkWith[1] - 130) # the first value is the mode, but -130 to simplify it (and mark it as being ON)
-
-        if listToWorkWith[1] == 135: # we're in CCT mode
-            paramsListBuilder.append(listToWorkWith[3]) # the brightness
-            paramsListBuilder.append(listToWorkWith[4]) # the color temperature
-        elif listToWorkWith[1] == 134: # we're in HSI mode
-            paramsListBuilder.append(listToWorkWith[6]) # the brightness
-            paramsListBuilder.append(listToWorkWith[3] + (256 * listToWorkWith[4])) # the hue
-            paramsListBuilder.append(listToWorkWith[5]) # the saturation
-        elif listToWorkWith[1] == 136: # we're in ANM/SCENE
-            paramsListBuilder.append(listToWorkWith[3]) # the brightness
-            paramsListBuilder.append(listToWorkWith[4]) # the scene
-
-    return [lightMACAddress, paramsListBuilder]
 
 def customPresetToString(numOfPreset):
     returnedString = "customPreset" + str(numOfPreset) + "=" # the string to return back to the saving mechanism
@@ -1918,27 +1969,6 @@ def customPresetToString(numOfPreset):
 
     return returnedString
 
-def stringToCustomPreset(presetString, numOfPreset):   
-    if presetString != "|": # if the string is a valid string, then process it
-        lightsToWorkWith = presetString.split(";") # split the current string into individual lights
-        presetToReturn = [] # a list containing all of the preset information
-
-        for a in range(len(lightsToWorkWith)):
-            presetList = lightsToWorkWith[a].split("|") # split the current light list into its individual items
-            presetPayload = [] # the actual preset list
-            
-            for b in range(1, len(presetList)):
-                presetPayload.append(int(presetList[b]))
-
-            if presetList[0] == "-1":
-                presetToReturn.append([-1, presetPayload]) # if the light ID is -1, keep that value as an integer
-            else:
-                presetToReturn.append([presetList[0], presetPayload]) # if it isn't, then the MAC address is a string, so keep it that way
-
-        return presetToReturn
-    else: # if it isn't, then just return the default parameters for this preset
-        return defaultLightPresets[numOfPreset]
-
 def loadCustomPresets():
     global customLightPresets
 
@@ -1946,47 +1976,41 @@ def loadCustomPresets():
     with open(customLightPresetsFile, mode="r", encoding="utf-8") as fileToOpen:
         customPresets = fileToOpen.read().split("\n")
 
-    acceptable_arguments = ["customPreset0", "customPreset1", "customPreset2", "customPreset3", \
-                            "customPreset4", "customPreset5", "customPreset6", "customPreset7"]
+    for a in range(0, len(customPresets)):
+        currentLine = customPresets[a][14:].split(";")
+        paramsList = []
+        
+        for b in range(len(currentLine)):
+            currentParams = currentLine[b].split("|")
 
-    for a in range(len(customPresets) - 1, -1, -1):
-            if not any(x in customPresets[a] for x in acceptable_arguments): # if the current argument is invalid
-                customPresets.pop(a) # delete the invalid argument from the list
+            # convert all values after the MAC address to integer values
+            for c in range(1, len(currentParams)):
+                currentParams[c] = int(currentParams[c])
 
-    # NOW THAT ANY STRAGGLERS ARE OUT, ADD DASHES TO WHAT REMAINS TO PROPERLY PARSE IN THE PARSER
-    for a in range(len(customPresets)):
-        customPresets[a] = "--" + customPresets[a]
+            if currentParams[0] == "-1":
+                currentParams[0] = -1 # convert to an integer to denote GLOBAL presets
 
-    customPresetParser = argparse.ArgumentParser()
+            # add all of the current light's parameters to the parameters list
+            paramsList.append([currentParams[0], currentParams[1:]])
 
-    customPresetParser.add_argument("--customPreset0", default=-1)
-    customPresetParser.add_argument("--customPreset1", default=-1)
-    customPresetParser.add_argument("--customPreset2", default=-1)
-    customPresetParser.add_argument("--customPreset3", default=-1)
-    customPresetParser.add_argument("--customPreset4", default=-1)
-    customPresetParser.add_argument("--customPreset5", default=-1)
-    customPresetParser.add_argument("--customPreset6", default=-1)
-    customPresetParser.add_argument("--customPreset7", default=-1)
-
-    customPresets = customPresetParser.parse_args(customPresets)
-
-    if customPresets.customPreset0 != -1:
-        customLightPresets[0] = stringToCustomPreset(customPresets.customPreset0, 0)
-    if customPresets.customPreset1 != -1:
-        customLightPresets[1] = stringToCustomPreset(customPresets.customPreset1, 1)
-    if customPresets.customPreset2 != -1:
-        customLightPresets[2] = stringToCustomPreset(customPresets.customPreset2, 2)
-    if customPresets.customPreset3 != -1:
-        customLightPresets[3] = stringToCustomPreset(customPresets.customPreset3, 3)
-    if customPresets.customPreset4 != -1:
-        customLightPresets[4] = stringToCustomPreset(customPresets.customPreset4, 4)
-    if customPresets.customPreset5 != -1:
-        customLightPresets[5] = stringToCustomPreset(customPresets.customPreset5, 5)
-    if customPresets.customPreset6 != -1:
-        customLightPresets[6] = stringToCustomPreset(customPresets.customPreset6, 6)
-    if customPresets.customPreset7 != -1:
-        customLightPresets[7] = stringToCustomPreset(customPresets.customPreset7, 7)
-    
+        # add the params list to the appropriate button
+        if "customPreset0=" in customPresets[a]:
+            customLightPresets[0] = paramsList
+        elif "customPreset1=" in customPresets[a]:
+            customLightPresets[1] = paramsList
+        elif "customPreset2=" in customPresets[a]:
+            customLightPresets[2] = paramsList
+        elif "customPreset3=" in customPresets[a]:
+            customLightPresets[3] = paramsList
+        elif "customPreset4=" in customPresets[a]:
+            customLightPresets[4] = paramsList
+        elif "customPreset5=" in customPresets[a]:
+            customLightPresets[5] = paramsList
+        elif "customPreset6=" in customPresets[a]:
+            customLightPresets[6] = paramsList
+        elif "customPreset7=" in customPresets[a]:
+            customLightPresets[7] = paramsList
+            
 # RETURN THE CORRECT NAME FOR THE IDENTIFIER OF THE LIGHT (FOR DEBUG STRINGS)
 def returnMACname():
     if platform.system() == "Darwin":
@@ -2031,31 +2055,125 @@ def printDebugString(theString):
 
         print("[" + currentTime + "] - " + theString)
 
+def splitMACAddress(MACAddress, returnInt = False):
+    MACAddress = MACAddress.split(":")
+
+    if returnInt == False:
+        return MACAddress # return the MAC address as a list
+    else: # return the integer values of each part of the MAC address
+        MACReturn = []
+
+        if len(MACAddress) == 6:
+            for part in MACAddress:
+                MACReturn.append(int(part, 16))
+        else:
+            pass # if the MAC address doesn't correctly split, we need to deal with that here
+
+        return MACReturn
+
 # CALCULATE THE BYTESTRING TO SEND TO THE LIGHT
 def calculateByteString(returnValue = False, **modeArgs):
     if modeArgs["colorMode"] == "CCT":
         # We're in CCT (color balance) mode
-        computedValue = [120, 135, 2, 0, 0, 0]
+        computedValue = [120, 135, 2]
 
-        computedValue[3] = int(modeArgs["brightness"]) # the brightness value
-        computedValue[4] = int(modeArgs["temp"]) # the color temp value, ranging from 32(00K) to 85(00)K - some lights (like the SL-80) can go as high as 8500K
-        computedValue[5] = calculateChecksum(computedValue) # compute the checksum
+        computedValue.append(int(modeArgs["brightness"])) # the brightness value
+        computedValue.append(int(modeArgs["temp"])) # the color temp value, ranging from 32(00K) to 85(00)K - some lights (like the SL-80) can go as high as 8500K
+        computedValue.append(int(modeArgs["GM"])) # the GM compensation value, from -50 to 50
     elif modeArgs["colorMode"] == "HSI":
         # We're in HSI (any color of the spectrum) mode
-        computedValue = [120, 134, 4, 0, 0, 0, 0, 0]
+        computedValue = [120, 134, 4]
 
-        computedValue[3] = int(modeArgs["HSI_H"]) & 255 # hue value, up to 255
-        computedValue[4] = (int(modeArgs["HSI_H"]) & 65280) >> 8 # offset value, computed from above value
-        computedValue[5] = int(modeArgs["HSI_S"]) # saturation value
-        computedValue[6] = int(modeArgs["HSI_I"]) # intensity value
-        computedValue[7] = calculateChecksum(computedValue) # compute the checksum
+        computedValue.append(int(modeArgs["hue"]) & 255) # hue value, up to 255
+        computedValue.append((int(modeArgs["hue"]) & 65280) >> 8) # offset value, computed from above value
+        computedValue.append(int(modeArgs["saturation"])) # saturation value
+        computedValue.append(int(modeArgs["brightness"])) # intensity value
     elif modeArgs["colorMode"] == "ANM":
         # We're in ANM (animation) mode
-        computedValue = [120, 136, 2, 0, 0, 0]
+        computedValue = [120, 136, 2]
 
-        computedValue[3] = int(modeArgs["brightness"]) # brightness value
-        computedValue[4] = int(modeArgs["animation"]) # the number of animation you're going to run (check comments above)
-        computedValue[5] = calculateChecksum(computedValue) # compute the checksum
+        if "effect" in modeArgs:
+            effect = int(modeArgs["effect"])
+        if "brightness" in modeArgs:
+            brightness = int(modeArgs["brightness"])
+        if "bright_min" in modeArgs:
+            bright_min = int(modeArgs["bright_min"])
+        if "bright_max" in modeArgs:
+            bright_max = int(modeArgs["bright_max"])
+        if "temp" in modeArgs:
+            temp = int(modeArgs["temp"])
+        if "temp_min" in modeArgs:
+            temp_min = int(modeArgs["temp_min"])
+        if "temp_max" in modeArgs:
+            temp_max = int(modeArgs["temp_max"])
+        if "GM" in modeArgs:
+            GM = int(modeArgs["GM"])
+        if "hue" in modeArgs:
+            hue = int(modeArgs["hue"])
+            hue = [hue & 255, (hue & 65280) >> 8]
+        if "hue_min" in modeArgs:
+            hue_min = int(modeArgs["hue_min"])
+            hue_min = [hue_min & 255, (hue_min & 65280) >> 8]
+        if "hue_max" in modeArgs:
+            hue_max = int(modeArgs["hue_max"])
+            hue_max = [hue_max & 255, (hue_max & 65280) >> 8]
+        if "saturation" in modeArgs:
+            saturation = int(modeArgs["saturation"])
+        if "speed" in modeArgs:
+            speed = int(modeArgs["speed"])
+        if "sparks" in modeArgs:
+            sparks = int(modeArgs["sparks"])
+        if "specialOptions" in modeArgs:
+            specialOptions = int(modeArgs["specialOptions"])
+
+        if effect == 1: # Lightning
+            computedValue.extend([effect, brightness, temp, speed])
+        elif effect == 2 or effect == 3 or effect == 6 or effect == 8: # Paparazzi, Defective Bulb, CCT Flash or CCT Pulse
+            computedValue.extend([effect, brightness, temp, GM, speed])
+        elif effect == 4: # Explosion
+            computedValue.extend([effect, brightness, temp, GM, speed, sparks])
+        elif effect == 5: # Welding
+            computedValue.extend([effect, bright_min, bright_max, temp, GM, speed])
+        elif effect == 7 or effect == 9: # Hue Flash or Hue Pulse
+            computedValue.extend([effect, brightness, hue[0], hue[1], saturation, speed])
+        elif effect == 10: # Cop Car
+            computedValue.extend([effect, brightness, specialOptions, speed])
+        elif effect == 11: # Candlelight
+            computedValue.extend([effect, bright_min, bright_max, temp, GM, speed, sparks])
+        elif effect == 12: # Hue Loop
+            computedValue.extend([effect, brightness, hue_min[0], hue_min[1], hue_max[0], hue_max[1], speed])
+        elif effect == 13: # CCT Loop
+            computedValue.extend([effect, brightness, temp_min, temp_max, speed])
+        elif effect == 14: # INT Loop (CCT)
+            computedValue.extend([14, 0, bright_min, bright_max, 0, 0, temp, speed])
+        elif effect == 15: # INT Loop (HSI)
+            computedValue.extend([14, 1, bright_min, bright_max, hue[0], hue[1], 0, speed])
+        elif effect == 16: # TV Screen (effect is #15)
+            computedValue.extend([15, bright_min, bright_max, temp, GM, speed])
+        elif effect == 17: # Fireworks (effect is #16)
+            computedValue.extend([16, brightness, specialOptions, speed, sparks])
+        elif effect == 18: # Party (effect is #17)
+            computedValue.extend([17, brightness, specialOptions, speed])
+
+        # OLD EFFECT PARAMETERS RETROFITTED WITH INFINITY COMMANDS
+        elif effect == 21: # OLD EFFECT: Cop Car
+            computedValue.extend([effect, brightness, 2, 5])
+        elif effect == 22: # OLD EFFECT: Ambulance
+            computedValue.extend([effect, brightness, 75, 50, 5])
+        elif effect == 23: # OLD EFFECT: Fire Engine
+            computedValue.extend([effect, brightness, 0, 0, 55, 0, 10]) # this doesn't *exactly* match the old FX, but it's close
+        elif effect == 24: # OLD EFFECT: Fireworks
+            computedValue.extend([effect, brightness, 49, 0, 20, 1, 8]) # HUE LOOP actually matches more closely to the old FX
+        elif effect == 25: # OLD EFFECT: Party
+            computedValue.extend([effect, brightness, 1, 10])
+        elif effect == 26: # OLD EFFECT: Candlelight
+            computedValue.extend([effect, 2, brightness, 32, 50, 10, 4])
+        elif effect == 27: # OLD EFFECT: Lightning
+            computedValue.extend([effect, brightness, 75, 10])
+        elif effect == 28: # OLD EFFECT: Paparazzi
+            computedValue.extend([effect, brightness, 75, 50, 10])
+        elif effect == 29: # OLD EFFECT: TV Screen
+            computedValue.extend([effect, 2, brightness, 75, 50, 10])
     else:
         computedValue = [0]
 
@@ -2068,100 +2186,244 @@ def calculateByteString(returnValue = False, **modeArgs):
 # RECALCULATE THE BYTESTRING FOR CCT-ONLY NEEWER LIGHTS INTO HUE AND BRIGHTNESS SEPARATELY
 def calculateSeparateBytestrings(sendValue):
     # CALCULATE BRIGHTNESS ONLY PARAMETER FROM MAIN PARAMETER
-    newValueBRI = [120, 130, 1, sendValue[3], 0]
-    newValueBRI[4] = calculateChecksum(newValueBRI)
-
+    newValueBRI = [120, 130, 1, sendValue[3]]
+    
     # CALCULATE HUE ONLY PARAMETER FROM MAIN PARAMETER
-    newValueHUE = [120, 131, 1, sendValue[4], 0]
-    newValueHUE[4] = calculateChecksum(newValueHUE)
-
+    newValueHUE = [120, 131, 1, sendValue[4]]
+    
     if CCTSlider == -1: # return both newly computed values
         return [newValueBRI, newValueHUE]
     elif CCTSlider == 1: # return only the color temperature value
         return newValueHUE
     elif CCTSlider == 2: # return only the brightness value
         return newValueBRI
-        
 
-def setPowerBytestring(onOrOff):
-    global sendValue
-
-    if onOrOff == "ON":
-        sendValue = [120, 129, 1, 1, 251] # return the "turn on" bytestring
-    else:
-        sendValue = [120, 129, 1, 2, 252] # return the "turn off" bytestring
-
-# MAKE CURRENT BYTESTRING INTO A STRING OF HEX CHARACTERS TO SHOW THE CURRENT VALUE BEING GENERATED BY THE PROGRAM
-def updateStatus(splitString = False, customValue=False):
-        currentHexString = ""
-
-        if customValue == False:
-            customValue = sendValue
-
-        if splitString == False: # False is for the status bar (shows the bytestring computed as one long line)
-            for a in range(len(customValue)):
-                currentHexString = currentHexString + " " + str(hex(customValue[a]))
-        else: # True is for the table view, this view no longer shows bytestring, but readable status of current mode (temp/bri/hue, etc.)
-            currentHexString = ""
-
-            if customValue[1] == 134:
-                currentHexString = "(HSI MODE):\n"
-                currentHexString = currentHexString + "  H: " + str(customValue[3] + (256 * customValue[4])) + u'\N{DEGREE SIGN}' + " / S: " + str(customValue[5]) + " / I: " + str(customValue[6])
-            elif customValue[1] == 135:
-                currentHexString = "(CCT MODE):\n"
-                currentHexString = currentHexString + "  TEMP: " + str(customValue[4]) + "00K / BRI: " + str(customValue[3])
-            elif customValue[1] == 136:
-                currentHexString = "(ANM/SCENE MODE):\n"
-                currentHexString = currentHexString + "  SCENE: " + str(customValue[4]) + " / BRI: " + str(customValue[3])
-
-        return currentHexString
-
-# CALCULATE THE CHECKSUM FROM THE BYTESTRING
-def calculateChecksum(sendValue):
+# CALCULATE THE CHECKSUM FROM A BYTESTRING AND ADD IT TO THE END OF THE LIST
+def tagChecksum(sendValue):
+    returnArray = []
     checkSum = 0
-
-    for a in range(len(sendValue) - 1):
+    
+    for a in range(len(sendValue)):
         if sendValue[a] < 0:
             checkSum = checkSum + int(sendValue[a] + 256)
         else:
             checkSum = checkSum + int(sendValue[a])
 
+        returnArray.append(sendValue[a])
+
     checkSum = checkSum & 255
-    return checkSum
+    returnArray.append(checkSum)
+    return returnArray
 
-# Use this class to store information in a format that plays nicer with Bleak > 0.19 
+def setPowerBytestring(onOrOff):
+    global sendValue
+
+    if onOrOff == "ON":
+        sendValue = [120, 129, 1, 1] # return the "turn on" bytestring
+    else:
+        sendValue = [120, 129, 1, 2] # return the "turn off" bytestring
+
+def getInfinityPowerBytestring(onOrOff, lightMACAddress):
+    powerByteString = [120, 141, 8]
+    powerByteString.extend(splitMACAddress(lightMACAddress, True))
+
+    if onOrOff == "ON":
+        powerByteString.extend([129, 1])
+    else:
+        powerByteString.extend([129, 0])
+
+    return powerByteString
+
+def translateByteString(customValue = None):
+    if customValue == None:
+        customValue = sendValue
+
+    translatedByteString = {}
+
+    if customValue[1] == 129: # we're turning the light on or off
+        if customValue[3] == 1:
+            translatedByteString["colorMode"] = "ON"
+        elif customValue[3] == 2:
+            translatedByteString["colorMode"] = "OFF"
+    elif customValue[1] == 134: # we're in HSI mode
+        translatedByteString["colorMode"] = "HSI"
+        translatedByteString["hue"] = customValue[3] + (256 * customValue[4])
+        translatedByteString["saturation"] = customValue[5]
+        translatedByteString["brightness"] = customValue[6]
+    elif customValue[1] == 135: # we're in CCT mode
+        translatedByteString["colorMode"] = "CCT"
+        translatedByteString["brightness"] = customValue[3]
+        translatedByteString["temp"] = customValue[4]
+        translatedByteString["GM"] = customValue[5]
+    elif customValue[1] == 136: # we're in FX/ANM/SCENE mode
+        FX = customValue[3]
+
+        translatedByteString["colorMode"] = "ANM"
+        translatedByteString["effect"] = FX
+
+        if FX == 1:
+            translatedByteString["brightness"] = customValue[4]
+            translatedByteString["temp"] = customValue[5]
+            translatedByteString["speed"] = customValue[6]
+        elif FX == 2 or FX == 3 or FX == 6 or FX == 8:
+            translatedByteString["brightness"] = customValue[4]
+            translatedByteString["temp"] = customValue[5]
+            translatedByteString["GM"] = customValue[6]
+            translatedByteString["speed"] = customValue[7]
+        elif FX == 4:
+            translatedByteString["brightness"] = customValue[4]
+            translatedByteString["temp"] = customValue[5]
+            translatedByteString["speed"] = customValue[6]
+        elif FX == 5:
+            translatedByteString["bright_min"] = customValue[4]
+            translatedByteString["bright_max"] = customValue[5]
+            translatedByteString["temp"] = customValue[6]
+            translatedByteString["GM"] = customValue[7]
+            translatedByteString["speed"] = customValue[8]
+        elif FX == 7 or FX == 9:
+            translatedByteString["brightness"] = customValue[4]
+            translatedByteString["hue"] = customValue[5] + (256 * customValue[6])
+            translatedByteString["saturation"] = customValue[7]
+            translatedByteString["speed"] = customValue[8]
+        elif FX == 10:
+            translatedByteString["brightness"] = customValue[4]
+            translatedByteString["specialOptions"] = customValue[5]
+            translatedByteString["speed"] = customValue[6]
+        elif FX == 11:
+            translatedByteString["bright_min"] = customValue[4]
+            translatedByteString["bright_max"] = customValue[5]
+            translatedByteString["temp"] = customValue[6]
+            translatedByteString["GM"] = customValue[7]
+            translatedByteString["speed"] = customValue[8]
+            translatedByteString["sparks"] = customValue[9]
+        elif FX == 12:
+            translatedByteString["brightness"] = customValue[4]
+            translatedByteString["hue_min"] = customValue[5] + (256 * customValue[6])
+            translatedByteString["hue_max"] = customValue[7] + (256 * customValue[8])
+            translatedByteString["speed"] = customValue[9]
+        elif FX == 13:
+            translatedByteString["brightness"] = customValue[4]
+            translatedByteString["temp_min"] = customValue[5]
+            translatedByteString["temp_max"] = customValue[6]
+            translatedByteString["speed"] = customValue[7]
+        elif FX == 14:
+            loopMode = customValue[4] # get whether we're in CCT or HSI mode with loopMode
+
+            translatedByteString["bright_min"] = customValue[5]
+            translatedByteString["bright_max"] = customValue[6]
+    
+            if loopMode == 0: # if we're in CCT mode
+                translatedByteString["temp"] = customValue[9]
+            else: # we're in HSI mode
+                translatedByteString["hue"] = customValue[7] + (256 * customValue[8]) # convert this from 2 values
+
+            translatedByteString["speed"] = customValue[10]
+        elif FX == 15:
+            translatedByteString["bright_min"] = customValue[4]
+            translatedByteString["bright_max"] = customValue[5]
+            translatedByteString["temp"] = customValue[6]
+            translatedByteString["GM"] = customValue[7]
+            translatedByteString["speed"] = customValue[8]
+        elif FX == 16:
+            translatedByteString["brightness"] = customValue[4]
+            translatedByteString["specialOptions"] = customValue[5]
+            translatedByteString["speed"] = customValue[6]
+            translatedByteString["sparks"] = customValue[7]
+        elif FX == 17:
+            translatedByteString["brightness"] = customValue[4]
+            translatedByteString["specialOptions"] = customValue[5]
+            translatedByteString["speed"] = customValue[6]
+        else:
+            if FX == 26 or FX == 29:
+                translatedByteString["brightness"] = customValue[5]
+            else:
+                translatedByteString["brightness"] = customValue[4]
+
+    return translatedByteString
+    
+# MAKE CURRENT BYTESTRING INTO A STRING OF HEX CHARACTERS TO SHOW THE CURRENT VALUE BEING GENERATED BY THE PROGRAM
+def updateStatus(splitString = "", infinityMode = False, customValue = None):
+    if customValue == None:
+        statusInfo = translateByteString(sendValue)
+    else:
+        statusInfo = translateByteString(customValue)
+
+    if "effect" in statusInfo:
+        statusInfo["effect"] = convertFXIndex(infinityMode, statusInfo["effect"])
+
+    if statusInfo["colorMode"] == "OFF" or statusInfo["colorMode"] == "ON":
+        returnStatus = "(" + statusInfo["colorMode"] + ")"
+    else:
+        returnStatus = "(" + statusInfo["colorMode"] + " Mode):" + splitString
+
+        if statusInfo["colorMode"] == "HSI":
+            returnStatus += "  H: " + str(statusInfo["hue"]) + u'\N{DEGREE SIGN}'
+            returnStatus += " / S: " + str(statusInfo["saturation"])
+            returnStatus += " / I: " + str(statusInfo["brightness"])
+        elif statusInfo["colorMode"] == "CCT":
+            returnStatus += "  TEMP: " + str(statusInfo["temp"]) + "00K"
+            returnStatus += " / BRI: " + str(statusInfo["brightness"])
+            returnStatus += " / GM: " + str(statusInfo["GM"] - 50)
+        elif statusInfo["colorMode"] == "ANM":
+            returnStatus += "  FX: " + str(statusInfo["effect"])
+
+    return returnStatus
+
+# Use this class to store information in a format that plays nicer with Bleak > 0.19
 class UpdatedBLEInformation:
-    def __init__(self, name, address, rssi):
-        self.name = name
-        self.address = address
-        self.rssi = rssi
-
+    def __init__(self, name, address, rssi, HWMACaddr = None):
+        self.name = name # the corrected name of this device (SL90 Pro)
+        self.realname = name # the real name of this device (NW-2342520000FFF, etc.)
+        self.address = address # the MAC address (or in the case of MacOS, the GUID)
+        self.rssi = rssi # the signal level of this device
+        self.HWMACaddr = HWMACaddr # the exact MAC address (needed for MacOS) of this device
+        
 # FIND NEW LIGHTS
-async def findDevices():
+async def findDevices(limitToDevices = None):
     global availableLights
-    printDebugString("Searching for new lights")
+
+    if limitToDevices == None:
+        printDebugString("Searching for new lights...")
+    else:
+        printDebugString("Searching for the lights you requested...")
+    
     currentScan = [] # add all the current scan's lights detected to a standby array (to check against the main one)
 
     bleak_ver = ilm.version('bleak').split(".") # the version of Bleak that we're using
+    devices = [] # master list of found devices (changed for getting MacOS MAC addresses)
 
     # after Bleak 0.19, RSSI information is stored in an Advertisement variable 
     # instead of the BLEDevice itself, so it needs to be obtained differently!
     if int(bleak_ver[0]) == 0 and int(bleak_ver[1]) < 19:
-        devices = await BleakScanner.discover() # scan all available Bluetooth devices nearby
+        device_scan = await BleakScanner.discover() # scan all available Bluetooth devices nearby
+
+        for d in device_scan:
+            devices.append(UpdatedBLEInformation(d.name, d.address, d.rssi))
     else: 
-        devices = []
         device_scan = await BleakScanner.discover(return_adv=True) # scan all available Bluetooth devices nearby and return Advertisement data
-    
+
         for device, adv_data in device_scan.values():
             devices.append(UpdatedBLEInformation(device.name, device.address, adv_data.rssi))
-        
+    
     for d in devices: # go through all of the devices Bleak just found
-        if d.address in whiteListedMACs: # if the MAC address is in the list of whitelisted addresses, add this device
-            printDebugString("Matching whitelisted address found - " + returnMACname() + " " + d.address + ", adding to the list")
-            currentScan.append(d)
-        else: # if this device is not whitelisted, check to see if it's valid (contains "NEEWER" in the name)
-            if d.name != None and "NEEWER" in d.name: # if Bleak returned a proper string, and the string has "NEEWER" in the name
-                currentScan.append(d) # add this light to this session's available lights            
+        if limitToDevices != None: # we're looking for devices using the CLI, so we need *specific* MAC addresses/GUIDs
+            if d.address in limitToDevices:
+                d.name = getCorrectedName(d.name)
+                currentScan.append(d)
+        else: # we're doing a normal device discovery/re-discovery scan
+            if d.address in whiteListedMACs: # if the MAC address is in the list of whitelisted addresses, add this device
+                printDebugString("Matching whitelisted address found - " + returnMACname() + " " + d.address + ", adding to the list")
+                d.name = getCorrectedName(d.name)
+                currentScan.append(d)
+            else: # if this device is not whitelisted, check to see if it's valid (contains "NEEWER" in the name)
+                if d.name != None:
+                    acceptedPrefixes = ["NEEWER", "NW-", "SL", "NWR"]
+
+                    for a in range(len(acceptedPrefixes)):
+                        if acceptedPrefixes[a] in d.name:
+                            d.name = getCorrectedName(d.name) # fix the "newer" light names, like NW-20220057 with their correct names, like SL90 Pro
+                            currentScan.append(d)
+                            break
 
     for a in range(len(currentScan)): # scan the newly found NEEWER devices
         newLight = True # initially mark this light as a "new light"
@@ -2182,10 +2444,10 @@ async def findDevices():
             printDebugString("Found new light! [" + currentScan[a].name + "] " + returnMACname() + " " + currentScan[a].address + " RSSI: " + str(currentScan[a].rssi) + " dBm")
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
 
-            if len(customPrefs) == 3: # we need to rename the light and set up CCT and color temp range
-                availableLights.append([currentScan[a], "", customPrefs[0], [120, 135, 2, 20, 56, 157], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
-            elif len(customPrefs) == 4: # same as above, but we have previously stored parameters, so add them in as well
-                availableLights.append([currentScan[a], "", customPrefs[0], customPrefs[3], customPrefs[1], customPrefs[2], True, ["---", "---"]]) # add it to the global list
+            if len(customPrefs) == 4: # we need to rename the light and set up CCT and color temp range
+                availableLights.append([currentScan[a], "", customPrefs[0], [120, 135, 2, 50, 56, 50], customPrefs[1], customPrefs[2], True, ["---", "---"], customPrefs[3]]) # add it to the global list
+            elif len(customPrefs) == 5: # same as above, but we have previously stored parameters, so add them in as well
+                availableLights.append([currentScan[a], "", customPrefs[0], customPrefs[3], customPrefs[1], customPrefs[2], True, ["---", "---"], customPrefs[4]]) # add it to the global list
 
     if threadAction != "quit":
         return "" # once the device scan is over, set the threadAction to nothing
@@ -2193,8 +2455,10 @@ async def findDevices():
         return "quit"
 
 def getCustomLightPrefs(MACAddress, lightName = ""):
-    customPrefsPath = MACAddress.split(":")
+    customPrefsPath = splitMACAddress(MACAddress)
     customPrefsPath = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs" + os.sep + "".join(customPrefsPath)
+
+    defaultPrefs = getLightSpecs(lightName)
 
     if os.path.exists(customPrefsPath):
         printDebugString("A custom preferences file was found for " + MACAddress + "!")
@@ -2208,25 +2472,24 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
         elif customPrefs[1] == "False": # original "non wider" preference set color temps to 3200-5600K
             customPrefs[1] = [3200, 5600]
         elif customPrefs[1] == "": # no entry means we need to get the default value for color temps
-            customPrefs[1] = getLightSpecs(lightName, "temp")
-        else: # we have a new version of preferences that directly specify the color temperatures
-            testPrefs = getLightSpecs(lightName, "temp")
+            customPrefs[1] = defaultPrefs[1]
+        else: # we have a new version of preferences that directly specify the color temperatures            
             colorTemps = customPrefs[1].replace(" ", "").split(",")
 
             # TEST TO MAKE SURE VALUES RETURNED FROM colorTemps ARE VALID INTEGER VALUES
             if len(colorTemps) == 2: # we NEED to have 2 values in the list, or it's not a correct declaration (min,max)
-                customPrefs[1] = [testValid("custom_preset_range_min", colorTemps[0], testPrefs[0], 1000, 5600, True),
-                                  testValid("custom_preset_range_max", colorTemps[1], testPrefs[1], 1000, 10000, True)]
+                customPrefs[1] = [testValid("custom_preset_range_min", colorTemps[0], defaultPrefs[0], 1000, 5600, True),
+                                  testValid("custom_preset_range_max", colorTemps[1], defaultPrefs[1], 1000, 10000, True)]
             else: # so if we have a different number of elements, we're wrong - revert to defaults
                 printDebugString("Custom color range defined in preferences is incorrect - falling back to default values!")
-                customPrefs[1] = testPrefs
+                customPrefs[1] = defaultPrefs[1]
 
         if customPrefs[2] == "True":
             customPrefs[2] = True # convert "True" as a string to an actual boolean value of True
         elif customPrefs[2] == "False":
             customPrefs[2] = False # convert "False" as a string to an actual boolean value of False
         else: # if we have no value, then get the default value for CCT enabling
-            customPrefs[2] = getLightSpecs(lightName, "CCT")
+            customPrefs[2] = defaultPrefs[2]
 
         if len(customPrefs) == 4: # if we have a 4th element (the last used parameters), then load them here
             customPrefs[3] = customPrefs[3].replace(" ", "").split(",") # split the last params into a list
@@ -2234,42 +2497,68 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
             for a in range(len(customPrefs[3])): # convert the string values to ints
                 customPrefs[3][a] = int(customPrefs[3][a])
 
+        customPrefs.append(defaultPrefs[3]) # append the Infinity flag to the custom prefs list
+
         return customPrefs
     else: # if there is no custom preferences file, still check the name against a list of per-light parameters
         return getLightSpecs(lightName) # get the factory default settings for this light
 
+# GET A MORE CORRECT VERSION OF THE NEWER LIGHT NAMES
+def getCorrectedName(lightName):
+    newLightNames = [
+        ["20200015", "RGB1"], ["20200037", "SL90"], ["20200049", "RGB1200"], ["20210006", "Apollo 150D"],
+        ["20210007", "RGB C80"], ["20210012", "CB60 RGB"], ["20210018", "BH-30S RGB"], ["20210034", "MS60B"],
+        ["20210035", "MS60C"], ["20210036", "TL60 RGB"], ["20210037", "CB200B"], ["20220014", "CB60B"],
+        ["20220016", "PL60C"], ["20220035", "MS150B"], ["20220041", "AS600B"], ["20220043", "FS150B"],
+        ["20220046", "RP19C"],  ["20220051", "CB100C"],  ["20220055", "CB300B"], ["20220057", "SL90 Pro"],
+        ["20230021", "BH-30S RGB"], ["20230022", "HS60B"], ["20230025", "RGB1200"], ["20230031", "TL120C"],
+        ["20230050", "FS230 5600K"], ["20230051", "FS230B"], ["20230052", "FS150 5600K"], ["20230064", "TL60 RGB"],
+        ["20230080", "MS60C"], ["20230092", "RGB1200"]
+    ]
+
+    for a in range(len(newLightNames)):
+        if newLightNames[a][0] in lightName:
+            lightName = newLightNames[a][1]
+            break
+
+    return lightName
+
 # RETURN THE DEFAULT FACTORY SPECIFICATIONS FOR LIGHTS
 def getLightSpecs(lightName, returnParam = "all"):
     # the first section of lights here are LED only (can't use HSI), and the 2nd section are HSI-capable lights
-    # listed with their name, the max and min color temps available to use in CCT mode, and HSI only (True) or not (False)
+    # listed with their name, the max and min color temps available to use in CCT mode, HSI only (True) or not (False)
+    # and Infinity mode command structure needed (most False, use this for the newest series of lights)
     masterNeewerLightList = [
-        ["Apollo", 5600, 5600, True], ["GL1", 2900, 7000, True], ["NL140", 3200, 5600, True],
-        ["SNL1320", 3200, 5600, True], ["SNL1920", 3200, 5600, True], ["SNL480", 3200, 5600, True],
-        ["SNL530", 3200, 5600, True], ["SNL660", 3200, 5600, True], ["SNL960", 3200, 5600, True],
-        ["SRP16", 3200, 5600, True], ["SRP18", 3200, 5600, True], ["WRP18", 3200, 5600, True],
-        ["ZRP16", 3200, 5600, True],
-        ["BH30S", 2500, 10000, False], ["CB60", 2500, 6500, False], ["CL124", 2500, 10000, False],
-        ["RGB C80", 2500, 10000, False], ["RGB CB60", 2500, 10000, False], ["RGB1000", 2500, 10000, False],
-        ["RGB1200", 2500, 10000, False], ["RGB140", 2500, 10000, False], ["RGB168", 2500, 8500, False],
-        ["RGB176 A1", 2500, 10000, False], ["RGB512", 2500, 10000, False], ["RGB800", 2500, 10000, False],
-        ["SL-90", 2500, 10000, False], ["RGB1", 3200, 5600, False], ["RGB176", 3200, 5600, False],
-        ["RGB18", 3200, 5600, False], ["RGB190", 3200, 5600, False], ["RGB450", 3200, 5600, False],
-        ["RGB480", 3200, 5600, False], ["RGB530PRO", 3200, 5600, False], ["RGB530", 3200, 5600, False],
-        ["RGB650", 3200, 5600, False], ["RGB660PRO", 3200, 5600, False], ["RGB660", 3200, 5600, False],
-        ["RGB960", 3200, 5600, False], ["RGB-P200", 3200, 5600, False], ["RGB-P280", 3200, 5600, False],
-        ["SL70", 3200, 8500, False], ["SL80", 3200, 8500, False], ["ZK-RY", 5600, 5600, False]
+        ["Apollo", 5600, 5600, True, False], ["GL1", 2900, 7000, True, False], ["NL140", 3200, 5600, True, False],
+        ["SNL1320", 3200, 5600, True, False], ["SNL1920", 3200, 5600, True, False], ["SNL480", 3200, 5600, True, False],
+        ["SNL530", 3200, 5600, True, False], ["SNL660", 3200, 5600, True, False], ["SNL960", 3200, 5600, True, False],
+        ["SRP16", 3200, 5600, True, False], ["SRP18", 3200, 5600, True, False], ["WRP18", 3200, 5600, True, False],
+        ["ZRP16", 3200, 5600, True, False], 
+        ["MS60B", 2700, 6500, True, True],
+        ["BH-30S RGB", 2500, 10000, False, True], ["CB60 RGB", 2500, 6500, False, True], ["CL124", 2500, 10000, False, True],
+        ["RGB C80", 2500, 10000, False, True], ["RGB CB60", 2500, 10000, False, True], ["RGB1000", 2500, 10000, False, True],
+        ["RGB1200", 2500, 10000, False, True], ["RGB140", 2500, 10000, False, True], ["RGB168", 2500, 8500, False, False],
+        ["RGB176 A1", 2500, 10000, False, False], ["RGB512", 2500, 10000, False, True], ["RGB800", 2500, 10000, False, True],
+        ["SL90", 2500, 10000, False, True], ["SL90 Pro", 2500, 10000, False, True], ["RGB1", 3200, 5600, False, True],
+        ["RGB176", 3200, 5600, False, False], ["RGB18", 3200, 5600, False, False], ["RGB190", 3200, 5600, False, False], 
+        ["RGB450", 3200, 5600, False, False], ["RGB480", 3200, 5600, False, False], ["RGB530PRO", 3200, 5600, False, False], 
+        ["RGB530", 3200, 5600, False, False], ["RGB650", 3200, 5600, False, False], ["RGB660PRO", 3200, 5600, False, False], 
+        ["RGB660", 3200, 5600, False, False], ["RGB960", 3200, 5600, False, False], ["RGB-P200", 3200, 5600, False, False], 
+        ["RGB-P280", 3200, 5600, False, False], ["SL70", 3200, 8500, False, False], ["SL80", 3200, 8500, False, False], 
+        ["ZK-RY", 5600, 5600, False, False]
     ]
     
     for a in range(len(masterNeewerLightList)): # scan the list of preset specs above to find the current light in them
         # the default list of preferences - no custom name, a color temp range from 3200-5600K, and RGB not restricted (False)
         # if we don't find the name of the light in the master list, we just return these default parameters
-        customPrefs = ["", [3200, 5600], False]
+        customPrefs = ["", [3200, 5600], False, False]
 
         # check the master list to see if the current light is found - if it is, then change the prefs to reflect the light's spec
-        if masterNeewerLightList[a][0] in lightName.replace(" ", ""):
+        if masterNeewerLightList[a][0] in lightName:
             # customPrefs[0] = masterNeewerLightList[a][0] # the name of the light (for testing purposes)
             customPrefs[1] = [masterNeewerLightList[a][1], masterNeewerLightList[a][2]] # the HSI color temp range
             customPrefs[2] = masterNeewerLightList[a][3] # whether or not to allow RGB commands
+            customPrefs[3] = masterNeewerLightList[a][4] # whether or not this light uses Infinity mode
             break # stop looking for the light!
 
     if returnParam == "all": # we want to return all information (the default)
@@ -2278,6 +2567,8 @@ def getLightSpecs(lightName, returnParam = "all"):
         return customPrefs[1]
     elif returnParam == "CCT": # we only want to return CCT-only status for this light
         return customPrefs[2]
+    elif returnParam == "Infinity": # we only want to return the Infinity mode for this light
+        return customPrefs[3]
 
 # CONNECT (LINK) TO A LIGHT
 async def connectToLight(selectedLight, updateGUI=True):
@@ -2332,6 +2623,26 @@ async def connectToLight(selectedLight, updateGUI=True):
     else:
         if isConnected == True:
             printDebugString("Successful link on light [" + lightName + "] " + returnMACname() + " " + lightMAC)
+
+            if availableLights[selectedLight][8] == True: # we're an Infnity light, we need the physical MAC address
+                printDebugString("Checking for Hardware MAC address on Infinity light [" + lightName + "] " + returnMACname() + " " + lightMAC)
+
+                if platform.system() == "Darwin": # we're on MacOS, so this needs a little finesse...
+                    # run the System Profiler and get the Bluetooth specific devices
+                    command = ["system_profiler", "SPBluetoothDataType"]
+                    output = run(command, stdout=PIPE, universal_newlines=True)
+                    # get the location in the above output dealing with the specific light we're working with
+                    light_offset = output.stdout.find(availableLights[selectedLight][0].realname)
+                    # find the address adjacent from the above location
+                    address_offset = output.stdout.find("Address: ", light_offset)
+                    # clip out the MAC address itself
+                    output_parse = output.stdout[address_offset + 9:address_offset + 26]
+
+                    availableLights[selectedLight][0].HWMACaddr = output_parse
+                else: # we're on a system that uses MAC addresses, so just duplicate the information
+                    availableLights[selectedLight][0].HWMACaddr = availableLights[selectedLight][0].address
+                
+                printDebugString("Found Hardware MAC address: " + availableLights[selectedLight][0].HWMACaddr)
 
             if updateGUI == True:
                 mainWindow.setTheTable(["", "", "LINKED", "Waiting to send..."], lightIdx) # if it's successful, show that in the table
@@ -2445,6 +2756,51 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
 
     return returnValue
 
+# GET THE RIGHT FX # FOR PRESETS - CONVERT BETWEEN THE OLD FX INDEX AND THE INFINITY INDEX
+def convertFXIndex(infinityMode, effectNum):
+    if infinityMode == True: # we're getting the FX # for an Infinity style Neewer light
+        if effectNum > 20:
+            if effectNum == 21:
+                return 10
+            elif effectNum == 22:
+                return 8
+            elif effectNum == 23:
+                return 12
+            elif effectNum == 24:
+                return 12
+            elif effectNum == 25:
+                return 17
+            elif effectNum == 26:
+                return 11
+            elif effectNum == 27:
+                return 1
+            elif effectNum == 28:
+                return 2
+            elif effectNum == 29:
+                return 15
+        else:
+            return effectNum
+    else: # we're getting the FX # for an older style Neewer light
+        if effectNum < 20:
+            if effectNum == 10:
+                return 1
+            elif effectNum == 16:
+                return 4
+            elif effectNum == 17:
+                return 5
+            elif effectNum == 11:
+                return 6
+            elif effectNum == 1:
+                return 7
+            elif effectNum == 2:
+                return 8
+            elif effectNum == 15:
+                return 9
+            else: # we're in Ambulance or Fire Engine mode
+                return 10
+        else: # we're recalling a light preset designed for older lights
+            return effectNum - 20
+
 # WRITE TO A LIGHT - optional arguments for the CLI version (GUI version doesn't use either of these)
 async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
     global availableLights
@@ -2469,74 +2825,136 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                 currentSendValue = sendValue # get this value before sending to multiple lights, to ensure the same value is sent to each one
 
                 for a in range(len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
+                    currentLightIdx = int(selectedLights[a])
+
                     # THIS SECTION IS FOR LOADING SNAPSHOT PRESET POWER STATES
                     if useGlobalValue == False: # if we're forcing the lights to use their stored parameters, then load that in here
-                        if availableLights[selectedLights[a]][3][0] == 0: # we want to turn the light off
-                            availableLights[selectedLights[a]][3][0] = 120 # reset the light's value to the normal value
-                            currentSendValue = [120, 129, 1, 2, 252] # set the send value to turn the light off downstream
+                        if availableLights[currentLightIdx][3][0] == 0: # we want to turn the light off
+                            availableLights[currentLightIdx][3][0] = 120 # reset the light's value to the normal value
+                            currentSendValue = [120, 129, 1, 2] # set the send value to turn the light off downstream
                         else: # we want to turn the light on and run a snapshot preset
-                            await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
-                            availableLights[int(selectedLights[a])][6] = True # set the ON flag of this light to True
+                            if availableLights[currentLightIdx][8] == False: # we're using an old style of light
+                                await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
+                            else: # we're using an Infinity light
+                                await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("ON", availableLights[currentLightIdx][0].HWMACaddr))), False)
+
+                            availableLights[currentLightIdx][6] = True # set the ON flag of this light to True
                             await asyncio.sleep(0.05)
-
-                            currentSendValue = availableLights[selectedLights[a]][3] # set the send value to set the preset downstream
-
-                    if availableLights[selectedLights[a]][1] != "": # if a Bleak connection is there
+                        
+                        currentSendValue = availableLights[currentLightIdx][3] # set the send value to set the preset downstream
+                    
+                    if availableLights[currentLightIdx][1] != "": # if a Bleak connection is there
                         try:
-                            if availableLights[(int(selectedLights[a]))][5] == True: # if we're using the old style of light
+                            if availableLights[currentLightIdx][5] == True: # if we're using the old style of light
                                 if currentSendValue[1] == 135: # if we're on CCT mode
                                     if CCTSlider == -1: # and we need to write both HUE and BRI to the light
                                         splitCommands = calculateSeparateBytestrings(currentSendValue) # get both commands from the converter
 
                                         # WRITE BOTH LUMINANCE AND HUE VALUES TOGETHER, BUT SEPARATELY
-                                        await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(splitCommands[0]), False)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(splitCommands[0])), False)
                                         await asyncio.sleep(0.05) # wait 1/20th of a second to give the Bluetooth bus a little time to recover
-                                        await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(splitCommands[1]), False)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(splitCommands[1])), False)
                                     else: # we're only writing either HUE or BRI independently
-                                        await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(calculateSeparateBytestrings(currentSendValue)), False)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(calculateSeparateBytestrings(currentSendValue))), False)
                                 elif currentSendValue[1] == 129: # we're using an old light, but we're either turning the light on or off
-                                    await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
+                                    await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(currentSendValue)), False)
                                 elif currentSendValue[1] == 134: # we can't use HSI mode with this light, so show that
                                     if updateGUI == True:
-                                        mainWindow.setTheTable(["", "", "", "This light can not use HSI mode"], int(selectedLights[a]))
+                                        mainWindow.setTheTable(["", "", "", "This light can not use HSI mode"], currentLightIdx)
                                     else:
                                         returnValue = True # we successfully wrote to the light (or tried to at least)
                                 elif currentSendValue[1] == 136: # we can't use ANM/SCENE mode with this light, so show that
                                     if updateGUI == True:
-                                        mainWindow.setTheTable(["", "", "", "This light can not use ANM/SCENE mode"], int(selectedLights[a]))
+                                        mainWindow.setTheTable(["", "", "", "This light can not use ANM/SCENE mode"], currentLightIdx)
                                     else:
                                         returnValue = True # we successfully wrote to the light (or tried to at least)
-                            else: # we're using a "newer" Neewer light, so just send the original calculated value
-                                await availableLights[int(selectedLights[a])][1].write_gatt_char(setLightUUID, bytearray(currentSendValue), False)
+                            else: # we're using a "newer" Neewer light
+                                if availableLights[currentLightIdx][8] == True: # we're using the newest kind of light, so we need to tweak the send value
+                                    if currentSendValue[1]  == 135: # we're in CCT mode
+                                        infinitySendValue = [120, 144, 11]
+                                    elif currentSendValue[1] == 134: # we're in HSI mode
+                                        infinitySendValue = [120, 143, 11]
+                                    elif currentSendValue[1] == 136: # we're in SCENE/FX mode
+                                        infinitySendValue = [120, 145, 6 + (len(currentSendValue) - 2)]
+                                    elif currentSendValue[1] == 129: # we need to turn the light on or off
+                                        infinitySendValue = [120, 141, 8]
+
+                                    infinitySendValue.extend(splitMACAddress(availableLights[currentLightIdx][0].HWMACaddr, True))
+
+                                    # THE LAST 2 VALUES FOR CCT MODE ARE:
+                                    # G/M COMPENSATION (WIP)
+                                    # ...........4.  NOT REALLY SURE **WHY** IT'S 4, BUT... IT'S 4.
+                                    if currentSendValue[1]  == 135: # CCT mode
+                                        infinitySendValue.extend([currentSendValue[1],
+                                                                currentSendValue[3],
+                                                                currentSendValue[4],
+                                                                currentSendValue[5],
+                                                                4])
+                                    elif currentSendValue[1] == 134: # HSI mode
+                                        infinitySendValue.extend([currentSendValue[1],
+                                                                currentSendValue[3],
+                                                                currentSendValue[4],
+                                                                currentSendValue[5],
+                                                                currentSendValue[6]])
+                                    elif currentSendValue[1] == 136: # SCENE/FX mode
+                                        infinitySendValue.append(139)
+                                        infinitySendValue.append(convertFXIndex(True, currentSendValue[3]))
+                                                                                
+                                        for i in range(4, len(currentSendValue)):
+                                            infinitySendValue.append(currentSendValue[i])
+
+                                        # CYCLE POWER TO INFINITY LIGHT BEFORE SENDING THE ANIMATION PARAMETERS
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("OFF", availableLights[currentLightIdx][0].HWMACaddr))), False)
+                                        asyncio.sleep(0.05)
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("ON", availableLights[currentLightIdx][0].HWMACaddr))), False)
+                                        asyncio.sleep(0.05)
+                                    elif currentSendValue[1] == 129: # we need to turn the light on or off
+                                        infinitySendValue.extend([129, currentSendValue[3]])
+                                        
+                                    await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(infinitySendValue)), False)
+                                else:
+                                    if currentSendValue[1] == 135: # if we're in CCT mode (and using a normal light), don't take the GM value
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(currentSendValue[0:5])), False)
+                                    if currentSendValue[1] == 136: # if we're in ANM/scene mode, we need to convert the Infinity command back to a normal command
+                                        normalSceneCommand = currentSendValue[0:5]
+                                        
+                                        # SWITCH THE 2 ELEMENTS TO THE CORRECT ORDER FOR OLDER LIGHTS
+                                        currentEffect = normalSceneCommand[3]
+                                        normalSceneCommand[3] = normalSceneCommand[4]
+                                        normalSceneCommand[4] = convertFXIndex(False, currentEffect)
+
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(normalSceneCommand)), False)
+                                    else:
+                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(currentSendValue)), False)
 
                             if updateGUI == True:
                                 # if we're not looking at an old light, or if we are, we're not in either HSI or ANM modes, then update the status of that light
-                                if not (availableLights[(int(selectedLights[a]))][5] == True and (currentSendValue[1] == 134 or currentSendValue[1] == 136)):
+                                if not (availableLights[currentLightIdx][5] == True and (currentSendValue[1] == 134 or currentSendValue[1] == 136)):
                                     if currentSendValue[1] != 129: # if we're not turning the light on or off
-                                        mainWindow.setTheTable(["", "", "", updateStatus(True, currentSendValue)], int(selectedLights[a]))
+                                        mainWindow.setTheTable(["", "", "", updateStatus(splitString="\n", infinityMode=availableLights[currentLightIdx][8], customValue=currentSendValue)], currentLightIdx)
                                     else: # we ARE turning the light on or off
                                         if currentSendValue[3] == 1: # we turned the light on
-                                            availableLights[int(selectedLights[a])][6] = True # toggle the "light on" parameter of this light to ON
+                                            availableLights[currentLightIdx][6] = True # toggle the "light on" parameter of this light to ON
 
-                                            changeStatus = mainWindow.returnTableInfo(selectedLights[a], 2).replace("STBY", "ON")
-                                            mainWindow.setTheTable(["", "", changeStatus, "Light turned on"], int(selectedLights[a]))
+                                            changeStatus = mainWindow.returnTableInfo(currentLightIdx, 2).replace("STBY", "ON")
+                                            mainWindow.setTheTable(["", "", changeStatus, "Light turned on"], currentLightIdx)
 
                                         else: # we turned the light off
-                                            availableLights[int(selectedLights[a])][6] = False # toggle the "light on" parameter of this light to OFF
+                                            availableLights[currentLightIdx][6] = False # toggle the "light on" parameter of this light to OFF
 
-                                            changeStatus = mainWindow.returnTableInfo(selectedLights[a], 2).replace("ON", "STBY")
-                                            mainWindow.setTheTable(["", "", changeStatus, "Light turned off\nA long period of inactivity may require a re-link to the light"], int(selectedLights[a]))
+                                            changeStatus = mainWindow.returnTableInfo(currentLightIdx, 2).replace("ON", "STBY")
+                                            mainWindow.setTheTable(["", "", changeStatus, "Light turned off\nA long period of inactivity may require a re-link to the light"], currentLightIdx)
                             else:
                                 returnValue = True # we successfully wrote to the light
 
                             if currentSendValue[1] != 129: # if we didn't just send a command to turn the light on/off
-                                availableLights[selectedLights[a]][3] = currentSendValue # store the currenly sent value to recall later
+                                availableLights[currentLightIdx][3] = currentSendValue # store the currenly sent value to recall later
                         except Exception as e:
                             if updateGUI == True:
-                                mainWindow.setTheTable(["", "", "", "Error Sending to light!"], int(selectedLights[a]))
+                                mainWindow.setTheTable(["", "", "", "Error Sending to light!"], currentLightIdx)
                     else: # if there is no Bleak object associated with this light (otherwise, it's been found, but not linked)
                         if updateGUI == True:
-                            mainWindow.setTheTable(["", "", "", "Light isn't linked yet, can't send to it"], int(selectedLights[a]))
+                            mainWindow.setTheTable(["", "", "", "Light isn't linked yet, can't send to it"], currentLightIdx)
                         else:
                             returnValue = 0 # the light is not linked, even though it *should* be if it gets to this point, so this is an odd error
 
@@ -2550,7 +2968,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
             if updateGUI == True:
                 selectedLights = mainWindow.selectedLights() # re-acquire the current list of selected lights
     except Exception as e:
-        printDebugString("There was an error communicating with light " + str(selectedLights[a] + 1) + " [" + availableLights[selectedLights[a]][0].name + "] " + returnMACname() + " " + availableLights[selectedLights[a]][0].address)
+        printDebugString("There was an error communicating with light " + str(currentLightIdx + 1) + " [" + availableLights[currentLightIdx][0].name + "] " + returnMACname() + " " + availableLights[currentLightIdx][0].address)
         print(e)
 
         if updateGUI == True:
@@ -2564,18 +2982,6 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
             returnValue = "quit"
 
     return returnValue
-
-# USE THIS FUNCTION TO CONNECT TO ONE LIGHT (for CLI mode) AND RETRIEVE ANY CUSTOM PREFS (necessary for lights like the SNL-660)
-async def connectToOneLight(MACAddress):
-    global availableLights
-
-    try:
-        currentLightToAdd = await BleakScanner.find_device_by_address(MACAddress)
-        customLightPrefs = getCustomLightPrefs(currentLightToAdd.address, currentLightToAdd.name)
-        availableLights = [[currentLightToAdd, "", customLightPrefs[0], [], customLightPrefs[1], customLightPrefs[2], True]]
-    except Exception as e:
-        printDebugString("Error finding the Neewer light with MAC address " + MACAddress)
-        print(e)
 
 # THE BACKGROUND WORKER THREAD
 def workerThread(_loop):
@@ -2695,7 +3101,7 @@ def processCommands(listToProcess=[]):
 
     # ARGUMENTS EACH MODE HAS ACCESS TO
     acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity",
-                            "--scene", "--animation", "--list", "--on", "--off", "--force_instance"]
+                            "gm", "--scene", "--animation", "--list", "--on", "--off", "--force_instance"]
 
     # MODE-SPECIFIC ARGUMENTS
     if inStartupMode == True: # if we're using the GUI or CLI, then add these arguments to the list
@@ -2766,7 +3172,8 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--hue", default="240", help="[DEFAULT: 240] (HSI mode) - the hue (0-360 degrees) to set the light to")
     parser.add_argument("--sat", "--saturation", default="100", help="[DEFAULT: 100] (HSI mode) The saturation (how vibrant the color is) to set the light to")
     parser.add_argument("--bri", "--brightness", "--intensity", default="100", help="[DEFAULT: 100] (CCT/HSI/ANM mode) The brightness (intensity) to set the light to")
-    parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation (1-9) to use in Scene mode")
+    parser.add_argument("--gm", "--GM", default="0", help="[DEFAULT:0] (CCT mode) The GM Compensation adjustment (-50 to 50) to set the light to (for Infinity lights)")
+    parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation to use in Scene mode")
 
     args = parser.parse_args(listToProcess)
 
@@ -2828,10 +3235,13 @@ def processCommands(listToProcess=[]):
             printDebugString(" >> Improper mode selected with --mode command - valid entries are")
             printDebugString(" >> CCT, HSI or either ANM or SCENE, so rolling back to CCT mode.")
 
+        GM = 50 + int(args.gm)
+
         # RETURN CCT MODE PARAMETERS IN CCT/ALL OTHER CASES
         return [args.cli, args.silent, args.light, "CCT",
                 testValid("temp", args.temp, 56, 32, 85),
-                testValid("bri", args.bri, 100, 0, 100)]
+                testValid("bri", args.bri, 100, 0, 100),
+                testValid("GM", GM, 50, 0, 100)]
 
 def processHTMLCommands(paramsList, loop):
     global threadAction
@@ -2868,11 +3278,11 @@ def processHTMLCommands(paramsList, loop):
 
             else: # we want to write a value to a specific light
                 if paramsList[3] == "CCT": # calculate CCT bytestring
-                    calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5])
+                    calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5], GM=cmdReturn[6])
                 elif paramsList[3] == "HSI": # calculate HSI bytestring
-                    calculateByteString(colorMode=paramsList[3], HSI_H=paramsList[4], HSI_S=paramsList[5], HSI_I=paramsList[6])
+                    calculateByteString(colorMode=paramsList[3], hue=paramsList[4], saturation=paramsList[5], brightness=paramsList[6])
                 elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
-                    calculateByteString(colorMode=paramsList[3], animation=paramsList[4], brightness=paramsList[5])
+                    calculateByteString(colorMode=paramsList[3], effect=paramsList[4], brightness=paramsList[5])
                 elif paramsList[3] == "ON": # turn the light(s) on
                     setPowerBytestring("ON")
                 elif paramsList[3] == "OFF": # turn the light(s) off
@@ -3113,7 +3523,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                                 except Exception as e:
                                     self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + "<A HREF='doAction?link=" + str(a + 1) + "'>No</A></TD>\n", "utf-8")) # is the light linked?
 
-                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + updateStatus(False, availableLights[a][3]) + "</TD>\n", "utf-8")) # the last sent value to the light
+                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + updateStatus(customValue=availableLights[a][3]) + "</TD>\n", "utf-8")) # the last sent value to the light
                                 self.wfile.write(bytes("  </TR>\n", "utf-8"))
 
                             self.wfile.write(bytes("</TABLE>\n", "utf-8"))
@@ -3155,7 +3565,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python 0.14 HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-02-07-RC] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3204,7 +3614,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
             self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python 0.14</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-02-07-RC]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3339,7 +3749,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. 0.14")
+    print("             NeewerLite-Python ver. [2024-02-07-RC]")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3392,7 +3802,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python 0.14 by Zach Glenwright")
+            print("NeewerLite-Python [2024-02-07-RC] by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
@@ -3442,8 +3852,13 @@ if __name__ == '__main__':
         printDebugString(" > Mode: " + cmdReturn[3])
 
         if cmdReturn[3] == "CCT":
+            # if the default value for GM returned is "0", then the actual value is "50", so reset that
+            if int(cmdReturn[6]) == 0:
+                cmdReturn[6] = 50
+
             printDebugString(" > Color Temperature: " + str(cmdReturn[4]) + "00K")
             printDebugString(" > Brightness: " + str(cmdReturn[5]))
+            printDebugString(" > GM Compensation: " + str(int(cmdReturn[6]) - 50))
         elif cmdReturn[3] == "HSI":
             printDebugString(" > Hue: " + str(cmdReturn[4]))
             printDebugString(" > Saturation: " + str(cmdReturn[5]))
@@ -3454,10 +3869,17 @@ if __name__ == '__main__':
 
         if cmdReturn[0] == False: # if we're not showing the GUI, we need to specify a MAC address
             if cmdReturn[2] != "":
-                printDebugString("-------------------------------------------------------------------------------------")
-                printDebugString(" > CLI >> MAC Address of light to send command to: " + cmdReturn[2].upper())
+                MACAddresses = cmdReturn[2].upper().split(",") # uppercase and split list of mutliple MAC addresses
 
-                asyncioEventLoop.run_until_complete(connectToOneLight(cmdReturn[2])) # get Bleak object linking to this specific light and getting custom prefs
+                printDebugString("-------------------------------------------------------------------------------------")
+                printDebugString(" > CLI >> MAC Addresses/UUIDs of lights to send command to: ")
+
+                for a in range(len(MACAddresses)):
+                    printDebugString(f'            {MACAddresses[a]}')
+
+                printDebugString("-------------------------------------------------------------------------------------")
+
+                asyncioEventLoop.run_until_complete(findDevices(limitToDevices = MACAddresses)) # get Bleak object linking to this specific light and getting custom prefs
             else:
                 printDebugString("-------------------------------------------------------------------------------------")
                 printDebugString(" > CLI >> You did not specify a light to send the command to - use the --light switch")
@@ -3490,9 +3912,9 @@ if __name__ == '__main__':
                 # SET UP GUI BASED ON COMMAND LINE ARGUMENTS
                 if len(cmdReturn) > 1:
                     if cmdReturn[3] == "CCT": # set up the GUI in CCT mode with specified parameters (or default, if none)
-                        mainWindow.setUpGUI(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
+                        mainWindow.setUpGUI(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5], GM=cmdReturn[6])
                     elif cmdReturn[3] == "HSI": # set up the GUI in HSI mode with specified parameters (or default, if none)
-                        mainWindow.setUpGUI(colorMode=cmdReturn[3], hue=cmdReturn[4], sat=cmdReturn[5], brightness=cmdReturn[6])
+                        mainWindow.setUpGUI(colorMode=cmdReturn[3], hue=cmdReturn[4], saturation=cmdReturn[5], brightness=cmdReturn[6])
                     elif cmdReturn[3] == "ANM": # set up the GUI in ANM mode with specified parameters (or default, if none)
                         mainWindow.setUpGUI(colorMode=cmdReturn[3], scene=cmdReturn[4], brightness=cmdReturn[5])
 
@@ -3533,64 +3955,47 @@ if __name__ == '__main__':
     else: # don't launch the GUI, send command to a light/lights and quit out
         if len(cmdReturn) > 1:
             if cmdReturn[3] == "CCT": # calculate CCT bytestring
-                calculateByteString(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5])
+                calculateByteString(colorMode=cmdReturn[3], temp=cmdReturn[4], brightness=cmdReturn[5], GM=cmdReturn[6])
             elif cmdReturn[3] == "HSI": # calculate HSI bytestring
-                calculateByteString(colorMode=cmdReturn[3], HSI_H=cmdReturn[4], HSI_S=cmdReturn[5], HSI_I=cmdReturn[6])
+                calculateByteString(colorMode=cmdReturn[3], hue=cmdReturn[4], saturation=cmdReturn[5], brightness=cmdReturn[6])
             elif cmdReturn[3] == "ANM": # calculate ANM/SCENE bytestring
-                calculateByteString(colorMode=cmdReturn[3], animation=cmdReturn[4], brightness=cmdReturn[5])
+                calculateByteString(colorMode=cmdReturn[3], effect=cmdReturn[4], brightness=cmdReturn[5])
             elif cmdReturn[3] == "ON": # turn the light on
                 setPowerBytestring("ON")
             elif cmdReturn[3] == "OFF": # turn the light off
                 setPowerBytestring("OFF")
 
         if availableLights != []:
-            printDebugString(" > CLI >> Bytestring to send to light:" + updateStatus())
+            for a in range(len(availableLights)):
+                availableLights[a][3] = sendValue # use the specified parameters in every light's "last used parameters" value
 
-            # CONNECT TO THE LIGHT AND SEND INFORMATION TO IT
-            isFinished = False
-            numOfAttempts = 1
+            printDebugString("-------------------------------------------------------------------------------------")
+            printDebugString(" > CLI >> Configuration to send to light: " + updateStatus())
+            printDebugString("-------------------------------------------------------------------------------------")
+            printDebugString(" > CLI >> Attempting to connect to lights...")
+            printDebugString("-------------------------------------------------------------------------------------")
+            
+            asyncioEventLoop.run_until_complete(parallelAction("connect", [-1], False)) # connect to each available light in parallel
 
-            while isFinished == False:
-                printDebugString("-------------------------------------------------------------------------------------")
-                printDebugString(" > CLI >> Attempting to connect to light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
-                printDebugString("-------------------------------------------------------------------------------------")
-                isFinished = asyncioEventLoop.run_until_complete(connectToLight(0, False))
+            printDebugString("-------------------------------------------------------------------------------------")
+            printDebugString(" > CLI >> Attempting to write to lights, sending commands in 3 passes...")
+            printDebugString("-------------------------------------------------------------------------------------")
 
-                if numOfAttempts < maxNumOfAttempts:
-                    numOfAttempts = numOfAttempts + 1
-                else:
-                    printDebugString("Error connecting to light " + str(maxNumOfAttempts) + " times - quitting out")
-                    singleInstanceUnlockandQuit(1) # delete the lock file and quit out
+            multipleSendString = "send"
 
-            isFinished = False
-            numOfAttempts = 1
+            for a in range(len(availableLights)):
+                multipleSendString += "|" + str(a) # add all lights to the list of lights to send commands to
 
-            while isFinished == False:
-                printDebugString("-------------------------------------------------------------------------------------")
-                printDebugString(" > CLI >> Attempting to write to light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
-                printDebugString("-------------------------------------------------------------------------------------")
-                isFinished = asyncioEventLoop.run_until_complete(writeToLight(0, False))
+            for iteration in range(3):
+                printDebugString(f'Sending command to light (Pass {iteration + 1} of 3)...')
+                processMultipleSends(asyncioEventLoop, multipleSendString, False)
+            
+            printDebugString("-------------------------------------------------------------------------------------")
+            printDebugString(" > CLI >> Attempting to disconnect from lights...")
+            printDebugString("-------------------------------------------------------------------------------------")
 
-                if numOfAttempts < maxNumOfAttempts:
-                    numOfAttempts = numOfAttempts + 1
-                else:
-                    printDebugString("Error writing to light " + str(maxNumOfAttempts) + " times - quitting out")
-                    singleInstanceUnlockandQuit(1) # delete the lock file and quit out
-
-            isFinished = False
-            numOfAttempts = 1
-
-            while isFinished == False:
-                printDebugString("-------------------------------------------------------------------------------------")
-                printDebugString(" > CLI >> Attempting to disconnect from light (attempt " + str(numOfAttempts) + " of " + str(maxNumOfAttempts) + ")")
-                printDebugString("-------------------------------------------------------------------------------------")
-                isFinished = asyncioEventLoop.run_until_complete(disconnectFromLight(0, updateGUI = False))
-
-                if numOfAttempts < maxNumOfAttempts:
-                    numOfAttempts = numOfAttempts + 1
-                else:
-                    printDebugString("Error disconnecting from light " + str(maxNumOfAttempts) + " times - quitting out")
-                    singleInstanceUnlockandQuit(1) # delete the lock file and quit out
+            asyncioEventLoop.run_until_complete(parallelAction("disconnect", [-1], False)) # disconnect from each available light in parallel
+            singleInstanceUnlockandQuit(0) # delete the lock file and quit out
         else:
             printDebugString("-------------------------------------------------------------------------------------")
             printDebugString(" > CLI >> Calculated bytestring:" + updateStatus())
