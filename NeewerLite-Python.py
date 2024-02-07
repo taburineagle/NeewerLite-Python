@@ -2535,7 +2535,7 @@ def getLightSpecs(lightName, returnParam = "all"):
         ["SRP16", 3200, 5600, True, False], ["SRP18", 3200, 5600, True, False], ["WRP18", 3200, 5600, True, False],
         ["ZRP16", 3200, 5600, True, False], 
         ["MS60B", 2700, 6500, True, True],
-        ["BH-30S RGB", 2500, 10000, False, True], ["CB60 RGB", 2500, 6500, False, True], ["CL124", 2500, 10000, False, False],
+        ["BH-30S RGB", 2500, 10000, False, True], ["CB60 RGB", 2500, 6500, False, True], ["CL124", 2500, 10000, False, True],
         ["RGB C80", 2500, 10000, False, True], ["RGB CB60", 2500, 10000, False, True], ["RGB1000", 2500, 10000, False, True],
         ["RGB1200", 2500, 10000, False, True], ["RGB140", 2500, 10000, False, True], ["RGB168", 2500, 8500, False, False],
         ["RGB176 A1", 2500, 10000, False, False], ["RGB512", 2500, 10000, False, True], ["RGB800", 2500, 10000, False, True],
