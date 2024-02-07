@@ -1795,6 +1795,8 @@ def setUpAsyncio():
         asyncioEventLoop = asyncio.get_running_loop()
     except RuntimeError:
         asyncioEventLoop = asyncio.new_event_loop()
+    except AttributeError:
+        asyncioEventLoop = asyncio.new_event_loop()
 
     asyncio.set_event_loop(asyncioEventLoop)
 
