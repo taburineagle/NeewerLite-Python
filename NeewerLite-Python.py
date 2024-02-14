@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. [2024-02-07-RC]
+## NeewerLite-Python ver. [2024-02-14-RC]
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -58,7 +58,7 @@ importError = 0 # whether or not there's an issue loading PySide2 or the GUI fil
 # IMPORT PYSIDE2 (the GUI libraries)
 try:
     from PySide2.QtCore import Qt, QItemSelectionModel
-    from PySide2.QtGui import QLinearGradient, QColor, QKeySequence
+    from PySide2.QtGui import QColor, QKeySequence
     from PySide2.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QShortcut, QMessageBox
 
 except Exception as e:
@@ -93,7 +93,7 @@ availableLights = [] # the list of Neewer lights currently available to control
 # [5] - Whether or not to send Brightness and Hue independently for old lights (boolean)
 # [6] - Whether or not this light has been manually turned ON/OFF (boolean)
 # [7] - The Power and Channel data returned for this light (list)
-# [8] - Whether or not this light uses the new Infinity light protocol (boolean)
+# [8] - Whether or not this light uses the new Infinity light protocol (int - 0: no, 1: yes, 2: protocol, but not Infinity light)
 
 # Light Preset ***Default*** Settings (for sections below):
 # NOTE: The list is 0-based, so the preset itself is +1 from the subitem
@@ -1002,7 +1002,7 @@ try: # try to load the GUI
                         self.ColorModeTabWidget.setTabEnabled(1, True) # enable the HSI mode tab
                         self.ColorModeTabWidget.setTabEnabled(2, True) # enable the ANM/SCENE tab
 
-                    if selectedRows[1] == True:
+                    if selectedRows[1] > 0:
                         self.GMSlider.setVisible(True)
                     else:
                         self.GMSlider.setVisible(False)
@@ -1060,10 +1060,10 @@ try: # try to load the GUI
                 self.checkLightTab() # check to see if we're on the CCT tab - if we are, then restore order
 
         # SET UP THE GUI FOR USING INFINITY MODE/SWITCHING EFFECTS LIST
-        def setInfinityMode(self, infinityMode = False):
+        def setInfinityMode(self, infinityMode = 0):
             countOfCurrentEffects = self.effectChooser.count()
 
-            if infinityMode == False:
+            if infinityMode == 0:
                 if countOfCurrentEffects == 0 or countOfCurrentEffects == 18:
                     self.effectChooser.clear()
                     self.effectChooser.addItems(["1 - Cop Car", "2 - Ambulance", "3 - Fire Engine",
@@ -1440,7 +1440,7 @@ try: # try to load the GUI
         # RETURN THE ROW INDEXES THAT ARE CURRENTLY HIGHLIGHTED IN THE TABLE VIEW
         def selectedLights(self, returnExtraInformation = False):
             selectionList = []
-            infinityStatus = False
+            infinityStatus = 0
             tempBounds = [3200, 5600] # the boundaries of color temps this selection can accomplish
 
             if threadAction != "quit":
@@ -1452,8 +1452,8 @@ try: # try to load the GUI
                 if returnExtraInformation == True:
                     # check to see if any lights in the selection are Infinity control lights
                     for a in range(len(selectionList)):
-                        if availableLights[selectionList[a]][8] == True:
-                            infinityStatus = True
+                        if availableLights[selectionList[a]][8] > 0:
+                            infinityStatus = availableLights[selectionList[a]][8]
                             break
                     
                     # get the min and max CCT bounds for the current selection
@@ -1744,15 +1744,15 @@ try: # try to load the GUI
                 self.setInfinityMode(infinityMode)
 
                 if FX < 14:
-                    self.effectChooser.setCurrentIndex(FX - 1)
+                    FX = FX - 1
                 else: # if we're using Infinity presets and we have an FX index over 14, then we need to take special considerations
                     if FX == 14:
                         if "temp" in modeArgs: # INT Loop (CCT)
-                            self.effectChooser.setCurrentIndex(13)
+                            FX = 13
                         else: # INT Loop (HSI)
-                            self.effectChooser.setCurrentIndex(14)
-                    else:
-                        self.effectChooser.setCurrentIndex(FX)
+                            FX = 14
+                            
+                self.effectChooser.setCurrentIndex(FX)
                 
                 if "brightness" in modeArgs:
                     self.brightSlider.setValue(modeArgs["brightness"])
@@ -1938,6 +1938,7 @@ def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
 
             global threadAction
             threadAction = "send|" + "|".join(map(str, changedLights)) # set the thread to write to all of the affected lights
+            print(threadAction)
         else:
             processMultipleSends(loop, "send|" + "|".join(map(str, changedLights)), updateGUI)
 
@@ -2344,7 +2345,7 @@ def translateByteString(customValue = None):
     return translatedByteString
     
 # MAKE CURRENT BYTESTRING INTO A STRING OF HEX CHARACTERS TO SHOW THE CURRENT VALUE BEING GENERATED BY THE PROGRAM
-def updateStatus(splitString = "", infinityMode = False, customValue = None):
+def updateStatus(splitString = "", infinityMode = 0, customValue = None):
     if customValue == None:
         statusInfo = translateByteString(sendValue)
     else:
@@ -2531,23 +2532,23 @@ def getLightSpecs(lightName, returnParam = "all"):
     # listed with their name, the max and min color temps available to use in CCT mode, HSI only (True) or not (False)
     # and Infinity mode command structure needed (most False, use this for the newest series of lights)
     masterNeewerLightList = [
-        ["Apollo", 5600, 5600, True, False], ["GL1", 2900, 7000, True, False], ["NL140", 3200, 5600, True, False],
-        ["SNL1320", 3200, 5600, True, False], ["SNL1920", 3200, 5600, True, False], ["SNL480", 3200, 5600, True, False],
-        ["SNL530", 3200, 5600, True, False], ["SNL660", 3200, 5600, True, False], ["SNL960", 3200, 5600, True, False],
-        ["SRP16", 3200, 5600, True, False], ["SRP18", 3200, 5600, True, False], ["WRP18", 3200, 5600, True, False],
-        ["ZRP16", 3200, 5600, True, False], 
-        ["MS60B", 2700, 6500, True, True],
-        ["BH-30S RGB", 2500, 10000, False, True], ["CB60 RGB", 2500, 6500, False, True], ["CL124", 2500, 10000, False, True],
-        ["RGB C80", 2500, 10000, False, True], ["RGB CB60", 2500, 10000, False, True], ["RGB1000", 2500, 10000, False, True],
-        ["RGB1200", 2500, 10000, False, True], ["RGB140", 2500, 10000, False, True], ["RGB168", 2500, 8500, False, False],
-        ["RGB176 A1", 2500, 10000, False, False], ["RGB512", 2500, 10000, False, True], ["RGB800", 2500, 10000, False, True],
-        ["SL90", 2500, 10000, False, True], ["SL90 Pro", 2500, 10000, False, True], ["RGB1", 3200, 5600, False, True],
-        ["RGB176", 3200, 5600, False, False], ["RGB18", 3200, 5600, False, False], ["RGB190", 3200, 5600, False, False], 
-        ["RGB450", 3200, 5600, False, False], ["RGB480", 3200, 5600, False, False], ["RGB530PRO", 3200, 5600, False, False], 
-        ["RGB530", 3200, 5600, False, False], ["RGB650", 3200, 5600, False, False], ["RGB660PRO", 3200, 5600, False, False], 
-        ["RGB660", 3200, 5600, False, False], ["RGB960", 3200, 5600, False, False], ["RGB-P200", 3200, 5600, False, False], 
-        ["RGB-P280", 3200, 5600, False, False], ["SL70", 3200, 8500, False, False], ["SL80", 3200, 8500, False, False], 
-        ["ZK-RY", 5600, 5600, False, False]
+        ["Apollo", 5600, 5600, True, 0], ["GL1", 2900, 7000, True, 0], ["NL140", 3200, 5600, True, 0],
+        ["SNL1320", 3200, 5600, True, 0], ["SNL1920", 3200, 5600, True, 0], ["SNL480", 3200, 5600, True, 0],
+        ["SNL530", 3200, 5600, True, 0], ["SNL660", 3200, 5600, True, 0], ["SNL960", 3200, 5600, True, 0],
+        ["SRP16", 3200, 5600, True, 0], ["SRP18", 3200, 5600, True, 0], ["WRP18", 3200, 5600, True, 0],
+        ["ZRP16", 3200, 5600, True, 0],
+        ["MS60B", 2700, 6500, True, 1],
+        ["BH-30S RGB", 2500, 10000, False, 1], ["CB60 RGB", 2500, 6500, False, 1], ["CL124", 2500, 10000, False, 2],
+        ["RGB C80", 2500, 10000, False, 1], ["RGB CB60", 2500, 10000, False, 1], ["RGB1000", 2500, 10000, False, 1],
+        ["RGB1200", 2500, 10000, False, 1], ["RGB140", 2500, 10000, False, 1], ["RGB168", 2500, 8500, False, 0],
+        ["RGB176 A1", 2500, 10000, False, 0], ["RGB512", 2500, 10000, False, 1], ["RGB800", 2500, 10000, False, 1],
+        ["SL90", 2500, 10000, False, 1], ["SL90 Pro", 2500, 10000, False, 1], ["RGB1", 3200, 5600, False, 1],
+        ["RGB176", 3200, 5600, False, 0], ["RGB18", 3200, 5600, False, 0], ["RGB190", 3200, 5600, False, 0], 
+        ["RGB450", 3200, 5600, False, 0], ["RGB480", 3200, 5600, False, 0], ["RGB530PRO", 3200, 5600, False, 0], 
+        ["RGB530", 3200, 5600, False, 0], ["RGB650", 3200, 5600, False, 0], ["RGB660PRO", 3200, 5600, False, 0], 
+        ["RGB660", 3200, 5600, False, 0], ["RGB960", 3200, 5600, False, 0], ["RGB-P200", 3200, 5600, False, 0], 
+        ["RGB-P280", 3200, 5600, False, 0], ["SL70", 3200, 8500, False, 0], ["SL80", 3200, 8500, False, 0], 
+        ["ZK-RY", 5600, 5600, False, 0]
     ]
     
     for a in range(len(masterNeewerLightList)): # scan the list of preset specs above to find the current light in them
@@ -2626,7 +2627,7 @@ async def connectToLight(selectedLight, updateGUI=True):
         if isConnected == True:
             printDebugString("Successful link on light [" + lightName + "] " + returnMACname() + " " + lightMAC)
 
-            if availableLights[selectedLight][8] == True: # we're an Infnity light, we need the physical MAC address
+            if availableLights[selectedLight][8] == 1: # we're an Infnity light, we need the physical MAC address
                 printDebugString("Checking for Hardware MAC address on Infinity light [" + lightName + "] " + returnMACname() + " " + lightMAC)
 
                 if platform.system() == "Darwin": # we're on MacOS, so this needs a little finesse...
@@ -2760,7 +2761,7 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
 
 # GET THE RIGHT FX # FOR PRESETS - CONVERT BETWEEN THE OLD FX INDEX AND THE INFINITY INDEX
 def convertFXIndex(infinityMode, effectNum):
-    if infinityMode == True: # we're getting the FX # for an Infinity style Neewer light
+    if infinityMode > 0: # we're getting the FX # for an Infinity style Neewer light
         if effectNum > 20:
             if effectNum == 21:
                 return 10
@@ -2835,7 +2836,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                             availableLights[currentLightIdx][3][0] = 120 # reset the light's value to the normal value
                             currentSendValue = [120, 129, 1, 2] # set the send value to turn the light off downstream
                         else: # we want to turn the light on and run a snapshot preset
-                            if availableLights[currentLightIdx][8] == False: # we're using an old style of light
+                            if availableLights[currentLightIdx][8] == 0: # we're using an old style of light
                                 await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
                             else: # we're using an Infinity light
                                 await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("ON", availableLights[currentLightIdx][0].HWMACaddr))), False)
@@ -2844,7 +2845,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                             await asyncio.sleep(0.05)
                         
                         currentSendValue = availableLights[currentLightIdx][3] # set the send value to set the preset downstream
-                    
+
                     if availableLights[currentLightIdx][1] != "": # if a Bleak connection is there
                         try:
                             if availableLights[currentLightIdx][5] == True: # if we're using the old style of light
@@ -2871,7 +2872,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                     else:
                                         returnValue = True # we successfully wrote to the light (or tried to at least)
                             else: # we're using a "newer" Neewer light
-                                if availableLights[currentLightIdx][8] == True: # we're using the newest kind of light, so we need to tweak the send value
+                                if availableLights[currentLightIdx][8] == 1: # we're using the newest kind of light, so we need to tweak the send value
                                     if currentSendValue[1]  == 135: # we're in CCT mode
                                         infinitySendValue = [120, 144, 11]
                                     elif currentSendValue[1] == 134: # we're in HSI mode
@@ -2881,7 +2882,8 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                     elif currentSendValue[1] == 129: # we need to turn the light on or off
                                         infinitySendValue = [120, 141, 8]
 
-                                    infinitySendValue.extend(splitMACAddress(availableLights[currentLightIdx][0].HWMACaddr, True))
+                                    if availableLights[currentLightIdx][8] == 1:
+                                        infinitySendValue.extend(splitMACAddress(availableLights[currentLightIdx][0].HWMACaddr, True))
 
                                     # THE LAST 2 VALUES FOR CCT MODE ARE:
                                     # G/M COMPENSATION (WIP)
@@ -2915,17 +2917,30 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                         
                                     await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(infinitySendValue)), False)
                                 else:
-                                    if currentSendValue[1] == 135: # if we're in CCT mode (and using a normal light), don't take the GM value
-                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(currentSendValue[0:5])), False)
-                                    if currentSendValue[1] == 136: # if we're in ANM/scene mode, we need to convert the Infinity command back to a normal command
-                                        normalSceneCommand = currentSendValue[0:5]
-                                        
-                                        # SWITCH THE 2 ELEMENTS TO THE CORRECT ORDER FOR OLDER LIGHTS
-                                        currentEffect = normalSceneCommand[3]
-                                        normalSceneCommand[3] = normalSceneCommand[4]
-                                        normalSceneCommand[4] = convertFXIndex(False, currentEffect)
+                                    if currentSendValue[1] == 135: # you're in CCT mode
+                                        if availableLights[currentLightIdx][8] == 0: # you're using an old-style Neewer light
+                                            await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(currentSendValue[0:5])), False)
+                                        elif availableLights[currentLightIdx][8] == 2: # you're using an Infinity-protocol hybrid
+                                            valueToSend = currentSendValue[:]
+                                            valueToSend[2] = 3 # this light requires 3 parameters
 
-                                        await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(normalSceneCommand)), False)
+                                            await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(valueToSend)), False)
+                                    if currentSendValue[1] == 136: # if we're in ANM/scene mode, we need to convert the Infinity command back to a normal command
+                                        if availableLights[currentLightIdx][8] == 0:
+                                            valueToSend = currentSendValue[0:5]
+                                            
+                                            # SWITCH THE 2 ELEMENTS TO THE CORRECT ORDER FOR OLDER LIGHTS
+                                            currentEffect = valueToSend[3]
+                                            valueToSend[3] = valueToSend[4]
+                                            valueToSend[4] = convertFXIndex(False, currentEffect)
+
+                                            await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(valueToSend)), False)
+                                        elif availableLights[currentLightIdx][8] == 2:
+                                            valueToSend = currentSendValue[:]
+                                            valueToSend[1] = 139 # change the mode to Inifnity-style FX mode
+                                            valueToSend[2] = len(valueToSend) - 3 # there are (total - 3) parameters in this command
+
+                                            await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(valueToSend)), False)
                                     else:
                                         await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(currentSendValue)), False)
 
@@ -3567,7 +3582,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-02-07-RC] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-02-14-RC] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3616,7 +3631,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
             self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-02-07-RC]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-02-14-RC]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3751,7 +3766,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. [2024-02-07-RC]")
+    print("             NeewerLite-Python ver. [2024-02-14-RC]")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3804,7 +3819,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python [2024-02-07-RC] by Zach Glenwright")
+            print("NeewerLite-Python [2024-02-14-RC] by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
