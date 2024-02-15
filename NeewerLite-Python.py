@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. [2024-02-14-RC]
+## NeewerLite-Python ver. [2024-02-14-B-RC]
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -1938,7 +1938,6 @@ def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
 
             global threadAction
             threadAction = "send|" + "|".join(map(str, changedLights)) # set the thread to write to all of the affected lights
-            print(threadAction)
         else:
             processMultipleSends(loop, "send|" + "|".join(map(str, changedLights)), updateGUI)
 
@@ -2829,14 +2828,14 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
 
                 for a in range(len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
                     currentLightIdx = int(selectedLights[a])
-
+                    
                     # THIS SECTION IS FOR LOADING SNAPSHOT PRESET POWER STATES
                     if useGlobalValue == False: # if we're forcing the lights to use their stored parameters, then load that in here
                         if availableLights[currentLightIdx][3][0] == 0: # we want to turn the light off
                             availableLights[currentLightIdx][3][0] = 120 # reset the light's value to the normal value
                             currentSendValue = [120, 129, 1, 2] # set the send value to turn the light off downstream
                         else: # we want to turn the light on and run a snapshot preset
-                            if availableLights[currentLightIdx][8] == 0: # we're using an old style of light
+                            if availableLights[currentLightIdx][8] != 1: # we're not using an Infinity light
                                 await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
                             else: # we're using an Infinity light
                                 await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("ON", availableLights[currentLightIdx][0].HWMACaddr))), False)
@@ -2909,9 +2908,9 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
 
                                         # CYCLE POWER TO INFINITY LIGHT BEFORE SENDING THE ANIMATION PARAMETERS
                                         await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("OFF", availableLights[currentLightIdx][0].HWMACaddr))), False)
-                                        asyncio.sleep(0.05)
+                                        await asyncio.sleep(0.05)
                                         await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("ON", availableLights[currentLightIdx][0].HWMACaddr))), False)
-                                        asyncio.sleep(0.05)
+                                        await asyncio.sleep(0.05)
                                     elif currentSendValue[1] == 129: # we need to turn the light on or off
                                         infinitySendValue.extend([129, currentSendValue[3]])
                                         
@@ -2925,7 +2924,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                             valueToSend[2] = 3 # this light requires 3 parameters
 
                                             await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(valueToSend)), False)
-                                    if currentSendValue[1] == 136: # if we're in ANM/scene mode, we need to convert the Infinity command back to a normal command
+                                    elif currentSendValue[1] == 136: # if we're in ANM/scene mode, we need to convert the Infinity command back to a normal command
                                         if availableLights[currentLightIdx][8] == 0:
                                             valueToSend = currentSendValue[0:5]
                                             
@@ -3582,7 +3581,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-02-14-RC] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-02-14-B-RC] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3631,7 +3630,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
             self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-02-14-RC]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-02-14-B-RC]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3766,7 +3765,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. [2024-02-14-RC]")
+    print("             NeewerLite-Python ver. [2024-02-14-B-RC]")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3819,7 +3818,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python [2024-02-14-RC] by Zach Glenwright")
+            print("NeewerLite-Python [2024-02-14-B-RC] by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
