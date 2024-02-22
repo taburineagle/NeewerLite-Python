@@ -106,22 +106,19 @@ availableLights = [] # the list of Neewer lights currently available to control
 # [6] - [HSI mode] - 300° hue / 100% saturation / 20% intensity (PURPLE)
 # [7] - [HSI mode] - 160° hue / 100% saturation / 20% intensity (CYAN)
 
-customLightPresets = [] # the list of custom light presets
 # The list of **default** light presets for restoring and checking against
 defaultLightPresets = [
     [[-1, [120, 135, 2, 20, 56, 50]]],
     [[-1, [120, 135, 2, 20, 32, 50]]],
     [[-1, [120, 135, 2, 0, 56, 50]]],
-    [[-1, [120, 134, 4, 0, 0, 120, 20]]],
+    [[-1, [120, 134, 4, 120, 0, 100, 20]]],
     [[-1, [120, 134, 4, 240, 0, 100, 20]]],
     [[-1, [120, 134, 4, 120, 0, 100, 20]]],
     [[-1, [120, 134, 4, 44, 1, 100, 20]]],
     [[-1, [120, 134, 4, 160, 0, 100, 20]]]
     ]
 
-# Initially fill the custom presets with the default preset parameters - custom file will overwrite these, if it exists
-for a in range(len(defaultLightPresets)):
-    customLightPresets.append(defaultLightPresets[a])
+customLightPresets = defaultLightPresets[:] # copy the default presets to the list for the current session's presets
 
 threadAction = "" # the current action to take from the thread
 asyncioEventLoop = None # the current asyncio loop
@@ -914,10 +911,10 @@ try: # try to load the GUI
                     prefsFileToWrite.write(("\n").join(finalPrefs)) # then write them to the prefs file
 
                 # PRINT THIS INFORMATION WHETHER DEBUG OUTPUT IS TURNED ON OR NOT
-                print("New global preferences saved in " + globalPrefsFile + " - here is the list:")
+                print(f"New global preferences saved in {globalPrefsFile} - here is the list:")
 
                 for a in range(len(finalPrefs)):
-                    print(" > " + finalPrefs[a]) # iterate through the list of preferences and show the new value(s) you set
+                    print(f" > {finalPrefs[a]}")  # iterate through the list of preferences and show the new value(s) you set
             else: # there are no preferences to save, so clean up the file (if it exists)
                 print("There are no preferences to save (all preferences are currently set to their default values).")
                 
@@ -1900,33 +1897,26 @@ def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
 
     for a in range(len(customLightPresets[numOfPreset])): # check all the entries stored in this preset
         if customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset, so set the light(s) up accordingly
-            
+
             if updateGUI == True: # if we are in the GUI
-                if mainWindow.selectedLights() == []: # and no lights are selected in the light selector
+                if mainWindow.selectedLights() == []: # if we have no lights selected
                     mainWindow.lightTable.selectAll() # select all of the lights available
                     time.sleep(0.2)
 
-            sendValue = translateByteString(customLightPresets[numOfPreset][0][1])
-            
-            if updateGUI == True:
-                mainWindow.setUpGUI(**sendValue)
+                changedLights = mainWindow.selectedLights() # get the lights that are currently selected
             else:
-                computedValue = calculateByteString(True, **sendValue)
-            
-            if updateGUI == False:
-                for b in range(len(availableLights)):
-                    changedLights.append(b) # add each light to changedLights
-                    availableLights[b][3] = computedValue # set each light's "last" parameter to the computed value above
+                changedLights = [] # fill changedLights with all of the lights available
 
+                for b in range(len(availableLights) - 1):
+                    changedLights.append(b)
+
+            for b in range(len(changedLights)):
+                availableLights[changedLights[b]][3] = customLightPresets[numOfPreset][0][1][:]
         else: # we're looking at a snapshot preset, so see if any of those lights are available to change
             currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
 
             if currentLight != []: # if we have a match
-                # the original snapshot presets had options turning the lights off by having a mode ID# 3 higher than the
-                # normal mode number - take this into consideration - maybe a 2nd array element? [numOfPreset][a][2] ?
-                # or store the "120" as "121" ?
-
-                availableLights[currentLight[0]][3] = customLightPresets[numOfPreset][a][1]
+                availableLights[currentLight[0]][3] = customLightPresets[numOfPreset][a][1][:]
                 changedLights.append(currentLight[0])
 
     if changedLights != []:
@@ -1992,8 +1982,36 @@ def loadCustomPresets():
             if currentParams[0] == "-1":
                 currentParams[0] = -1 # convert to an integer to denote GLOBAL presets
 
-            # add all of the current light's parameters to the parameters list
-            paramsList.append([currentParams[0], currentParams[1:]])
+            if currentParams[1] == 120: # we have a new-style list of parameters, so copy them as-is
+                paramsList.append([currentParams[0], currentParams[1:]])
+            else: # we have an old-style list of parameters, so we need to convert them to the new style
+                if currentParams[1] == 8 or currentParams == 7 or currentParams == 9:
+                    convertedParams = [120, 129, 1, 2]
+                    # convertedParams = [currentParams[1]] # we want to turn the lights off
+                else:
+                    convertedParams = [120]
+                
+                    if currentParams[1] == 5: # CCT mode
+                        convertedParams.extend([135, 2])
+                        convertedParams.append(currentParams[2]) # brightness
+                        convertedParams.append(currentParams[3]) # color temperature
+                        convertedParams.append(50) # GM (value not used, but this plays nicer with Infinity lights)
+                    elif currentParams[1] == 4: # HSI mode
+                        convertedParams.extend([134, 4])
+                        
+                        # convert the HUE stored in an old preset to a bytestring for a new preset
+                        hue = currentParams[3]
+                        convertedParams.append(int(hue) & 255)
+                        convertedParams.append((int(hue) & 65280) >> 8)
+
+                        convertedParams.append(currentParams[4]) # saturation
+                        convertedParams.append(currentParams[2]) # brightness
+                    elif currentParams[1] == 6: # ANM/SCENE mode
+                        convertedParams.extend([136, 2])
+                        convertedParams.append(int(currentParams[3]) + 20) # effect
+                        convertedParams.append(currentParams[2]) # brightness
+
+                paramsList.append([currentParams[0], convertedParams])
 
         # add the params list to the appropriate button
         if "customPreset0=" in customPresets[a]:
@@ -2055,7 +2073,7 @@ def printDebugString(theString):
         now = datetime.now()
         currentTime = now.strftime("%H:%M:%S")
 
-        print("[" + currentTime + "] - " + theString)
+        print(f"[{currentTime}] {theString}")
 
 def splitMACAddress(MACAddress, returnInt = False):
     MACAddress = MACAddress.split(":")
@@ -2354,7 +2372,7 @@ def updateStatus(splitString = "", infinityMode = 0, customValue = None):
         statusInfo["effect"] = convertFXIndex(infinityMode, statusInfo["effect"])
 
     if statusInfo["colorMode"] == "OFF" or statusInfo["colorMode"] == "ON":
-        returnStatus = "(" + statusInfo["colorMode"] + ")"
+        returnStatus = "(Turn light " + statusInfo["colorMode"].lower() + ")"
     else:
         returnStatus = "(" + statusInfo["colorMode"] + " Mode):" + splitString
 
@@ -2824,14 +2842,14 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
         # if there are lights selected (otherwise just dump out), and the delay timer is less than it's maximum, then try to send to the lights selected
         while (len(selectedLights) > 0 and time.time() - startTimer < 0.4) :
             if currentSendValue != sendValue: # if the current value is different than what was last sent to the light, then send a new one
-                currentSendValue = sendValue # get this value before sending to multiple lights, to ensure the same value is sent to each one
+                currentSendValue = sendValue[:] # get this value before sending to multiple lights, to ensure the same value is sent to each one
 
                 for a in range(len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
                     currentLightIdx = int(selectedLights[a])
                     
                     # THIS SECTION IS FOR LOADING SNAPSHOT PRESET POWER STATES
                     if useGlobalValue == False: # if we're forcing the lights to use their stored parameters, then load that in here
-                        if availableLights[currentLightIdx][3][0] == 0: # we want to turn the light off
+                        if availableLights[currentLightIdx][3][0] != 120: # we want to turn the light off
                             availableLights[currentLightIdx][3][0] = 120 # reset the light's value to the normal value
                             currentSendValue = [120, 129, 1, 2] # set the send value to turn the light off downstream
                         else: # we want to turn the light on and run a snapshot preset
@@ -2843,7 +2861,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                             availableLights[currentLightIdx][6] = True # set the ON flag of this light to True
                             await asyncio.sleep(0.05)
                         
-                        currentSendValue = availableLights[currentLightIdx][3] # set the send value to set the preset downstream
+                            currentSendValue = availableLights[currentLightIdx][3] # set the send value to set the preset downstream
 
                     if availableLights[currentLightIdx][1] != "": # if a Bleak connection is there
                         try:
@@ -2963,8 +2981,8 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                             else:
                                 returnValue = True # we successfully wrote to the light
 
-                            if currentSendValue[1] != 129: # if we didn't just send a command to turn the light on/off
-                                availableLights[currentLightIdx][3] = currentSendValue # store the currenly sent value to recall later
+                            #if currentSendValue[1] != 129: # if we didn't just send a command to turn the light on/off
+                            availableLights[currentLightIdx][3] = currentSendValue # store the currenly sent value to recall later
                         except Exception as e:
                             if updateGUI == True:
                                 mainWindow.setTheTable(["", "", "", "Error Sending to light!"], currentLightIdx)
@@ -3828,7 +3846,7 @@ if __name__ == '__main__':
                 if len(availableLights) == 1: # we only found one
                     print("We found 1 Neewer light on the last search.")
                 else: # we found more than one
-                    print("We found " + str(len(availableLights)) + " Neewer lights on the last search.")
+                    print(f"We found {str(len(availableLights))} Neewer lights on the last search.")
 
                 print()
 
