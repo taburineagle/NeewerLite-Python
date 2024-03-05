@@ -1902,7 +1902,7 @@ def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
             else:
                 changedLights = [] # fill changedLights with all of the lights available
 
-                for b in range(len(availableLights) - 1):
+                for b in range(len(availableLights)):
                     changedLights.append(b)
 
             for b in range(len(changedLights)):
