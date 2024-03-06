@@ -3302,7 +3302,7 @@ def processHTMLCommands(paramsList, loop):
 
             else: # we want to write a value to a specific light
                 if paramsList[3] == "CCT": # calculate CCT bytestring
-                    calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5], GM=cmdReturn[6])
+                    calculateByteString(colorMode=paramsList[3], temp=paramsList[4], brightness=paramsList[5], GM=paramsList[6])
                 elif paramsList[3] == "HSI": # calculate HSI bytestring
                     calculateByteString(colorMode=paramsList[3], hue=paramsList[4], saturation=paramsList[5], brightness=paramsList[6])
                 elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
