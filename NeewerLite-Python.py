@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. [2024-02-15-RC]
+## NeewerLite-Python ver. [2024-03-02-RC]
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -106,22 +106,19 @@ availableLights = [] # the list of Neewer lights currently available to control
 # [6] - [HSI mode] - 300° hue / 100% saturation / 20% intensity (PURPLE)
 # [7] - [HSI mode] - 160° hue / 100% saturation / 20% intensity (CYAN)
 
-customLightPresets = [] # the list of custom light presets
 # The list of **default** light presets for restoring and checking against
 defaultLightPresets = [
     [[-1, [120, 135, 2, 20, 56, 50]]],
     [[-1, [120, 135, 2, 20, 32, 50]]],
     [[-1, [120, 135, 2, 0, 56, 50]]],
-    [[-1, [120, 134, 4, 0, 0, 120, 20]]],
+    [[-1, [120, 134, 4, 120, 0, 100, 20]]],
     [[-1, [120, 134, 4, 240, 0, 100, 20]]],
     [[-1, [120, 134, 4, 120, 0, 100, 20]]],
     [[-1, [120, 134, 4, 44, 1, 100, 20]]],
     [[-1, [120, 134, 4, 160, 0, 100, 20]]]
     ]
 
-# Initially fill the custom presets with the default preset parameters - custom file will overwrite these, if it exists
-for a in range(len(defaultLightPresets)):
-    customLightPresets.append(defaultLightPresets[a])
+customLightPresets = defaultLightPresets[:] # copy the default presets to the list for the current session's presets
 
 threadAction = "" # the current action to take from the thread
 asyncioEventLoop = None # the current asyncio loop
@@ -240,7 +237,7 @@ try: # try to load the GUI
                 else:
                     self.customPreset_7_Button.markCustom(7, 1)
                 
-            self.show
+            self.show()
 
         def connectMe(self):
             self.turnOffButton.clicked.connect(self.turnLightOff)
@@ -522,14 +519,14 @@ try: # try to load the GUI
                         self.changeSliderValue(1, 1) # increment slider 1
 
         def changeSliderValue(self, sliderToChange, changeAmt):
-            if self.ColorModeTabWidget.currentIndex() == 0: # we have 2 sliders in CCT mode
+            if self.ColorModeTabWidget.currentIndex() == 0:
                 if sliderToChange == 1:
                     self.colorTempSlider.setValue(self.colorTempSlider.value() + changeAmt)
                 elif sliderToChange == 2 or sliderToChange == 0:
                     self.brightSlider.setValue(self.brightSlider.value() + changeAmt)
                 elif sliderToChange == 3:
                     self.GMSlider.setValue(self.GMSlider.value() + changeAmt)
-            elif self.ColorModeTabWidget.currentIndex() == 1: # we have 3 sliders in HSI mode
+            elif self.ColorModeTabWidget.currentIndex() == 1:
                 if sliderToChange == 1:
                     self.RGBSlider.setValue(self.RGBSlider.value() + changeAmt)
                 elif sliderToChange == 2:
@@ -537,13 +534,13 @@ try: # try to load the GUI
                 elif sliderToChange == 3 or sliderToChange == 0:
                     self.brightSlider.setValue(self.brightSlider.value() + changeAmt)
             elif self.ColorModeTabWidget.currentIndex() == 2:
-                if sliderToChange == 0: # the only "slider" in SCENE mode is the brightness
+                if sliderToChange == 0:
                     self.Slider_ANM_Brightness.setValue(self.Slider_ANM_Brightness.value() + changeAmt)
 
         def checkLightTab(self, selectedLight = -1):
             currentIdx = self.ColorModeTabWidget.currentIndex()
 
-            if currentIdx == 0 or currentIdx == 2: # if we're on the CCT or ANM tabs, do the check
+            if currentIdx == 0: # if we're on the CCT tab, do the check
                 if selectedLight == -1: # if we don't have a light selected
                     self.setupCCTBounds(3200, 5600) # restore the bounds to their default of 56(00)K
                 else: # set up the gradient to show the range of color temperatures available to the currently selected light
@@ -914,10 +911,10 @@ try: # try to load the GUI
                     prefsFileToWrite.write(("\n").join(finalPrefs)) # then write them to the prefs file
 
                 # PRINT THIS INFORMATION WHETHER DEBUG OUTPUT IS TURNED ON OR NOT
-                print("New global preferences saved in " + globalPrefsFile + " - here is the list:")
+                print(f"New global preferences saved in {globalPrefsFile} - here is the list:")
 
                 for a in range(len(finalPrefs)):
-                    print(" > " + finalPrefs[a]) # iterate through the list of preferences and show the new value(s) you set
+                    print(f" > {finalPrefs[a]}")  # iterate through the list of preferences and show the new value(s) you set
             else: # there are no preferences to save, so clean up the file (if it exists)
                 print("There are no preferences to save (all preferences are currently set to their default values).")
                 
@@ -1002,7 +999,7 @@ try: # try to load the GUI
                         self.ColorModeTabWidget.setTabEnabled(1, True) # enable the HSI mode tab
                         self.ColorModeTabWidget.setTabEnabled(2, True) # enable the ANM/SCENE tab
 
-                    if selectedRows[1] > 0:
+                    if selectedRows[1] > 0: # if we have an Infinity or Infinity-style light
                         self.GMSlider.setVisible(True)
                     else:
                         self.GMSlider.setVisible(False)
@@ -1486,7 +1483,7 @@ try: # try to load the GUI
                     if len(availableLights) == 1: # we found 1 light
                         self.statusBar.showMessage("We located 1 Neewer light on the last search")
                     elif len(availableLights) > 1: # we found more than 1 light
-                        self.statusBar.showMessage("We located " + str(len(availableLights)) + " Neewer lights on the last search")
+                        self.statusBar.showMessage(f"We located {len(availableLights)} Neewer lights on the last search")
                 else: # if we didn't find any (additional) lights on the last scan
                     self.statusBar.showMessage("We didn't locate any Neewer lights on the last search")
 
@@ -1547,7 +1544,7 @@ try: # try to load the GUI
                     with open(customLightPresetsFile, mode="w", encoding="utf-8") as prefsFileToWrite:
                         prefsFileToWrite.write("\n".join(customPresetsToWrite))
 
-                    printDebugString("Exported custom presets to " + customLightPresetsFile)
+                    printDebugString(f"Exported custom presets to {customLightPresetsFile}")
                 else:
                     if os.path.exists(customLightPresetsFile):
                         printDebugString("There were no changed custom presets, so we're deleting the custom presets file!")
@@ -1558,7 +1555,7 @@ try: # try to load the GUI
                 printDebugString("You asked NeewerLite-Python to save the last used light parameters on exit, so we will do that now...")
 
                 for a in range(len(availableLights)):
-                    printDebugString("Saving last used parameters for light #" + str(a + 1) + " (" + str(a + 1) + " of " + str(len(availableLights)) + ")")
+                    printDebugString(f"Saving last used parameters for light {a + 1} of {len(availableLights)}")
                     saveLightPrefs(a)
 
             # THE THREAD HAS TERMINATED, NOW CONTINUE...
@@ -1572,7 +1569,7 @@ try: # try to load the GUI
 
         def saveCustomPresetDialog(self, numOfPreset):
             if (QApplication.keyboardModifiers() & Qt.AltModifier) == Qt.AltModifier: # if you have the ALT key held down
-                customLightPresets[numOfPreset] = defaultLightPresets[numOfPreset] # then restore the default for this preset
+                customLightPresets[numOfPreset] = defaultLightPresets[numOfPreset][:] # then restore the default for this preset
 
                 # And change the button display back to "PRESET GLOBAL"
                 if numOfPreset == 0:
@@ -1674,9 +1671,6 @@ try: # try to load the GUI
                 lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
                 
                 if lightsToHighlight != []:
-                    # lastSelection = self.selectedLights() # store the current selection to restore it when leaving the control
-                    # self.lightTable.clearSelection() # clear the current selection to allow the preset to shine
-
                     for a in range(len(lightsToHighlight)):
                         for b in range(4):
                             self.lightTable.item(lightsToHighlight[a], b).setBackground(QColor(113, 233, 147)) # set the affected rows the same color as the snapshot button
@@ -1684,8 +1678,6 @@ try: # try to load the GUI
                 lightsToHighlight = self.checkForSnapshotPreset(numOfPreset)
                 
                 if lightsToHighlight != []:
-                    # self.selectRows(lastSelection) # re-highlight the last selected lights on exit
-
                     for a in range(len(lightsToHighlight)):
                         for b in range(4):
                             self.lightTable.item(lightsToHighlight[a], b).setBackground(Qt.white) # clear formatting on the previously selected rows
@@ -1815,7 +1807,7 @@ def saveLightPrefs(lightID, deleteFile = False): # save a sidecar file with the 
         defaultSettings = getLightSpecs(availableLights[lightID][0].name)
 
         if defaultSettings[1] != availableLights[lightID][4]:
-            customTempRange = str(availableLights[lightID][4][0]) + "," + str(availableLights[lightID][4][1]) # the color temperature range available
+            customTempRange = f"{availableLights[lightID][4][0]},{availableLights[lightID][4][1]}" # the color temperature range available
         else:
             customTempRange = "" # if the range is the same as the default range, then just leave this entry blank
 
@@ -1831,16 +1823,16 @@ def saveLightPrefs(lightID, deleteFile = False): # save a sidecar file with the 
                 lastSettingsString = ",".join(map(str, availableLights[lightID][3])) # combine all the elements of the last set params
                 exportString += "|" + lastSettingsString # add it to the exported string
             else: # if we don't have a value stored for this light (nothing has changed yet)
-                exportString += "|" + "120,135,2,100,56,157" # then just give the default (CCT, 5600K, 100%) params
+                exportString += "|" + "120,135,2,50,56,50" # then just give the default (CCT, 5600K, 100%) params
 
         # WRITE THE PREFERENCES FILE
         with open(exportFileName, mode="w", encoding="utf-8") as prefsFileToWrite:
             prefsFileToWrite.write(exportString)
 
         if customName != "":
-            printDebugString("Exported preferences for " + customName + " [" + availableLights[lightID][0].name + "] to " + exportFileName)
+            printDebugString(f"Exported preferences for {customName} [{availableLights[lightID][0].name}] to {exportFileName}")
         else:
-            printDebugString("Exported preferences for [" + availableLights[lightID][0].name + "] to " + exportFileName)
+            printDebugString(f"Exported preferences for [{availableLights[lightID][0].name}] to {exportFileName}")
 
 # WORKING WITH CUSTOM PRESETS
 def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):
@@ -1871,13 +1863,13 @@ def customPresetInfoBuilder(numOfPreset, formatForHTTP = False):
 
             if currentLight != []: # if we have a match, add it to the list of lights to highlight
                 if availableLights[currentLight[0]][2] != "": # if the custom name is filled in
-                    toolTipBuilder.append(" FOR: " + availableLights[currentLight[0]][2] + " [" + availableLights[currentLight[0]][0].name + "]")
+                    toolTipBuilder.append(f" FOR: {availableLights[currentLight[0]][2]} [{availableLights[currentLight[0]][0].name}]")
                 else:
-                    toolTipBuilder.append(" FOR: " + availableLights[currentLight[0]][0].name)
+                    toolTipBuilder.append(f" FOR: {availableLights[currentLight[0]][0].name}")
             else:
                 toolTipBuilder.append("FOR: ---LIGHT NOT AVAILABLE AT THE MOMENT---") # if the light is not found (yet), display that
 
-            toolTipBuilder.append(" " + customLightPresets[numOfPreset][a][0] + "") # this is a snapshot preset, and this specific preset controls this light
+            toolTipBuilder.append(f" {customLightPresets[numOfPreset][a][0]}") # this is a snapshot preset, and this specific preset controls this light
                     
         toolTipBuilder.append(updateStatus(customValue=customLightPresets[numOfPreset][a][1]))
 
@@ -1900,33 +1892,26 @@ def recallCustomPreset(numOfPreset, updateGUI=True, loop=None):
 
     for a in range(len(customLightPresets[numOfPreset])): # check all the entries stored in this preset
         if customLightPresets[numOfPreset][0][0] == -1: # we're looking at a global preset, so set the light(s) up accordingly
-            
+
             if updateGUI == True: # if we are in the GUI
-                if mainWindow.selectedLights() == []: # and no lights are selected in the light selector
+                if mainWindow.selectedLights() == []: # if we have no lights selected
                     mainWindow.lightTable.selectAll() # select all of the lights available
                     time.sleep(0.2)
 
-            sendValue = translateByteString(customLightPresets[numOfPreset][0][1])
-            
-            if updateGUI == True:
-                mainWindow.setUpGUI(**sendValue)
+                changedLights = mainWindow.selectedLights() # get the lights that are currently selected
             else:
-                computedValue = calculateByteString(True, **sendValue)
-            
-            if updateGUI == False:
-                for b in range(len(availableLights)):
-                    changedLights.append(b) # add each light to changedLights
-                    availableLights[b][3] = computedValue # set each light's "last" parameter to the computed value above
+                changedLights = [] # fill changedLights with all of the lights available
 
+                for b in range(len(availableLights)):
+                    changedLights.append(b)
+
+            for b in range(len(changedLights)):
+                availableLights[changedLights[b]][3] = customLightPresets[numOfPreset][0][1][:]
         else: # we're looking at a snapshot preset, so see if any of those lights are available to change
             currentLight = returnLightIndexesFromMacAddress(customLightPresets[numOfPreset][a][0])
 
             if currentLight != []: # if we have a match
-                # the original snapshot presets had options turning the lights off by having a mode ID# 3 higher than the
-                # normal mode number - take this into consideration - maybe a 2nd array element? [numOfPreset][a][2] ?
-                # or store the "120" as "121" ?
-
-                availableLights[currentLight[0]][3] = customLightPresets[numOfPreset][a][1]
+                availableLights[currentLight[0]][3] = customLightPresets[numOfPreset][a][1][:]
                 changedLights.append(currentLight[0])
 
     if changedLights != []:
@@ -1992,8 +1977,36 @@ def loadCustomPresets():
             if currentParams[0] == "-1":
                 currentParams[0] = -1 # convert to an integer to denote GLOBAL presets
 
-            # add all of the current light's parameters to the parameters list
-            paramsList.append([currentParams[0], currentParams[1:]])
+            if currentParams[1] == 120: # we have a new-style list of parameters, so copy them as-is
+                paramsList.append([currentParams[0], currentParams[1:]])
+            else: # we have an old-style list of parameters, so we need to convert them to the new style
+                if currentParams[1] == 8 or currentParams == 7 or currentParams == 9:
+                    convertedParams = [120, 129, 1, 2]
+                    # convertedParams = [currentParams[1]] # we want to turn the lights off
+                else:
+                    convertedParams = [120]
+                
+                    if currentParams[1] == 5: # CCT mode
+                        convertedParams.extend([135, 2])
+                        convertedParams.append(currentParams[2]) # brightness
+                        convertedParams.append(currentParams[3]) # color temperature
+                        convertedParams.append(50) # GM (value not used, but this plays nicer with Infinity lights)
+                    elif currentParams[1] == 4: # HSI mode
+                        convertedParams.extend([134, 4])
+                        
+                        # convert the HUE stored in an old preset to a bytestring for a new preset
+                        hue = currentParams[3]
+                        convertedParams.append(int(hue) & 255)
+                        convertedParams.append((int(hue) & 65280) >> 8)
+
+                        convertedParams.append(currentParams[4]) # saturation
+                        convertedParams.append(currentParams[2]) # brightness
+                    elif currentParams[1] == 6: # ANM/SCENE mode
+                        convertedParams.extend([136, 2])
+                        convertedParams.append(int(currentParams[3]) + 20) # effect
+                        convertedParams.append(currentParams[2]) # brightness
+
+                paramsList.append([currentParams[0], convertedParams])
 
         # add the params list to the appropriate button
         if "customPreset0=" in customPresets[a]:
@@ -2026,7 +2039,7 @@ def testValid(theParam, theValue, defaultValue, startBounds, endBounds, returnDe
         if len(theValue) > 1: # if the temp has at least 2 characters in it
             theValue = theValue[:2] # take the first 2 characters of the string to convert into int
         else: # it either doesn't have enough characters, or isn't a number
-            printDebugString(" >> error with --temp specified (not enough digits or not a number), so falling back to default value of " + str(defaultValue))
+            printDebugString(f" >> Error with --temp specified (not enough digits or not a number), so falling back to default value of {defaultValue}")
             theValue = defaultValue # default to 56(00)K for color temperature
 
     try: # try converting the string into an integer and processing the bounds
@@ -2035,18 +2048,18 @@ def testValid(theParam, theValue, defaultValue, startBounds, endBounds, returnDe
         if theValue < startBounds or theValue > endBounds: # the value is not within bounds, so there's an error
             if returnDefault == False: # if the value is too high or low, but we aren't set to return the defaults, make it the lowest/highest boundary
                 if theValue < startBounds: # if the value specified is below the starting boundary, make it the starting boundary
-                    printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to closest boundary of " + str(startBounds))
+                    printDebugString(f" >> --{theParam} ({theValue}) isn't between the bounds of {startBounds} and {endBounds}, so falling back to closest start boundary of {startBounds}")
                     theValue = startBounds
                 elif theValue > endBounds: # if the value specified is above the ending boundary, make it the ending boundary
-                    printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to closest boundary of " + str(endBounds))
+                    printDebugString(f" >> --{theParam} ({theValue}) isn't between the bounds of {startBounds} and {endBounds}, so falling back to closest ending boundary of {endBounds}")
                     theValue = endBounds
             else: # if the value is too high or low, but we're set to return the default, do that here
-                printDebugString(" >> --" + theParam + " (" + str(theValue) + ") isn't between the bounds of " + str(startBounds) + " and " + str(endBounds) + ", so falling back to the default value of " + str(defaultValue))
+                printDebugString(f" >> --{theParam} ({theValue}) isn't between the bounds of {startBounds} and {endBounds}, so falling back to the default value of {defaultValue}")
                 theValue = defaultValue
 
         return theValue # return the within-bounds value
     except ValueError: # if the string can not be converted, then return the defaultValue
-        printDebugString(" >> --" + theParam + " specified is not a number - falling back to default value of " + str(defaultValue))
+        printDebugString(f" >> --{theParam} specified is not a number - falling back to default value of {defaultValue}")
         return defaultValue # return the default value
 
 # PRINT A DEBUG STRING TO THE CONSOLE, ALONG WITH THE CURRENT TIME
@@ -2055,7 +2068,7 @@ def printDebugString(theString):
         now = datetime.now()
         currentTime = now.strftime("%H:%M:%S")
 
-        print("[" + currentTime + "] - " + theString)
+        print(f"[{currentTime}] {theString}")
 
 def splitMACAddress(MACAddress, returnInt = False):
     MACAddress = MACAddress.split(":")
@@ -2354,7 +2367,7 @@ def updateStatus(splitString = "", infinityMode = 0, customValue = None):
         statusInfo["effect"] = convertFXIndex(infinityMode, statusInfo["effect"])
 
     if statusInfo["colorMode"] == "OFF" or statusInfo["colorMode"] == "ON":
-        returnStatus = "(" + statusInfo["colorMode"] + ")"
+        returnStatus = "(Turn light " + statusInfo["colorMode"].lower() + ")"
     else:
         returnStatus = "(" + statusInfo["colorMode"] + " Mode):" + splitString
 
@@ -2414,7 +2427,7 @@ async def findDevices(limitToDevices = None):
                 currentScan.append(d)
         else: # we're doing a normal device discovery/re-discovery scan
             if d.address in whiteListedMACs: # if the MAC address is in the list of whitelisted addresses, add this device
-                printDebugString("Matching whitelisted address found - " + returnMACname() + " " + d.address + ", adding to the list")
+                printDebugString(f"Matching whitelisted address found - {returnMACname()} {d.address}, adding to the list")
                 d.name = getCorrectedName(d.name)
                 currentScan.append(d)
             else: # if this device is not whitelisted, check to see if it's valid (contains "NEEWER" in the name)
@@ -2433,7 +2446,7 @@ async def findDevices(limitToDevices = None):
         # check the "new light" against the global list
         for b in range(len(availableLights)):
             if currentScan[a].address == availableLights[b][0].address: # if the new light's MAC address matches one already in the global list
-                printDebugString("Light found! [" + currentScan[a].name + "] " + returnMACname() + " " + currentScan[a].address + " but it's already in the list.  It may have disconnected, so relinking might be necessary.")
+                printDebugString(f"Light found! [{currentScan[a].name}] {returnMACname()} {currentScan[a].address} but it's already in the list.  It may have disconnected, so relinking might be necessary.")
                 newLight = False # then don't add another instance of it
 
                 # if we found the light *again*, it's most likely the light disconnected, so we need to link it again
@@ -2443,7 +2456,7 @@ async def findDevices(limitToDevices = None):
                 break # stop checking if we've found a negative result
 
         if newLight == True: # if this light was not found in the global list, then we need to add it
-            printDebugString("Found new light! [" + currentScan[a].name + "] " + returnMACname() + " " + currentScan[a].address + " RSSI: " + str(currentScan[a].rssi) + " dBm")
+            printDebugString(f"Found new light! [{currentScan[a].name}] {returnMACname()} {currentScan[a].address} RSSI: {currentScan[a].rssi} dBm")
             customPrefs = getCustomLightPrefs(currentScan[a].address, currentScan[a].name)
 
             if len(customPrefs) == 4: # we need to rename the light and set up CCT and color temp range
@@ -2463,7 +2476,7 @@ def getCustomLightPrefs(MACAddress, lightName = ""):
     defaultPrefs = getLightSpecs(lightName)
 
     if os.path.exists(customPrefsPath):
-        printDebugString("A custom preferences file was found for " + MACAddress + "!")
+        printDebugString(f"A custom preferences file was found for {MACAddress}!")
 
         # READ THE PREFERENCES FILE INTO A LIST
         with open(customPrefsPath, mode="r", encoding="utf-8") as fileToOpen:
@@ -2602,16 +2615,16 @@ async def connectToLight(selectedLight, updateGUI=True):
         if threadAction != "quit":
             try:
                 if not availableLights[lightIdx][1].is_connected: # if the current device isn't linked to Bluetooth
-                    printDebugString("Attempting to link to light [" + lightName + "] " + returnMACname() + " " + lightMAC + " (Attempt " + str(currentAttempt) + " of " + str(maxNumOfAttempts) + ")")
+                    printDebugString(f"Attempting to link to light [{lightName}] {returnMACname()} {lightMAC} (Attempt {currentAttempt} of {maxNumOfAttempts})")
                     isConnected = await availableLights[lightIdx][1].connect() # try connecting it (and return the connection status)
                 else:
                     isConnected = True # the light is already connected, so mark it as being connected
             except Exception as e:
-                printDebugString("Error linking to light [" + lightName + "] " + returnMACname() + " " + lightMAC)
+                printDebugString(f"Error linking to light [{lightName}] {returnMACname()} {lightMAC}")
               
                 if updateGUI == True:
                     if currentAttempt < maxNumOfAttempts:
-                        mainWindow.setTheTable(["", "", "NOT\nLINKED", "There was an error connecting to the light, trying again (Attempt " + str(currentAttempt + 1) + " of " + str(maxNumOfAttempts) + ")..."], lightIdx) # there was an issue connecting this specific light to Bluetooth, so show that
+                        mainWindow.setTheTable(["", "", "NOT\nLINKED", f"There was an error connecting to the light, trying again (Attempt {currentAttempt + 1} of {maxNumOfAttempts}...)"], lightIdx) # there was an issue connecting this specific light to Bluetooth, so show that
                 else:
                     returnValue = False # if we're in CLI mode, and there is an error connecting to the light, return False
 
@@ -2624,10 +2637,10 @@ async def connectToLight(selectedLight, updateGUI=True):
         return "quit"
     else:
         if isConnected == True:
-            printDebugString("Successful link on light [" + lightName + "] " + returnMACname() + " " + lightMAC)
+            printDebugString(f"Successful link on light [{lightName}] {returnMACname()} {lightMAC}")
 
             if availableLights[selectedLight][8] == 1: # we're an Infnity light, we need the physical MAC address
-                printDebugString("Checking for Hardware MAC address on Infinity light [" + lightName + "] " + returnMACname() + " " + lightMAC)
+                printDebugString(f"Checking for Hardware MAC address on Infinity light [{lightName}] {returnMACname()} {lightMAC}")
 
                 if platform.system() == "Darwin": # we're on MacOS, so this needs a little finesse...
                     # run the System Profiler and get the Bluetooth specific devices
@@ -2644,7 +2657,7 @@ async def connectToLight(selectedLight, updateGUI=True):
                 else: # we're on a system that uses MAC addresses, so just duplicate the information
                     availableLights[selectedLight][0].HWMACaddr = availableLights[selectedLight][0].address
                 
-                printDebugString("Found Hardware MAC address: " + availableLights[selectedLight][0].HWMACaddr)
+                printDebugString(f">> Found Hardware MAC address: {availableLights[selectedLight][0].HWMACaddr}")
 
             if updateGUI == True:
                 mainWindow.setTheTable(["", "", "LINKED", "Waiting to send..."], lightIdx) # if it's successful, show that in the table
@@ -2719,8 +2732,8 @@ async def getLightChannelandPower(selectedLight):
     except IndexError:
         # if we have an IndexError (the information returned isn't blank, but also isn't enough to descipher the status)
         # then just error out, but print the information that *was* returned for debugging purposes
-        printDebugString("We don't have enough information from light [" + availableLights[selectedLight][0].name + "] to get the status.")
-        print(powerInfo)
+        printDebugString(f"We don't have enough information from light [{availableLights[selectedLight][0].name}] to get the status.")
+        printDebugString(f">> {powerInfo}")
 
     availableLights[selectedLight][7][0] = returnInfo[0]
 
@@ -2742,8 +2755,8 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
         except Exception as e:
             returnValue = False # if we're in CLI mode, then return False if there is an error disconnecting
 
-            printDebugString("Error unlinking from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
-            print(e)
+            printDebugString(f"Error unlinking from light {selectedLight + 1} [{availableLights[selectedLight][0].name}] {returnMACname()} {availableLights[selectedLight][0].address}")
+            printDebugString(f">> {e}")
 
         try:
             if not availableLights[selectedLight][1].is_connected: # if the current light is NOT connected, then we're good
@@ -2752,9 +2765,9 @@ async def disconnectFromLight(selectedLight, updateGUI=True):
                 else: # if we're not, then indicate that we're good
                     returnValue = True # if we're in CLI mode, then return False if there is an error disconnecting
 
-                printDebugString("Successfully unlinked from light " + str(selectedLight + 1) + " [" + availableLights[selectedLight][0].name + "] " + returnMACname() + " " + availableLights[selectedLight][0].address)
+                printDebugString(f"Successfully unlinked from light {selectedLight + 1} [{availableLights[selectedLight][0].name}] {returnMACname()} {availableLights[selectedLight][0].address}")
         except AttributeError:
-            printDebugString("Light " + str(selectedLight + 1) + " has no Bleak object attached to it, so not attempting to disconnect from it")
+            printDebugString(f"Light {selectedLight + 1} has no Bleak object attached to it, so not attempting to disconnect from it")
 
     return returnValue
 
@@ -2824,25 +2837,21 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
         # if there are lights selected (otherwise just dump out), and the delay timer is less than it's maximum, then try to send to the lights selected
         while (len(selectedLights) > 0 and time.time() - startTimer < 0.4) :
             if currentSendValue != sendValue: # if the current value is different than what was last sent to the light, then send a new one
-                currentSendValue = sendValue # get this value before sending to multiple lights, to ensure the same value is sent to each one
+                currentSendValue = sendValue[:] # get this value before sending to multiple lights, to ensure the same value is sent to each one
 
                 for a in range(len(selectedLights)): # try to write each light in turn, and show the current data being sent to them in the table
                     currentLightIdx = int(selectedLights[a])
                     
                     # THIS SECTION IS FOR LOADING SNAPSHOT PRESET POWER STATES
                     if useGlobalValue == False: # if we're forcing the lights to use their stored parameters, then load that in here
-                        if availableLights[currentLightIdx][3][0] == 0: # we want to turn the light off
-                            availableLights[currentLightIdx][3][0] = 120 # reset the light's value to the normal value
-                            currentSendValue = [120, 129, 1, 2] # set the send value to turn the light off downstream
-                        else: # we want to turn the light on and run a snapshot preset
-                            if availableLights[currentLightIdx][8] != 1: # we're not using an Infinity light
-                                await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
-                            else: # we're using an Infinity light
-                                await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("ON", availableLights[currentLightIdx][0].HWMACaddr))), False)
+                        if availableLights[currentLightIdx][8] != 1: # we're not using an Infinity light
+                            await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray([120, 129, 1, 1, 251]), False) # force this light to turn on
+                        else: # we're using an Infinity light
+                            await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(getInfinityPowerBytestring("ON", availableLights[currentLightIdx][0].HWMACaddr))), False)
 
-                            availableLights[currentLightIdx][6] = True # set the ON flag of this light to True
-                            await asyncio.sleep(0.05)
-                        
+                        availableLights[currentLightIdx][6] = True # set the ON flag of this light to True
+                        await asyncio.sleep(0.05)
+                    
                         currentSendValue = availableLights[currentLightIdx][3] # set the send value to set the preset downstream
 
                     if availableLights[currentLightIdx][1] != "": # if a Bleak connection is there
@@ -2963,8 +2972,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                             else:
                                 returnValue = True # we successfully wrote to the light
 
-                            if currentSendValue[1] != 129: # if we didn't just send a command to turn the light on/off
-                                availableLights[currentLightIdx][3] = currentSendValue # store the currenly sent value to recall later
+                            availableLights[currentLightIdx][3] = currentSendValue # store the currenly sent value to recall later
                         except Exception as e:
                             if updateGUI == True:
                                 mainWindow.setTheTable(["", "", "", "Error Sending to light!"], currentLightIdx)
@@ -2984,8 +2992,8 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
             if updateGUI == True:
                 selectedLights = mainWindow.selectedLights() # re-acquire the current list of selected lights
     except Exception as e:
-        printDebugString("There was an error communicating with light " + str(currentLightIdx + 1) + " [" + availableLights[currentLightIdx][0].name + "] " + returnMACname() + " " + availableLights[currentLightIdx][0].address)
-        print(e)
+        printDebugString(f"There was an error communicating with light {currentLightIdx + 1} [{availableLights[currentLightIdx][0].name}] {returnMACname()} {availableLights[currentLightIdx][0].address}")
+        printDebugString(f">> {e}")
 
         if updateGUI == True:
             returnValue = False # there was an error writing to this light, so return false to the CLI
@@ -3581,7 +3589,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-02-15-RC] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-03-02-RC] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3630,7 +3638,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
             self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-02-15-RC]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-03-02-RC]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3765,7 +3773,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. [2024-02-15-RC]")
+    print("             NeewerLite-Python ver. [2024-03-02-RC]")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3818,7 +3826,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python [2024-02-15-RC] by Zach Glenwright")
+            print("NeewerLite-Python [2024-03-02-RC] by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
@@ -3828,7 +3836,7 @@ if __name__ == '__main__':
                 if len(availableLights) == 1: # we only found one
                     print("We found 1 Neewer light on the last search.")
                 else: # we found more than one
-                    print("We found " + str(len(availableLights)) + " Neewer lights on the last search.")
+                    print(f"We found {str(len(availableLights))} Neewer lights on the last search.")
 
                 print()
 
@@ -3862,26 +3870,25 @@ if __name__ == '__main__':
 
             singleInstanceUnlockandQuit(0) # delete the lock file and quit out
 
-        printDebugString(" > Launch GUI: " + str(cmdReturn[0]))
-        printDebugString(" > Show Debug Strings on Console: " + str(cmdReturn[1]))
-
-        printDebugString(" > Mode: " + cmdReturn[3])
+        printDebugString(f" > Launch GUI: {cmdReturn[0]}")
+        printDebugString(f" > Show Debug Strings on Console: {cmdReturn[1]}")
+        printDebugString(f" > Mode: {cmdReturn[3]}")
 
         if cmdReturn[3] == "CCT":
             # if the default value for GM returned is "0", then the actual value is "50", so reset that
             if int(cmdReturn[6]) == 0:
                 cmdReturn[6] = 50
 
-            printDebugString(" > Color Temperature: " + str(cmdReturn[4]) + "00K")
-            printDebugString(" > Brightness: " + str(cmdReturn[5]))
-            printDebugString(" > GM Compensation: " + str(int(cmdReturn[6]) - 50))
+            printDebugString(f" > Color Temperature: {cmdReturn[4]}00K")
+            printDebugString(f" > Brightness: {cmdReturn[5]}")
+            printDebugString(f" > GM Compensation: {int(cmdReturn[6]) - 50}")
         elif cmdReturn[3] == "HSI":
-            printDebugString(" > Hue: " + str(cmdReturn[4]))
-            printDebugString(" > Saturation: " + str(cmdReturn[5]))
-            printDebugString(" > Brightness: " + str(cmdReturn[6]))
+            printDebugString(f" > Hue: {cmdReturn[4]}")
+            printDebugString(f" > Saturation: {cmdReturn[5]}")
+            printDebugString(f" > Brightness: {cmdReturn[6]}")
         elif cmdReturn[3] == "ANM":
-            printDebugString(" > Scene: " + str(cmdReturn[4]))
-            printDebugString(" > Brightness: " + str(cmdReturn[5]))
+            printDebugString(f" > Scene: {cmdReturn[4]}")
+            printDebugString(f" > Brightness: {cmdReturn[5]}")
 
         if cmdReturn[0] == False: # if we're not showing the GUI, we need to specify a MAC address
             if cmdReturn[2] != "":
@@ -3906,7 +3913,11 @@ if __name__ == '__main__':
     if cmdReturn[0] == True: # launch the GUI with the command-line arguments
         if importError == 0:
             try: # try to load the GUI
-                app = QApplication(sys.argv)
+                # set QT up to scale the GUI to the right size, regardless of high-DPI displays
+                os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"
+                QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+
+                app = QApplication(sys.argv) # launch the GUI itself
                 
                 if anotherInstance == True: # different than the CLI handling, the GUI needs to show a dialog box asking to quit or launch
                     errDlg = QMessageBox()
@@ -3986,7 +3997,7 @@ if __name__ == '__main__':
                 availableLights[a][3] = sendValue # use the specified parameters in every light's "last used parameters" value
 
             printDebugString("-------------------------------------------------------------------------------------")
-            printDebugString(" > CLI >> Configuration to send to light: " + updateStatus())
+            printDebugString(f" > CLI >> Configuration to send to light: {updateStatus()}")
             printDebugString("-------------------------------------------------------------------------------------")
             printDebugString(" > CLI >> Attempting to connect to lights...")
             printDebugString("-------------------------------------------------------------------------------------")
@@ -4014,6 +4025,6 @@ if __name__ == '__main__':
             singleInstanceUnlockandQuit(0) # delete the lock file and quit out
         else:
             printDebugString("-------------------------------------------------------------------------------------")
-            printDebugString(" > CLI >> Calculated bytestring:" + updateStatus())
+            printDebugString(f" > CLI >> Calculated bytestring: {updateStatus()}")
 
         singleInstanceUnlockandQuit(0) # delete the lock file and quit out
