@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. [2024-03-02-RC]
+## NeewerLite-Python ver. [2024-03-11-BETA]
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -44,14 +44,6 @@ except ModuleNotFoundError as e:
     print(" Or visit this website for more information:")
     print("    https://pypi.org/project/bleak/")
     sys.exit(1) # you can't use the program itself without Bleak, so kill the program if we don't have it
-
-# IMPORT THE WINDOWS LIBRARY (if you don't do this, it will throw an exception on Windows only)
-if platform.system() == "Windows": # try to load winrt if we're on Windows
-    try:
-        from winrt import _winrt
-        _winrt.uninit_apartment()
-    except Exception as e:
-        pass # if there is an exception to this module loading, you're not on Windows
 
 importError = 0 # whether or not there's an issue loading PySide2 or the GUI file
 
@@ -149,13 +141,16 @@ customLightPresetsFile = os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep 
 def singleInstanceLock():
     global anotherInstance
 
-    try:
-        lf = os.open(lockFile, os.O_WRONLY | os.O_CREAT | os.O_EXCL) # try to get a file spec to lock the "running" instance
-
-        with os.fdopen(lf, 'w') as lockfile:
-            lockfile.write(str(os.getpid())) # write the PID of the current running process to the temporary lockfile
-    except IOError: # if we had an error acquiring the file descriptor, the file most likely already exists.
+    if os.path.exists(lockFile): # the lockfile exists, so we have another instance running
         anotherInstance = True
+    else: # if it doesn't, try to create it
+        try:
+            lf = os.open(lockFile, os.O_WRONLY | os.O_CREAT | os.O_EXCL) # try to get a file spec to lock the "running" instance
+
+            with os.fdopen(lf, 'w') as lockfile:
+                lockfile.write(str(os.getpid())) # write the PID of the current running process to the temporary lockfile
+        except IOError: # if we had an error acquiring the file descriptor, the file most likely already exists.
+            anotherInstance = True
     
 def singleInstanceUnlockandQuit(exitCode):
     try:
@@ -940,32 +935,32 @@ try: # try to load the GUI
             if customKeys[12] != "7":
                 self.SC_Dec_1_Small.setKey(QKeySequence(customKeys[12]))
             else: # if we changed back to default, clear the key assignment if there was one before
-                self.SC_Dec_1_Small.setKey("")
+                self.SC_Dec_1_Small.setKey(QKeySequence())
 
             if customKeys[13] != "9":
                 self.SC_Inc_1_Small.setKey(QKeySequence(customKeys[13]))
             else:
-                self.SC_Inc_1_Small.setKey("")
+                self.SC_Inc_1_Small.setKey(QKeySequence())
 
             if customKeys[14] != "4":
                 self.SC_Dec_2_Small.setKey(QKeySequence(customKeys[14]))
             else:
-                self.SC_Dec_2_Small.setKey("")
+                self.SC_Dec_2_Small.setKey(QKeySequence())
             
             if customKeys[15] != "6":
                 self.SC_Inc_2_Small.setKey(QKeySequence(customKeys[15]))
             else:
-                self.SC_Inc_2_Small.setKey("")
+                self.SC_Inc_2_Small.setKey(QKeySequence())
 
             if customKeys[16] != "1":
                 self.SC_Dec_3_Small.setKey(QKeySequence(customKeys[16]))
             else:
-                self.SC_Dec_3_Small.setKey("")
+                self.SC_Dec_3_Small.setKey(QKeySequence())
 
             if customKeys[17] != "3":
                 self.SC_Inc_3_Small.setKey(QKeySequence(customKeys[17]))
             else:
-                self.SC_Inc_3_Small.setKey("")
+                self.SC_Inc_3_Small.setKey(QKeySequence())
                 
             self.SC_Dec_1_Large.setKey(QKeySequence(customKeys[18]))
             self.SC_Inc_1_Large.setKey(QKeySequence(customKeys[19]))
@@ -2539,17 +2534,16 @@ def getCorrectedName(lightName):
     return lightName
 
 # RETURN THE DEFAULT FACTORY SPECIFICATIONS FOR LIGHTS
-def getLightSpecs(lightName, returnParam = "all"):
+def getLightSpecs(lightName, returnParam = "all") -> list:
     # the first section of lights here are LED only (can't use HSI), and the 2nd section are HSI-capable lights
-    # listed with their name, the max and min color temps available to use in CCT mode, HSI only (True) or not (False)
-    # and Infinity mode command structure needed (most False, use this for the newest series of lights)
+    # listed with their name, the max and min color temps available to use in CCT mode, CCT only (True) or not (False)
+    # and Infinity mode command structure needed (0 - normal, 1 - infinity, 2 - infinity *protocol*, but not Infinity *light*)
     masterNeewerLightList = [
         ["Apollo", 5600, 5600, True, 0], ["GL1", 2900, 7000, True, 0], ["NL140", 3200, 5600, True, 0],
         ["SNL1320", 3200, 5600, True, 0], ["SNL1920", 3200, 5600, True, 0], ["SNL480", 3200, 5600, True, 0],
         ["SNL530", 3200, 5600, True, 0], ["SNL660", 3200, 5600, True, 0], ["SNL960", 3200, 5600, True, 0],
         ["SRP16", 3200, 5600, True, 0], ["SRP18", 3200, 5600, True, 0], ["WRP18", 3200, 5600, True, 0],
-        ["ZRP16", 3200, 5600, True, 0],
-        ["MS60B", 2700, 6500, True, 1],
+        ["ZRP16", 3200, 5600, True, 0], ["MS60B", 2700, 6500, True, 1],
         ["BH-30S RGB", 2500, 10000, False, 1], ["CB60 RGB", 2500, 6500, False, 1], ["CL124", 2500, 10000, False, 2],
         ["RGB C80", 2500, 10000, False, 1], ["RGB CB60", 2500, 10000, False, 1], ["RGB1000", 2500, 10000, False, 1],
         ["RGB1200", 2500, 10000, False, 1], ["RGB140", 2500, 10000, False, 1], ["RGB168", 2500, 8500, False, 0],
@@ -2560,7 +2554,7 @@ def getLightSpecs(lightName, returnParam = "all"):
         ["RGB530", 3200, 5600, False, 0], ["RGB650", 3200, 5600, False, 0], ["RGB660PRO", 3200, 5600, False, 0], 
         ["RGB660", 3200, 5600, False, 0], ["RGB960", 3200, 5600, False, 0], ["RGB-P200", 3200, 5600, False, 0], 
         ["RGB-P280", 3200, 5600, False, 0], ["SL70", 3200, 8500, False, 0], ["SL80", 3200, 8500, False, 0], 
-        ["ZK-RY", 5600, 5600, False, 0]
+        ["ZK-RY", 5600, 5600, False, 0], ["GL1C", 2900, 7000, False, 2]
     ]
     
     for a in range(len(masterNeewerLightList)): # scan the list of preset specs above to find the current light in them
@@ -2998,12 +2992,11 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
         if updateGUI == True:
             returnValue = False # there was an error writing to this light, so return false to the CLI
 
-    if updateGUI == True:
-        if threadAction != "quit": # if we've been asked to quit somewhere else in the program
-            printDebugString("Leaving send mode and going back to background thread")
-        else:
-            printDebugString("The program has requested to quit, so we're not going back to the background thread")
-            returnValue = "quit"
+    if threadAction != "quit": # if we've been asked to quit somewhere else in the program
+        printDebugString("Leaving send mode and going back to background thread")
+    else:
+        printDebugString("The program has requested to quit, so we're not going back to the background thread")
+        returnValue = "quit"
 
     return returnValue
 
@@ -3331,19 +3324,20 @@ def returnLightIndexesFromMacAddress(addresses):
         addressesToCheck = addresses.split(";")
 
         for a in range(len(addressesToCheck)):
-            try: # if the specified light is just an index, then return the light you asked for
-                currentLight = int(addressesToCheck[a]) - 1 # check to see if the current light can be converted to an integer
-
-                # if the above succeeds, make sure that the index returned is a valid light index
-                if currentLight < 0 or currentLight > len(availableLights):
-                    currentLight = -1 # if the index is less than 0, or higher than the last available light, then... nada
-            except ValueError: # we're most likely asking for a MAC address instead of an integer index
+            # we specified a MAC address, so get the index from that
+            if addressesToCheck[a].find(":") or addressesToCheck[a].find("-"):
                 currentLight = -1
 
                 for b in range(len(availableLights)):
                     if addressesToCheck[a].upper() == availableLights[b][0].address.upper(): # if the MAC address specified matches the current light
                         currentLight = b
                         break
+            else:
+                currentLight = int(addressesToCheck[a]) - 1 # convert the index given to a proper integer
+
+                # if the above succeeds, make sure that the index returned is a valid light index
+                if currentLight < 0 or currentLight > len(availableLights):
+                    currentLight = -1 # if the index is less than 0, or higher than the last available light, then... nada
 
             if currentLight != -1: # the found light index is valid
                 foundIndexes.append(currentLight) # add the found index to the list of indexes
@@ -3589,7 +3583,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-03-02-RC] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-03-11-BETA] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3638,7 +3632,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
             self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-03-02-RC]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-03-11-BETA]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3653,11 +3647,8 @@ def formatStringForConsole(theString, maxLength):
             return theString[0:maxLength - 4] + " ..."
 
 def createLightPrefsFolder():
-    #CREATE THE light_prefs FOLDER IF IT DOESN'T EXIST
-    try:
+    if not os.path.exists(os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs"):
         os.mkdir(os.path.dirname(os.path.abspath(sys.argv[0])) + os.sep + "light_prefs")
-    except FileExistsError:
-        pass # the folder already exists, so we don't need to create it
 
 def loadPrefsFile(globalPrefsFile = ""):
     global findLightsOnStartup, autoConnectToLights, printDebug, maxNumOfAttempts, \
@@ -3773,7 +3764,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. [2024-03-02-RC]")
+    print("             NeewerLite-Python ver. [2024-03-11-BETA]")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3826,7 +3817,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python [2024-03-02-RC] by Zach Glenwright")
+            print("NeewerLite-Python [2024-03-11-BETA] by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
