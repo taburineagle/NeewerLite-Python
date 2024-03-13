@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. [2024-03-11-BETA]
+## NeewerLite-Python ver. [2024-03-13-BETA]
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -3324,20 +3324,18 @@ def returnLightIndexesFromMacAddress(addresses):
         addressesToCheck = addresses.split(";")
 
         for a in range(len(addressesToCheck)):
-            # we specified a MAC address, so get the index from that
-            if addressesToCheck[a].find(":") or addressesToCheck[a].find("-"):
+            if addressesToCheck[a].isdigit(): # we can get an index out of this request
+                currentLight = int(addressesToCheck[a]) - 1
+
+                if currentLight < 0 or currentLight > len(availableLights):
+                    currentLight = -1 # if the index is less than 0, or higher than the last available light, then... nada
+            else: # find the index from the MAC addresses
                 currentLight = -1
 
                 for b in range(len(availableLights)):
                     if addressesToCheck[a].upper() == availableLights[b][0].address.upper(): # if the MAC address specified matches the current light
                         currentLight = b
                         break
-            else:
-                currentLight = int(addressesToCheck[a]) - 1 # convert the index given to a proper integer
-
-                # if the above succeeds, make sure that the index returned is a valid light index
-                if currentLight < 0 or currentLight > len(availableLights):
-                    currentLight = -1 # if the index is less than 0, or higher than the last available light, then... nada
 
             if currentLight != -1: # the found light index is valid
                 foundIndexes.append(currentLight) # add the found index to the list of indexes
@@ -3583,7 +3581,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-03-11-BETA] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-03-13-BETA] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3632,7 +3630,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
             self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-03-11-BETA]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-03-13-BETA]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatStringForConsole(theString, maxLength):
@@ -3764,7 +3762,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. [2024-03-11-BETA]")
+    print("             NeewerLite-Python ver. [2024-03-13-BETA]")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3817,7 +3815,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python [2024-03-11-BETA] by Zach Glenwright")
+            print("NeewerLite-Python [2024-03-13-BETA] by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
