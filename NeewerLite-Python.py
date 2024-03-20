@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. [2024-03-16-BETA]
+## NeewerLite-Python ver. [2024-03-20-BETA]
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -103,7 +103,7 @@ defaultLightPresets = [
     [[-1, [120, 135, 2, 20, 56, 50]]],
     [[-1, [120, 135, 2, 20, 32, 50]]],
     [[-1, [120, 135, 2, 0, 56, 50]]],
-    [[-1, [120, 134, 4, 120, 0, 100, 20]]],
+    [[-1, [120, 134, 4, 0, 0, 100, 20]]],
     [[-1, [120, 134, 4, 240, 0, 100, 20]]],
     [[-1, [120, 134, 4, 120, 0, 100, 20]]],
     [[-1, [120, 134, 4, 44, 1, 100, 20]]],
@@ -113,6 +113,7 @@ defaultLightPresets = [
 customLightPresets = defaultLightPresets[:] # copy the default presets to the list for the current session's presets
 
 threadAction = "" # the current action to take from the thread
+serverBusy = [False, ""] # whether or not the HTTP server is busy
 asyncioEventLoop = None # the current asyncio loop
 
 setLightUUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99" # the UUID to send information to the light
@@ -2059,11 +2060,21 @@ def testValid(theParam, theValue, defaultValue, startBounds, endBounds, returnDe
 
 # PRINT A DEBUG STRING TO THE CONSOLE, ALONG WITH THE CURRENT TIME
 def printDebugString(theString):
+    global serverBusy
+
     if printDebug == True:
         now = datetime.now()
         currentTime = now.strftime("%H:%M:%S")
 
-        print(f"[{currentTime}] {theString}")
+        statusString = f"[{currentTime}] {theString}"
+        print(statusString)
+
+        if serverBusy[0] == True: # set the server status string to the debug string
+            if theString != "Processing HTTP arguments": # show the last status from the debug string (not "Processing..." as we know that...)
+                serverBusy[1] = statusString
+        else: # clear it if the server isn't busy
+            if serverBusy[1] != "":
+                serverBusy[1] = ""
 
 def splitMACAddress(MACAddress, returnInt = False):
     MACAddress = MACAddress.split(":")
@@ -2535,39 +2546,69 @@ def getCorrectedName(lightName):
 
 # RETURN THE DEFAULT FACTORY SPECIFICATIONS FOR LIGHTS
 def getLightSpecs(lightName, returnParam = "all") -> list:
-    # the first section of lights here are LED only (can't use HSI), and the 2nd section are HSI-capable lights
-    # listed with their name, the max and min color temps available to use in CCT mode, CCT only (True) or not (False)
-    # and Infinity mode command structure needed (0 - normal, 1 - infinity, 2 - infinity *protocol*, but not Infinity *light*)
+    # 3-18-24 - re-arranged the list of lights in alphabetical order 
+    # to reduce parsing complexity at finding the light -- STRUCTURE:
+    # NAME, CCT Temp Min, CCT Temp Max, CCT Only, Infinity Mode*
+    # * (0 - normal, 1 - infinity, 2 - infinity *protocol*, but not Infinity *light*)
     masterNeewerLightList = [
-        ["Apollo", 5600, 5600, True, 0], ["GL1", 2900, 7000, True, 0], ["NL140", 3200, 5600, True, 0],
-        ["SNL1320", 3200, 5600, True, 0], ["SNL1920", 3200, 5600, True, 0], ["SNL480", 3200, 5600, True, 0],
-        ["SNL530", 3200, 5600, True, 0], ["SNL660", 3200, 5600, True, 0], ["SNL960", 3200, 5600, True, 0],
-        ["SRP16", 3200, 5600, True, 0], ["SRP18", 3200, 5600, True, 0], ["WRP18", 3200, 5600, True, 0],
-        ["ZRP16", 3200, 5600, True, 0], ["MS60B", 2700, 6500, True, 1],
-        ["BH-30S RGB", 2500, 10000, False, 1], ["CB60 RGB", 2500, 6500, False, 1], ["CL124", 2500, 10000, False, 2],
-        ["RGB C80", 2500, 10000, False, 1], ["RGB CB60", 2500, 10000, False, 1], ["RGB1000", 2500, 10000, False, 1],
-        ["RGB1200", 2500, 10000, False, 1], ["RGB140", 2500, 10000, False, 1], ["RGB168", 2500, 8500, False, 0],
-        ["RGB176 A1", 2500, 10000, False, 0], ["RGB512", 2500, 10000, False, 1], ["RGB800", 2500, 10000, False, 1],
-        ["SL90", 2500, 10000, False, 1], ["SL90 Pro", 2500, 10000, False, 1], ["RGB1", 3200, 5600, False, 1],
-        ["RGB176", 3200, 5600, False, 0], ["RGB18", 3200, 5600, False, 0], ["RGB190", 3200, 5600, False, 0], 
-        ["RGB450", 3200, 5600, False, 0], ["RGB480", 3200, 5600, False, 0], ["RGB530PRO", 3200, 5600, False, 0], 
-        ["RGB530", 3200, 5600, False, 0], ["RGB650", 3200, 5600, False, 0], ["RGB660PRO", 3200, 5600, False, 0], 
-        ["RGB660", 3200, 5600, False, 0], ["RGB960", 3200, 5600, False, 0], ["RGB-P200", 3200, 5600, False, 0], 
-        ["RGB-P280", 3200, 5600, False, 0], ["SL70", 3200, 8500, False, 0], ["SL80", 3200, 8500, False, 0], 
-        ["ZK-RY", 5600, 5600, False, 0], ["GL1C", 2900, 7000, False, 2]
+        ["Apollo", 5600, 5600, True, 0],
+        ["BH-30S RGB", 2500, 10000, False, 1],
+        ["CB60 RGB", 2500, 6500, False, 1],
+        ["CL124", 2500, 10000, False, 2],
+        ["GL1", 2900, 7000, True, 0],
+        ["GL1C", 2900, 7000, False, 2],
+        ["MS60B", 2700, 6500, True, 1],
+        ["NL140", 3200, 5600, True, 0],
+        ["RGB C80", 2500, 10000, False, 1],
+        ["RGB CB60", 2500, 10000, False, 1],
+        ["RGB1", 3200, 5600, False, 1],
+        ["RGB1000", 2500, 10000, False, 1],
+        ["RGB1200", 2500, 10000, False, 1],
+        ["RGB140", 2500, 10000, False, 1],
+        ["RGB168", 2500, 8500, False, 0],
+        ["RGB176", 3200, 5600, False, 0],
+        ["RGB176 A1", 2500, 10000, False, 0],
+        ["RGB18", 3200, 5600, False, 0],
+        ["RGB190", 3200, 5600, False, 0],
+        ["RGB450", 3200, 5600, False, 0],
+        ["RGB480", 3200, 5600, False, 0],
+        ["RGB512", 2500, 10000, False, 1],
+        ["RGB530", 3200, 5600, False, 0],
+        ["RGB530PRO", 3200, 5600, False, 0],
+        ["RGB650", 3200, 5600, False, 0],
+        ["RGB660", 3200, 5600, False, 0],
+        ["RGB660PRO", 3200, 5600, False, 0],
+        ["RGB800", 2500, 10000, False, 1],
+        ["RGB960", 3200, 5600, False, 0],
+        ["RGB-P200", 3200, 5600, False, 0],
+        ["RGB-P280", 3200, 5600, False, 0],
+        ["SL70", 3200, 8500, False, 0],
+        ["SL80", 3200, 8500, False, 0],
+        ["SL90", 2500, 10000, False, 1],
+        ["SL90 Pro", 2500, 10000, False, 1],
+        ["SNL1320", 3200, 5600, True, 0],
+        ["SNL1920", 3200, 5600, True, 0],
+        ["SNL480", 3200, 5600, True, 0],
+        ["SNL530", 3200, 5600, True, 0],
+        ["SNL660", 3200, 5600, True, 0],
+        ["SNL960", 3200, 5600, True, 0],
+        ["SRP16", 3200, 5600, True, 0],
+        ["SRP18", 3200, 5600, True, 0],
+        ["WRP18", 3200, 5600, True, 0],
+        ["ZK-RY", 5600, 5600, False, 0],
+        ["ZRP16", 3200, 5600, True, 0]
     ]
     
-    for a in range(len(masterNeewerLightList)): # scan the list of preset specs above to find the current light in them
-        # the default list of preferences - no custom name, a color temp range from 3200-5600K, and RGB not restricted (False)
-        # if we don't find the name of the light in the master list, we just return these default parameters
-        customPrefs = ["", [3200, 5600], False, False]
+    customPrefs = ["", [3200, 5600], False, False] # the default list of preferences
 
+    for a in reversed(range(len(masterNeewerLightList))): # scan the list of preset specs above to find the current light in them
         # check the master list to see if the current light is found - if it is, then change the prefs to reflect the light's spec
-        if masterNeewerLightList[a][0] in lightName:
+        if lightName.find(masterNeewerLightList[a][0]) != -1:
             # customPrefs[0] = masterNeewerLightList[a][0] # the name of the light (for testing purposes)
             customPrefs[1] = [masterNeewerLightList[a][1], masterNeewerLightList[a][2]] # the HSI color temp range
             customPrefs[2] = masterNeewerLightList[a][3] # whether or not to allow RGB commands
             customPrefs[3] = masterNeewerLightList[a][4] # whether or not this light uses Infinity mode
+            break # stop looking for lights if we found it!
 
     if returnParam == "all": # we want to return all information (the default)
         return customPrefs
@@ -3116,8 +3157,11 @@ def processCommands(listToProcess=[]):
             listToProcess[a] = listToProcess[a].lower() # we don't need to add dashes, so just switch to lowercase
 
     # ARGUMENTS EACH MODE HAS ACCESS TO
+    # 3-17-24 - added Infinity-style effect parameters to the list after --force_instance
     acceptable_arguments = ["--light", "--mode", "--temp", "--hue", "--sat", "--bri", "--intensity",
-                            "gm", "--scene", "--animation", "--list", "--on", "--off", "--force_instance"]
+                            "gm", "--scene", "--animation", "--list", "--on", "--off", "--force_instance",
+                            "bright_min", "bright_max", "temp_min", "temp_max", "hue_min", "hue_max",
+                            "speed", "sparks", "specialOptions"]
 
     # MODE-SPECIFIC ARGUMENTS
     if inStartupMode == True: # if we're using the GUI or CLI, then add these arguments to the list
@@ -3188,8 +3232,19 @@ def processCommands(listToProcess=[]):
     parser.add_argument("--hue", default="240", help="[DEFAULT: 240] (HSI mode) - the hue (0-360 degrees) to set the light to")
     parser.add_argument("--sat", "--saturation", default="100", help="[DEFAULT: 100] (HSI mode) The saturation (how vibrant the color is) to set the light to")
     parser.add_argument("--bri", "--brightness", "--intensity", default="100", help="[DEFAULT: 100] (CCT/HSI/ANM mode) The brightness (intensity) to set the light to")
-    parser.add_argument("--gm", "--GM", default="0", help="[DEFAULT:0] (CCT mode) The GM Compensation adjustment (-50 to 50) to set the light to (for Infinity lights)")
+    parser.add_argument("--gm", "--GM", default="0", help="[DEFAULT: 0] (CCT mode) The GM Compensation adjustment (-50 to 50) to set the light to (for Infinity lights)")
     parser.add_argument("--scene", "--animation", default="1", help="[DEFAULT: 1] (ANM or SCENE mode) The animation to use in Scene mode")
+
+    # 3-17-24 - ADDED ADDITIONAL INFINITY-SPECIFIC SCENE PARAMETERS
+    parser.add_argument("--bright_min", default="0", help="[DEFAULT:0] (Infinity light SCENE mode) The minimum brightness for the current scene")
+    parser.add_argument("--bright_max", default="100", help="[DEFAULT: 100] (Infinity light SCENE mode) The maximum brightness for the current scene")
+    parser.add_argument("--temp_min", default="32", help="[DEFAULT: 32(00)K] (Infinity light SCENE mode) The minimum color temperature for the current scene")
+    parser.add_argument("--temp_max", default="56", help="[DEFAULT: 56(00)K] (Infinity light SCENE mode) The maximum color temperature for the current scene")
+    parser.add_argument("--hue_min", default="0", help="[DEFAULT: 0] (Infinity light SCENE mode) The minimum hue for the current scene")
+    parser.add_argument("--hue_max", default="360", help="[DEFAULT: 360] (Infinity light SCENE mode) The maximum hue for the current scene")
+    parser.add_argument("--speed", default="5", help="[DEFAULT: 5] (Infinity light SCENE mode) The speed for the current scene")
+    parser.add_argument("--sparks", default="0", help="[DEFAULT: 0] (Infinity light SCENE mode) The sparks for the current scene")
+    parser.add_argument("--specialoptions", "--specialOptions", default="1", help="[DEFAULT: 1] (Infinity light SCENE mode) Special options for the current scene")
 
     args = parser.parse_args(listToProcess)
 
@@ -3236,6 +3291,8 @@ def processCommands(listToProcess=[]):
     elif args.off == True: # we want to turn the light off
         return [args.cli, args.silent, args.light, "OFF"]
 
+    GM = 50 + int(args.gm)
+
     # IF THE LIGHT ISN'T BEING TURNED OFF, CHECK TO SEE IF MODES ARE BEING SET
     if args.mode.lower() == "hsi":
         return [args.cli, args.silent, args.light, "HSI",
@@ -3244,14 +3301,25 @@ def processCommands(listToProcess=[]):
                 testValid("bri", args.bri, 100, 0, 100)]
     elif args.mode.lower() in ("anm", "scene"):
         return [args.cli, args.silent, args.light, "ANM",
-                testValid("scene", args.scene, 1, 1, 9),
-                testValid("bri", args.bri, 100, 0, 100)]
+                testValid("scene", args.scene, 1, 1, 29),
+                testValid("temp", args.temp, 56, 32, 85),
+                testValid("bri", args.bri, 100, 0, 100),
+                testValid("GM", GM, 50, 0, 100),
+                testValid("hue", args.hue, 240, 0, 360),
+                testValid("sat", args.sat, 100, 0, 100),
+                testValid("bright_min", args.bright_min, 0, 0, 100),
+                testValid("bright_max", args.bright_max, 100, 0, 100),
+                testValid("temp_min", args.temp_min, 32, 20, 100),
+                testValid("temp_max", args.temp_max, 52, 20, 100),
+                testValid("hue_min", args.hue_min, 0, 0, 360),
+                testValid("hue_max", args.hue_max, 360, 0, 360),
+                testValid("speed", args.speed, 5, 0, 10),
+                testValid("sparks", args.sparks, 0, 0, 10),
+                testValid("specialoptions", args.specialoptions, 1, 0, 4)]
     else: # we've either asked for CCT mode, or gave an invalid mode name
         if args.mode.lower() != "cct": # if we're not actually asking for CCT mode, display error message
             printDebugString(" >> Improper mode selected with --mode command - valid entries are")
             printDebugString(" >> CCT, HSI or either ANM or SCENE, so rolling back to CCT mode.")
-
-        GM = 50 + int(args.gm)
 
         # RETURN CCT MODE PARAMETERS IN CCT/ALL OTHER CASES
         return [args.cli, args.silent, args.light, "CCT",
@@ -3260,9 +3328,10 @@ def processCommands(listToProcess=[]):
                 testValid("GM", GM, 50, 0, 100)]
 
 def processHTMLCommands(paramsList, loop):
-    global threadAction
+    global threadAction, serverBusy
 
     if threadAction == "": # if we're not already processing info in another thread
+        serverBusy[0] = True
         threadAction = "HTTP"
 
         if len(paramsList) != 0:
@@ -3298,7 +3367,13 @@ def processHTMLCommands(paramsList, loop):
                 elif paramsList[3] == "HSI": # calculate HSI bytestring
                     calculateByteString(colorMode=paramsList[3], hue=paramsList[4], saturation=paramsList[5], brightness=paramsList[6])
                 elif paramsList[3] == "ANM": # calculate ANM/SCENE bytestring
-                    calculateByteString(colorMode=paramsList[3], effect=paramsList[4], brightness=paramsList[5])
+                    calculateByteString(colorMode=paramsList[3], effect=paramsList[4], 
+                                        temp=paramsList[5], brightness=paramsList[6], GM=paramsList[7], hue=paramsList[8], sat=paramsList[9],
+                                        bright_min=paramsList[10], bright_max=paramsList[11],
+                                        temp_min=paramsList[12], temp_max=paramsList[13],
+                                        hue_min=paramsList[14], hue_max=paramsList[15],
+                                        speed=paramsList[16], sparks=paramsList[17],
+                                        specialOptions=paramsList[18])
                 elif paramsList[3] == "ON": # turn the light(s) on
                     setPowerBytestring("ON")
                 elif paramsList[3] == "OFF": # turn the light(s) off
@@ -3310,6 +3385,7 @@ def processHTMLCommands(paramsList, loop):
                     asyncioEventLoop.run_until_complete(writeToLight(selectedLights, False))
 
             threadAction = "" # clear the thread variable
+            serverBusy[0] = False
     else:
         printDebugString("The HTTP Server requested an action, but we're already working on one.  Please wait...")
 
@@ -3409,6 +3485,12 @@ class NLPythonServer(BaseHTTPRequestHandler):
                     writeHTMLSections(self, "htmlendheaders")
                     return
                 else:
+                    # if we just asked the server to do something other than list the contents, set the busy state of the server to True before rendering the page...
+                    # ...long explanation, but this happens *first* before any HTTP processing itself, so it needs to be set on the front-end
+                    if paramsList[3] != "list": 
+                        global serverBusy
+                        serverBusy[0] = True
+
                     if paramsList[1] == True:
                         writeHTMLSections(self, "htmlheaders") # write the HTML header section
                         writeHTMLSections(self, "quicklinks-timer") # put the quicklinks (with timer) at the top of the page
@@ -3457,6 +3539,13 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         # JAVASCRIPT CODE TO CHANGE LIGHT NAMES
                         self.wfile.write(bytes("\n<!-- JAVASCRIPT CODE TO REFRESH PAGE / CHANGE LIGHT NAMES -->\n", "utf-8"))
                         self.wfile.write(bytes("<script language='JavaScript'>\n", "utf-8"))
+                        self.wfile.write(bytes("   window.addEventListener('focus', function(){\n", "utf-8"))
+                        self.wfile.write(bytes("      WT.restart();\n", "utf-8"))
+                        self.wfile.write(bytes("    })\n\n", "utf-8"))
+                        self.wfile.write(bytes("   window.addEventListener('blur', function(){\n", "utf-8"))
+                        self.wfile.write(bytes("      document.getElementById('refreshDisplay').innerText = 'You have clicked out of the page, so the refresh timer has been stopped.';\n", "utf-8"))                    
+                        self.wfile.write(bytes("      WT.stop();\n", "utf-8"))
+                        self.wfile.write(bytes("   })\n\n", "utf-8"))
                         self.wfile.write(bytes("  class webTimer{\n", "utf-8"))
                         self.wfile.write(bytes("    constructor(timeOut) {\n", "utf-8"))
                         self.wfile.write(bytes("      this.isRunning = true; // set to 'running' status on creation\n", "utf-8"))
@@ -3478,14 +3567,16 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         self.wfile.write(bytes("    }\n", "utf-8"))
                         self.wfile.write(bytes("  }\n\n", "utf-8"))
                         self.wfile.write(bytes("  function checkPageReload(ctElapsed) {\n", "utf-8"))
-                        self.wfile.write(bytes("    if (ctElapsed > 0) {\n", "utf-8"))
-                        self.wfile.write(bytes("      if (ctElapsed > 1) {\n", "utf-8"))
-                        self.wfile.write(bytes("        document.getElementById('refreshDisplay').innerText = 'This page will auto-refresh in ' + ctElapsed + ' seconds';\n", "utf-8"))
+                        self.wfile.write(bytes("    if (ctElapsed != 42) {\n", "utf-8"))
+                        self.wfile.write(bytes("      if (ctElapsed > 0) {\n", "utf-8"))
+                        self.wfile.write(bytes("        if (ctElapsed > 1) {\n", "utf-8"))
+                        self.wfile.write(bytes("          document.getElementById('refreshDisplay').innerText = 'This page will auto-refresh in ' + ctElapsed + ' seconds';\n", "utf-8"))
+                        self.wfile.write(bytes("        } else {\n", "utf-8"))
+                        self.wfile.write(bytes("          document.getElementById('refreshDisplay').innerText = 'This page will auto-refresh in 1 second';\n", "utf-8"))
+                        self.wfile.write(bytes("        }\n", "utf-8"))
                         self.wfile.write(bytes("      } else {\n", "utf-8"))
-                        self.wfile.write(bytes("        document.getElementById('refreshDisplay').innerText = 'This page will auto-refresh in 1 second';\n", "utf-8"))
+                        self.wfile.write(bytes("        location.replace('/NeewerLite-Python/doAction?list');\n", "utf-8"))
                         self.wfile.write(bytes("      }\n", "utf-8"))
-                        self.wfile.write(bytes("    } else {\n", "utf-8"))
-                        self.wfile.write(bytes("      location.assign('/NeewerLite-Python/doAction?list');\n", "utf-8"))
                         self.wfile.write(bytes("    }\n", "utf-8"))
                         self.wfile.write(bytes("  }\n\n", "utf-8"))
                         self.wfile.write(bytes("  function editLight(lightNum, lightType, previousName) {\n", "utf-8"))
@@ -3498,7 +3589,12 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         self.wfile.write(bytes("      WT.restart(); // restart the countdown timer for refreshing the page\n", "utf-8"))
                         self.wfile.write(bytes("    }\n", "utf-8"))
                         self.wfile.write(bytes("  }\n\n", "utf-8"))
-                        self.wfile.write(bytes("  const timeOut = 8; // the delay in seconds before the page reloads\n", "utf-8"))
+
+                        if serverBusy[0] == False: # if we're not working on something, then the normal delay should be 8 seconds
+                            self.wfile.write(bytes("  const timeOut = 8; // the delay in seconds before the page reloads\n", "utf-8"))
+                        else: # if we are currently busy, then refresh every 2 seconds
+                            self.wfile.write(bytes("  const timeOut = 2; // the delay in seconds before the page reloads\n", "utf-8"))
+
                         self.wfile.write(bytes("  const WT = new webTimer(timeOut); // the timer to track the above\n\n", "utf-8"))
                         self.wfile.write(bytes("  // The check to see whether or not to refresh the page\n", "utf-8"))
                         self.wfile.write(bytes("  setInterval(() => {\n", "utf-8"))
@@ -3508,7 +3604,7 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         self.wfile.write(bytes("</script>\n\n", "utf-8"))
 
                         if totalLights == 0: # there are no lights available to you at the moment!
-                            self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, <A HREF='doAction?discover'>click here</a>.<BR>\n", "utf-8"))
+                            self.wfile.write(bytes("NeewerLite-Python is not currently set up with any Neewer lights.  To discover new lights, " + formatURLForHyperlink("doAction?discover", "click here") + ".<BR>\n", "utf-8"))
                         else:
                             self.wfile.write(bytes("List of available Neewer lights:<BR><BR>\n", "utf-8"))
                             self.wfile.write(bytes("<TABLE WIDTH='98%' BORDER='1'>\n", "utf-8"))
@@ -3525,7 +3621,12 @@ class NLPythonServer(BaseHTTPRequestHandler):
                             for a in range(totalLights):
                                 self.wfile.write(bytes("  <TR>\n", "utf-8"))
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(173,255,47)'>" + str(a + 1) + "</TD>\n", "utf-8")) # light ID #
-                                self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'><button onclick='editLight(" + str(a) + ", \"" + availableLights[a][0].name + "\", \"" + availableLights[a][2] + "\")'>Edit</button>&nbsp;&nbsp;" + availableLights[a][2] + "</TD>\n", "utf-8")) # light custom name
+
+                                if serverBusy[0] == False: # add the "Edit" button to set a custom name for this light
+                                    self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'><button onclick='editLight(" + str(a) + ", \"" + availableLights[a][0].name + "\", \"" + availableLights[a][2] + "\")'>Edit</button>&nbsp;&nbsp;" + availableLights[a][2] + "</TD>\n", "utf-8")) # light custom name
+                                else: # if the server is busy with another request, just list the current custom name
+                                    self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][2] + "</TD>\n", "utf-8")) # light custom name
+                                
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][0].name + "</TD>\n", "utf-8")) # light type
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + availableLights[a][0].address + "</TD>\n", "utf-8")) # light MAC address
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + str(availableLights[a][0].rssi) + " dbM</TD>\n", "utf-8")) # light RSSI (signal quality)
@@ -3534,9 +3635,9 @@ class NLPythonServer(BaseHTTPRequestHandler):
                                     if availableLights[a][1].is_connected:
                                         self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + "Yes" + "</TD>\n", "utf-8")) # is the light linked?
                                     else:
-                                        self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + "<A HREF='doAction?link=" + str(a + 1) + "'>No</A></TD>\n", "utf-8")) # is the light linked?
+                                        self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + formatURLForHyperlink("doAction?link=" + str(a + 1), "No") + "</TD>\n", "utf-8")) # is the light linked?
                                 except Exception as e:
-                                    self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + "<A HREF='doAction?link=" + str(a + 1) + "'>No</A></TD>\n", "utf-8")) # is the light linked?
+                                    self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + formatURLForHyperlink("doAction?link=" + str(a + 1), "No") + "</TD>\n", "utf-8")) # is the light linked?
 
                                 self.wfile.write(bytes("     <TD STYLE='background-color:rgb(240,248,255)'>" + updateStatus(customValue=availableLights[a][3]) + "</TD>\n", "utf-8")) # the last sent value to the light
                                 self.wfile.write(bytes("  </TR>\n", "utf-8"))
@@ -3556,9 +3657,9 @@ class NLPythonServer(BaseHTTPRequestHandler):
                         for a in range(4): # build the list itself, showing 2 presets next to each other
                             currentPreset = (2 * a)
                             self.wfile.write(bytes("  <TR>\n", "utf-8"))
-                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(173,255,47)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 1) + "'>" + str(currentPreset + 1) + "</A></FONT></TD>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(173,255,47)'><FONT SIZE='+2'>" + formatURLForHyperlink("doAction?use_preset=" + str(currentPreset + 1), str(currentPreset + 1)) + "</FONT></TD>\n", "utf-8"))
                             self.wfile.write(bytes("     <TD VALIGN='TOP' STYLE='background-color:rgb(240,248,255)'>" + customPresetInfoBuilder(currentPreset, True) + "</TD>\n", "utf-8"))
-                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(173,255,47)'><FONT SIZE='+2'><A HREF='doAction?use_preset=" + str(currentPreset + 2) + "'>" + str(currentPreset + 2) + "</A></FONT></TD>\n", "utf-8"))
+                            self.wfile.write(bytes("     <TD ALIGN='CENTER' STYLE='background-color:rgb(173,255,47)'><FONT SIZE='+2'>" + formatURLForHyperlink("doAction?use_preset=" + str(currentPreset + 2), str(currentPreset + 2)) + "</FONT></TD>\n", "utf-8"))
                             self.wfile.write(bytes("     <TD VALIGN='TOP' STYLE='background-color:rgb(240,248,255)'>" + customPresetInfoBuilder(currentPreset + 1, True) + "</TD>\n", "utf-8"))
                             self.wfile.write(bytes("  </TR>\n", "utf-8"))
                         
@@ -3569,6 +3670,8 @@ class NLPythonServer(BaseHTTPRequestHandler):
                 writeHTMLSections(self, "htmlendheaders") # add the ending section to the very bottom
 
 def writeHTMLSections(self, theSection, errorMsg = ""):
+    global serverBusy
+    
     if theSection == "httpheaders":
         self.send_response(200)
         self._send_cors_headers()
@@ -3580,7 +3683,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-03-16-BETA] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-03-20-BETA] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3622,15 +3725,31 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
         self.wfile.write(bytes("&nbsp;&nbsp;&nbsp;&nbsp;<EM>http://(server address)/NeewerLite-Python/doAction?use_preset=2&nopage</EM><BR>\n", "utf-8"))
     elif theSection == "quicklinks" or theSection == "quicklinks-timer":
         footerLinks = "Shortcut links: "
-        footerLinks = footerLinks + "<A HREF='doAction?discover'>Scan for New Lights</A> | "
-        footerLinks = footerLinks + "<A HREF='doAction?list'>List Currently Available Lights and Custom Presets</A>"
+        footerLinks = footerLinks + formatURLForHyperlink("doAction?discover", "Scan for New Lights") + " | "
+        footerLinks = footerLinks + formatURLForHyperlink("doAction?list", "List Currently Available Lights and Custom Presets")
         self.wfile.write(bytes("<CENTER><HR>" + footerLinks + "<HR></CENTER>\n", "utf-8"))
 
         if theSection == "quicklinks-timer": # write the "This page will refresh..." timer
-            self.wfile.write(bytes("<CENTER><strong><em><span id='refreshDisplay'><BR></span></em></strong></CENTER><HR>\n", "utf-8"))
+            if serverBusy[0] == True:
+                self.wfile.write(bytes("<CENTER><STRONG>&#128683;The HTTP Server is busy with a request, so another one can not be made yet...&#128683;</STRONG></CENTER><R>\n", "utf-8"))
+
+                if serverBusy[1] != "":
+                    self.wfile.write(bytes("<CENTER><STRONG>Last Update: " + serverBusy[1] + "</STRONG></CENTER>\n", "utf-8"))
+
+                self.wfile.write(bytes("<HR>\n", "utf-8"))
+
+            self.wfile.write(bytes("<CENTER><STRONG><em><span id='refreshDisplay'><BR></span></em></STRONG></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/'>NeewerLite-Python [2024-03-16-BETA]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/' TARGET='_blank'>NeewerLite-Python [2024-03-20-BETA]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
+
+def formatURLForHyperlink(theURL, theText):
+    global serverBusy # whether or not the HTTP server is busy
+    
+    if serverBusy[0]:
+        return theText
+    else:
+        return "<A HREF='" + theURL + "'>" + theText + "</A>"
 
 def formatStringForConsole(theString, maxLength):
     if theString == "-": # return a header divider if the string is "="
@@ -3761,7 +3880,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. [2024-03-16-BETA]")
+    print("             NeewerLite-Python ver. [2024-03-20-BETA]")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3814,7 +3933,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python [2024-03-16-BETA] by Zach Glenwright")
+            print("NeewerLite-Python [2024-03-20-BETA] by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
