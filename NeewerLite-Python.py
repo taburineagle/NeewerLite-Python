@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. [2024-03-20-BETA]
+## NeewerLite-Python ver. [2024-04-20-BETA]
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -2594,6 +2594,7 @@ def getLightSpecs(lightName, returnParam = "all") -> list:
         ["SNL960", 3200, 5600, True, 0],
         ["SRP16", 3200, 5600, True, 0],
         ["SRP18", 3200, 5600, True, 0],
+        ["TL60", 2500, 10000, False, 1],
         ["WRP18", 3200, 5600, True, 0],
         ["ZK-RY", 5600, 5600, False, 0],
         ["ZRP16", 3200, 5600, True, 0]
@@ -3683,7 +3684,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-03-20-BETA] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-04-20-BETA] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -3740,7 +3741,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
 
             self.wfile.write(bytes("<CENTER><STRONG><em><span id='refreshDisplay'><BR></span></em></STRONG></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/' TARGET='_blank'>NeewerLite-Python [2024-03-20-BETA]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/' TARGET='_blank'>NeewerLite-Python [2024-04-20-BETA]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatURLForHyperlink(theURL, theText):
@@ -3880,7 +3881,7 @@ def loadPrefsFile(globalPrefsFile = ""):
 if __name__ == '__main__':
     # Display the version of NeewerLite-Python we're using
     print("---------------------------------------------------------")
-    print("             NeewerLite-Python ver. [2024-03-20-BETA]")
+    print("             NeewerLite-Python ver. [2024-04-20-BETA]")
     print("                 by Zach Glenwright")
     print("  > https://github.com/taburineagle/NeewerLite-Python <")
     print("---------------------------------------------------------")
@@ -3933,7 +3934,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python [2024-03-20-BETA] by Zach Glenwright")
+            print("NeewerLite-Python [2024-04-20-BETA] by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
