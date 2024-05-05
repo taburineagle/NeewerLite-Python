@@ -3303,7 +3303,7 @@ def processCommands(listToProcess=[]):
     elif args.mode.lower() in ("anm", "scene"):
         return [args.cli, args.silent, args.light, "ANM",
                 testValid("scene", args.scene, 1, 1, 29),
-                testValid("temp", args.temp, 56, 32, 85),
+                testValid("temp", args.temp, 56, 25, 100),
                 testValid("bri", args.bri, 100, 0, 100),
                 testValid("GM", GM, 50, 0, 100),
                 testValid("hue", args.hue, 240, 0, 360),
@@ -3324,7 +3324,7 @@ def processCommands(listToProcess=[]):
 
         # RETURN CCT MODE PARAMETERS IN CCT/ALL OTHER CASES
         return [args.cli, args.silent, args.light, "CCT",
-                testValid("temp", args.temp, 56, 32, 85),
+                testValid("temp", args.temp, 56, 25, 100),
                 testValid("bri", args.bri, 100, 0, 100),
                 testValid("GM", GM, 50, 0, 100)]
 
