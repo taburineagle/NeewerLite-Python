@@ -105,10 +105,29 @@ if importError == 1:
             print("PySide2 is installed, but couldn't be imported...")
             importError = 1 # log that we can't import PySide2
     else:
-        print("PySide2 isn't installed!")
+        print(" ===== CAN NOT FIND PYSIDE6 or PYSIDE2 LIBRARIES =====")
+        print(" You don't have the PySide2 or PySide6 Python libraries installed.  If you're only running NeewerLite-Python from")
+        print(" a command-line (from a Raspberry Pi CLI for instance), or using the HTTP server, you don't need this package.")
+        print(" If you want to launch NeewerLite-Python with the GUI, you need to install either the PySide2 or PySide6 package.")
+        print()
+        print(" To install PySide2, run either pip or pip3 from the command line:")
+        print("    pip install PySide2")
+        print("    pip3 install PySide2")
+        print()
+        print(" To install PySide6, run either pip or pip3 from the command line:")
+        print("    pip install PySide6")
+        print("    pip3 install PySide6")
+        print()
+        print(" Visit these websites for more information:")
+        print("    https://pypi.org/project/PySide2/")
+        print("    https://pypi.org/project/PySide6/")
+
         importError = 1 # log that we had an issue with importing PySide2
 
 print("---------------------------------------------------------")
+
+if importError != 0:
+    sys.exit(1)
 
 # IMPORT THE HTTP SERVER
 try:
@@ -225,8 +244,8 @@ mainFont.setBold(True)
 
 if PySideGUI == "PySide2":
     mainFont.setWeight(75)
-else: # if we're using PySide6, the old "font weight" method is now a legacy method
-    mainFont.setLegacyWeight(75)
+else: # if we're using PySide6, the old "font weight" method is deprecated
+    mainFont.setWeight(QFont.ExtraBold)
 
 def combinePySideValues(theValues):
     # ADDED THIS TO FIX PySide2 VERSIONS < 5.15 
@@ -4960,30 +4979,6 @@ if __name__ == '__main__':
                 singleInstanceUnlockandQuit(ret) # delete the lock file and quit out
             except NameError:
                 pass # same as above - we could not load the GUI, but we have already sorted error messages
-        else:
-            if importError == 1: # we can't load PySide2
-                print(" ===== CAN NOT FIND PYSIDE2 LIBRARY =====")
-                print(" You don't have the PySide2 Python library installed.  If you're only running NeewerLite-Python from")
-                print(" a command-line (from a Raspberry Pi CLI for instance), or using the HTTP server, you don't need this package.")
-                print(" If you want to launch NeewerLite-Python with the GUI, you need to install the PySide2 package.")
-                print()
-                print(" To install PySide2, run either pip or pip3 from the command line:")
-                print("    pip install PySide2")
-                print("    pip3 install PySide2")
-                print()
-                print(" Or visit this website for more information:")
-                print("    https://pypi.org/project/PySide2/")
-            elif importError == 2: # we have PySide2, but can't load the GUI file itself for some reason
-                print(" ===== COULD NOT LOAD/FIND GUI FILE =====")
-                print(" If you don't need to use the GUI, you are fine going without the PySide2 pacakge.")
-                print(" but using NeewerLite-Python with the GUI requires the PySide2 library.")
-                print()
-                print(" If you have already installed the PySide2 library but are still getting this error message,")
-                print(" Make sure you have the ui_NeewerLightUI.py script in the same directory as NeewerLite-Python.py")
-                print(" If you don't know where that file is, redownload the NeewerLite-Python package from Github here:")
-                print("    https://github.com/taburineagle/NeewerLite-Python/")
-
-                sys.exit(1) # quit out, we can't run the program without PySide2 or the GUI (for the GUI version, at least)
     else: # don't launch the GUI, send command to a light/lights and quit out
         if len(cmdReturn) > 1:
             if cmdReturn[3] == "CCT": # calculate CCT bytestring
