@@ -394,12 +394,6 @@ if PySideGUI != None: # create the GUI if the PySide GUI classes are imported
 
             self.specialOptionsSection.hide()
 
-            # self.specialOptionsChooser.addItems(["Red", "Blue", "Red and Blue", "White and Blue", "Red, Blue and White"])
-            # self.specialOptionsChooser.setCurrentIndex(2)
-
-            # self.specialOptionsSetion.setParent(self.CCT)
-            # self.specialOptionsSetion.move(8, 20)
-
             # =============================================================================
 
             # === >> THE LIGHT PREFS TAB << ===
@@ -3477,7 +3471,7 @@ def getLightSpecs(lightName, returnParam = "all") -> list:
         ["RGB1000", 2500, 10000, False, 1],
         ["RGB1200", 2500, 10000, False, 1],
         ["RGB140", 2500, 10000, False, 1],
-        ["RGB168", 2500, 8500, False, 0],
+        ["RGB168", 2500, 8500, False, 1],
         ["RGB176", 3200, 5600, False, 0],
         ["RGB176 A1", 2500, 10000, False, 0],
         ["RGB18", 3200, 5600, False, 0],
