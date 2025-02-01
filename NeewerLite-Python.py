@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 #############################################################
-## NeewerLite-Python ver. [2024-09-02-BETA]
+## NeewerLite-Python ver. [2025-02-01-BETA]
 ## by Zach Glenwright
 ############################################################
 ## > https://github.com/taburineagle/NeewerLite-Python/ <
@@ -32,7 +32,7 @@ from importlib import metadata as ilm # determining which version of packages ar
 
 # Display the version of NeewerLite-Python we're using
 print("---------------------------------------------------------")
-print("             NeewerLite-Python ver. [2024-09-02-BETA]")
+print("             NeewerLite-Python ver. [2025-02-01-BETA]")
 print("                 by Zach Glenwright")
 print("  > https://github.com/taburineagle/NeewerLite-Python <")
 print("---------------------------------------------------------")
@@ -259,7 +259,7 @@ if PySideGUI != None: # create the GUI if the PySide GUI classes are imported
         def setupUi(self, MainWindow):
             # ============ FONTS, GRADIENTS AND OTHER WINDOW SPECIFICS ============
             MainWindow.setFixedSize(590, 670) # the main window should be this size at launch, and no bigger
-            MainWindow.setWindowTitle("NeewerLite-Python [2024-09-02-BETA] by Zach Glenwright")
+            MainWindow.setWindowTitle("NeewerLite-Python [2025-02-01-BETA] by Zach Glenwright")
 
             self.centralwidget = QWidget(MainWindow)
             self.centralwidget.setObjectName(u"centralwidget")
@@ -3863,7 +3863,7 @@ async def writeToLight(selectedLights=0, updateGUI=True, useGlobalValue=True):
                                         await asyncio.sleep(0.05)
                                     elif currentSendValue[1] == 129: # we need to turn the light on or off
                                         infinitySendValue.extend([129, currentSendValue[3]])
-                                        
+
                                     await availableLights[currentLightIdx][1].write_gatt_char(setLightUUID, bytearray(tagChecksum(infinitySendValue)), False)
                                 else:
                                     if currentSendValue[1] == 135: # you're in CCT mode
@@ -4590,7 +4590,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
     elif theSection == "htmlheaders":
         self.wfile.write(bytes("<!DOCTYPE html>\n", "utf-8"))
         self.wfile.write(bytes("<HTML>\n<HEAD>\n", "utf-8"))
-        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2024-09-02-BETA] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
+        self.wfile.write(bytes("<TITLE>NeewerLite-Python [2025-02-01-BETA] HTTP Server by Zach Glenwright</TITLE>\n</HEAD>\n", "utf-8"))
         self.wfile.write(bytes("<BODY>\n", "utf-8"))
     elif theSection == "errorHelp":
         self.wfile.write(bytes("<H1>Invalid request!</H1>\n", "utf-8"))
@@ -4647,7 +4647,7 @@ def writeHTMLSections(self, theSection, errorMsg = ""):
 
             self.wfile.write(bytes("<CENTER><STRONG><em><span id='refreshDisplay'><BR></span></em></STRONG></CENTER><HR>\n", "utf-8"))
     elif theSection == "htmlendheaders":
-        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/' TARGET='_blank'>NeewerLite-Python [2024-09-02-BETA]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
+        self.wfile.write(bytes("<CENTER><A HREF='https://github.com/taburineagle/NeewerLite-Python/' TARGET='_blank'>NeewerLite-Python [2025-02-01-BETA]</A> / HTTP Server / by Zach Glenwright<BR></CENTER>\n", "utf-8"))
         self.wfile.write(bytes("</BODY>\n</HTML>", "utf-8"))
 
 def formatURLForHyperlink(theURL, theText):
@@ -4833,7 +4833,7 @@ if __name__ == '__main__':
         if cmdReturn[0] == "LIST":
             doAnotherInstanceCheck() # check to see if another instance is running, and if it is, then error out and quit
 
-            print("NeewerLite-Python [2024-09-02-BETA] by Zach Glenwright")
+            print("NeewerLite-Python [2025-02-01-BETA] by Zach Glenwright")
             print("Searching for nearby Neewer lights...")
             asyncioEventLoop.run_until_complete(findDevices())
 
