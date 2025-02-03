@@ -3462,7 +3462,7 @@ def getLightSpecs(lightName, returnParam = "all") -> list:
         ["CB60 RGB", 2500, 6500, False, 1],
         ["CL124", 2500, 10000, False, 2],
         ["GL1", 2900, 7000, True, 0],
-        ["GL1C", 2900, 7000, False, 2],
+        ["GL1C", 2900, 7000, False, 1],
         ["MS60B", 2700, 6500, True, 1],
         ["NL140", 3200, 5600, True, 0],
         ["RGB C80", 2500, 10000, False, 1],
