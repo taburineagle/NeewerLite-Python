@@ -3471,7 +3471,7 @@ def getLightSpecs(lightName, returnParam = "all") -> list:
         ["RGB1000", 2500, 10000, False, 1],
         ["RGB1200", 2500, 10000, False, 1],
         ["RGB140", 2500, 10000, False, 1],
-        ["RGB168", 2500, 8500, False, 1],
+        ["RGB168", 2500, 8500, False, 2],
         ["RGB176", 3200, 5600, False, 0],
         ["RGB176 A1", 2500, 10000, False, 0],
         ["RGB18", 3200, 5600, False, 0],
