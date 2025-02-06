@@ -3440,7 +3440,7 @@ def getCorrectedName(lightName):
         ["20220046", "RP19C"],  ["20220051", "CB100C"],  ["20220055", "CB300B"], ["20220057", "SL90 Pro"],
         ["20230021", "BH-30S RGB"], ["20230022", "HS60B"], ["20230025", "RGB1200"], ["20230031", "TL120C"],
         ["20230050", "FS230 5600K"], ["20230051", "FS230B"], ["20230052", "FS150 5600K"], ["20230064", "TL60 RGB"],
-        ["20230080", "MS60C"], ["20230092", "RGB1200"]
+        ["20230080", "MS60C"], ["20230092", "RGB1200"], ["20230108", "HB80C"]
     ]
 
     for a in range(len(newLightNames)):
@@ -3503,7 +3503,8 @@ def getLightSpecs(lightName, returnParam = "all") -> list:
         ["TL60", 2500, 10000, False, 1],
         ["WRP18", 3200, 5600, True, 0],
         ["ZK-RY", 5600, 5600, False, 0],
-        ["ZRP16", 3200, 5600, True, 0]
+        ["ZRP16", 3200, 5600, True, 0],
+        ["HB80C", 2500, 7500, False, 1]
     ]
     
     customPrefs = ["", [3200, 5600], False, False] # the default list of preferences
